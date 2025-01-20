@@ -1,56 +1,168 @@
 package wacc
 
-import java.io.FileInputStream
-import java.util.Properties
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers.*
+import org.scalatest.BeforeAndAfterAll
 import os.*
 
-import parsley.{Parsley, Success, Failure}
-import parser.parser
+import parsley.{Success, Failure}
+import TestStatus.*
 
-class FrontEndTests extends AnyFlatSpec {
-    val props = new Properties()
-    props.load(new FileInputStream("src/test/wacc/properties"))
-    
+enum TestStatus {
+    case Active
+    case Pending
+    case Ignored
+}
+
+case class TestCount(var correct: Int, var total: Int)
+
+class FrontEndTests extends AnyFreeSpec with BeforeAndAfterAll {
     val examples = os.pwd / "src" / "test" / "wacc" / "examples"
-    
-    // Get enabled valid directories
-    val validDirs = props.getProperty("valid.dirs").split(",").filter { dir =>
-        props.getProperty(s"valid.$dir.enabled", "false").toBoolean
-    }
-    
-    // Get enabled invalid directories
-    val invalidDirs = props.getProperty("invalid.dirs").split(",").filter { dir =>
-        props.getProperty(s"invalid.$dir.enabled", "false").toBoolean
-    }
-    
-    // Generate paths for enabled valid directories
-    val validFiles: Seq[Path] = validDirs.flatMap { dir =>
-        os.walk.stream(examples / "valid" / dir).filter(os.isFile)
-    }
-    
-    // Generate paths for enabled invalid directories
-    val invalidFiles: Seq[Path] = invalidDirs.flatMap { dir =>
-        os.walk.stream(examples / "invalid" / dir).filter(os.isFile)
-    }
 
-    "Front End" should "parse all valid WACC examples" in {
-        for (file <- validFiles) {
-            val waccFile: String = os.read(file)
-            parser.parse(waccFile) match {
-                case Success(_) => succeed(s"${file} : succeeded")
-                case Failure(msg) => fail(s"${file} : failed\nwith message: ${msg}")
+    val validCount = TestCount(0, 0)
+    val syntaxCount = TestCount(0, 0)
+    val semanticCount = TestCount(0, 0)
+
+    val validTestCases = Map(
+        "advanced"    -> Pending,
+        "array"       -> Pending,
+        "basic"       -> Pending,
+        "expressions" -> Pending,
+        "function"    -> Pending,
+        "if"          -> Pending,
+        "IO"          -> Pending,
+        "pairs"       -> Pending,
+        "runtimeErr"  -> Pending,
+        "scope"       -> Pending,
+        "sequence"    -> Pending,
+        "variables"   -> Pending,
+        "while"       -> Pending
+    )
+
+    val syntaxErrTestCases = Seq(
+        "array", "basic", "expressions", "function", "if", "literals",
+        "pairs", "print", "sequence", "variables", "while"
+    )
+
+    val semanticErrTestCases = Map(
+        "array"       -> Pending,
+        "exit"        -> Pending,
+        "expressions" -> Pending,
+        "function"    -> Pending,
+        "if"          -> Pending,
+        "IO"          -> Pending,
+        "multiple"    -> Pending,
+        "pairs"       -> Pending,
+        "print"       -> Pending,
+        "read"        -> Pending,
+        "scope"       -> Pending,
+        "variables"   -> Pending,
+        "while"       -> Pending
+    )
+
+    "Valid WACC examples:" - {
+        for ((testDir, status) <- validTestCases) {
+            s"in directory $testDir:" - {
+                val files = getValidFiles(testDir)
+
+                for (file <- files) {
+                    validCount.total += 1
+
+                    s"should parse ${printValidFile(testDir, file)}" in runTest(status) {
+                        testValidFile(file)
+                    }
+                }
             }
         }
     }
 
-    it should "not parse all invalid WACC examples" in {
-        for (file <- invalidFiles) {
-            val waccFile: String = os.read(file)
-            parser.parse(waccFile) match {
-                case Success(msg) => fail(s"${file} : failed\nwith message: ${msg}")
-                case Failure(_) => succeed(s"${file} : succeeded")
+    "Invalid syntax WACC examples:" - {
+        for (testDir <- syntaxErrTestCases) {
+            s"in directory $testDir:" - {
+                val files = getInvalidFiles("syntaxErr", testDir)
+
+                for (file <- files) {
+                    syntaxCount.total += 1
+
+                    s"should not parse ${printInvalidFile("syntaxErr", testDir, file)}" in {
+                        testInvalidFile(file, syntaxCount)
+                    }
+                }
+            }
+        }
+    }
+
+    "Invalid semantic WACC examples:" - {
+        for ((testDir, status) <- semanticErrTestCases) {
+            s"in directory $testDir:" - {
+                val files = getInvalidFiles("semanticErr", testDir)
+
+                for (file <- files) {
+                    semanticCount.total += 1
+
+                    s"should not parse ${printInvalidFile("semanticErr", testDir, file)}" in runTest(status) {
+                        testInvalidFile(file, semanticCount)
+                    }
+                }
+            }
+        }
+    }
+
+    def runTest(status: TestStatus)(testLogic: =>Unit): Unit = status match {
+        case Active  => testLogic
+        case Pending => pending
+        case Ignored => 
+    }
+
+    override def afterAll(): Unit = {
+        println("\nTESTS SUMMARY:")
+
+        printSummary(validCount, "valid")
+        printSummary(syntaxCount, "invalid syntactic")
+        printSummary(semanticCount, "invalid semantic")
+        println()
+
+        val total = validCount.total + syntaxCount.total + semanticCount.total
+        val correct = validCount.correct + syntaxCount.correct + semanticCount.correct
+
+        println(s"Total tests passed: ${correct} out of ${total}")
+        println(f"Progress: ${correct.toDouble / total * 100}%.2f\n")
+    }
+
+
+    private def printValidFile(testDir: String, file: Path): String =
+        file.relativeTo(examples / "valid" / testDir).toString
+    private def printInvalidFile(testType: String, testDir: String, file: Path): String =
+        file.relativeTo(examples / "invalid" / testType / testDir).toString
+    
+    private def getValidFiles(testDir: String): Generator[Path] =
+        os.walk.stream(examples / "valid" / testDir).filter(os.isFile)
+    private def getInvalidFiles(testType: String, testDir: String): Generator[Path] =
+        os.walk.stream(examples / "invalid" / testType / testDir).filter(os.isFile)
+
+    private def testValidFile(file: Path) = {
+        val waccFile: String = os.read(file)
+        parser.parse(waccFile) match {
+            case Success(_) => validCount.correct += 1
+            case Failure(msg) => fail(s"with message:\n${msg}\n") 
+        }
+    }
+    private def testInvalidFile(file: Path, testCount: TestCount) = {
+        val waccFile: String = os.read(file)
+        parser.parse(waccFile) match {
+            case Success(_) => fail(s"program must not be valid\n") 
+            case Failure(_) => testCount.correct += 1
+        }
+    }
+
+    private def printSummary(testCount: TestCount, validType: String) = {
+        if (testCount.total == 0) {
+            println(s"No $validType tests run.")
+        } else {
+            if (testCount.correct == testCount.total) {
+                println(s"All $validType tests passed.")
+            } else {
+                println(s"Some $validType tests failed: ${testCount.correct} out of ${testCount.total}.")
             }
         }
     }
