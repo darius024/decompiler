@@ -1,4 +1,4 @@
-package wacc
+package wacc.integration
 
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers.*
@@ -6,15 +6,16 @@ import org.scalatest.BeforeAndAfterAll
 import os.*
 
 import parsley.{Success, Failure}
+import wacc.parser
 import TestStatus.*
 
-enum TestStatus {
+private enum TestStatus {
     case Active
     case Pending
     case Ignored
 }
 
-case class TestCount(var correct: Int, var total: Int)
+private case class TestCount(var correct: Int, var total: Int)
 
 class FrontEndTests extends AnyFreeSpec with BeforeAndAfterAll {
     val examples = os.pwd / "src" / "test" / "wacc" / "examples"
@@ -85,7 +86,7 @@ class FrontEndTests extends AnyFreeSpec with BeforeAndAfterAll {
                     syntaxCount.total += 1
 
                     s"should not parse ${printInvalidFile("syntaxErr", testDir, file)}" in {
-                        testInvalidFile(file, syntaxCount)
+                        testInvalidSyntaxFile(file)
                     }
                 }
             }
@@ -101,7 +102,7 @@ class FrontEndTests extends AnyFreeSpec with BeforeAndAfterAll {
                     semanticCount.total += 1
 
                     s"should not parse ${printInvalidFile("semanticErr", testDir, file)}" in runTest(status) {
-                        testInvalidFile(file, semanticCount)
+                        testInvalidSemanticFile(file)
                     }
                 }
             }
@@ -143,15 +144,36 @@ class FrontEndTests extends AnyFreeSpec with BeforeAndAfterAll {
     private def testValidFile(file: Path) = {
         val waccFile: String = os.read(file)
         parser.parse(waccFile) match {
-            case Success(_) => validCount.correct += 1
-            case Failure(msg) => fail(s"with message:\n${msg}\n") 
+            case Success(_) => {
+                // TODO: Perform semantic analysis
+                None match {
+                    case _ => fail(s"program must be semantically valid\n"
+                                 + s"with error message:\nmsg\n") 
+                    // case _ => validCount.correct += 1
+                }
+            }
+            case Failure(msg) => fail(s"program must be semantically valid\n"
+                                    + s"with error message:\n${msg}\n") 
         }
     }
-    private def testInvalidFile(file: Path, testCount: TestCount) = {
+    private def testInvalidSyntaxFile(file: Path) = {
         val waccFile: String = os.read(file)
         parser.parse(waccFile) match {
-            case Success(_) => fail(s"program must not be valid\n") 
-            case Failure(_) => testCount.correct += 1
+            case Success(_) => fail(s"program must not be syntactically valid\n") 
+            case Failure(_) => syntaxCount.correct += 1
+        }
+    }
+    private def testInvalidSemanticFile(file: Path) = {
+        val waccFile: String = os.read(file)
+        parser.parse(waccFile) match {
+            case Success(_) => {
+                // TODO: Perform semantic analysis
+                None match {
+                    case _ => fail(s"program must not be semantically valid\n")
+                    // case _ => semanticCount.correct += 1
+                }
+            }
+            case Failure(_) => fail(s"program must be syntactically valid\n")
         }
     }
 
@@ -162,7 +184,7 @@ class FrontEndTests extends AnyFreeSpec with BeforeAndAfterAll {
             if (testCount.correct == testCount.total) {
                 println(s"All $validType tests passed.")
             } else {
-                println(s"Some $validType tests failed: ${testCount.correct} out of ${testCount.total}.")
+                println(s"Some $validType tests passed: ${testCount.correct} out of ${testCount.total}.")
             }
         }
     }
