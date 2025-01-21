@@ -3,13 +3,23 @@ package wacc
 import parsley.{Success, Failure}
 
 def main(args: Array[String]): Unit = {
-    println("hello WACC!")
-
     args.headOption match {
-        case Some(expr) => parser.parse(expr) match {
-            case Success(x) => println(s"$expr = $x")
-            case Failure(msg) => println(msg)
+        case Some(program) => {
+            val (_, exitCode) = compile(program)
+            System.exit(exitCode)
         }
-        case None => println("please enter an expression")
+        case None => println("please enter a program")
     }
+}
+
+def compile(program: String): (String, Int) =
+    parser.parse(program) match {
+        case Success(_) => ("succeed", exitCodes.SuccessfulCompilation)
+        case Failure(msg) => (msg, exitCodes.SyntaxError)
+    }
+
+object exitCodes {
+    val SuccessfulCompilation = 0
+    val SyntaxError = 100
+    val SemanticError = 200
 }
