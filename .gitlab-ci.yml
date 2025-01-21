@@ -1,0 +1,30 @@
+stages:
+  - compile
+  - unit-test
+  - integration-test
+
+compile:
+  stage: compile
+  script:
+    - echo "Compiling the project..."
+    - scala compile .
+
+unit-test:
+  stage: unit-test
+  script:
+    - echo "Running unit tests..."
+    - scala test . --test-only 'wacc.unit*' > unit_test_output.log 2>&1
+  artifacts:
+    paths:
+      - unit_test_output.log
+    expire_in: 1 week
+
+integration-test:
+  stage: integration-test
+  script:
+    - echo "Running integration tests..."
+    - scala test . --test-only 'wacc.integration*' > integration_test_output.log 2>&1
+  artifacts:
+    paths:
+      - integration_test_output.log
+    expire_in: never
