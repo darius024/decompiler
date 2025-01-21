@@ -2,7 +2,7 @@ package wacc.syntax
 
 import parsley.generic.*
 
-object expr {
+object exprs {
     sealed trait Expr extends RValue
     case class Or(lhs: ExprAnd, rhs: Expr) extends Expr
     
