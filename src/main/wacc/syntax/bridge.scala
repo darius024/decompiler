@@ -6,6 +6,8 @@ import parsley.generic.*
 import parsley.position.pos
 
 object bridges {
+    type Position = (Int, Int)
+
     trait ParserSingletonBridgePos[+A] extends ErrorBridge {
         protected def con(pos: (Int, Int)): A
         infix def from(op: Parsley[Any]): Parsley[A] = error(pos.map(this.con(_)) <* op)
