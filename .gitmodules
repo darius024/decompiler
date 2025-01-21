@@ -1,0 +1,3 @@
+[submodule "examples"]
+	path = src/test/wacc/examples
+	url = https://gitlab.doc.ic.ac.uk/lab2425_spring/wacc-examples
