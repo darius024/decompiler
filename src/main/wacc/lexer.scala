@@ -94,7 +94,7 @@ object lexer {
     // ========== Token Parsers ==========
     // Basic token type parsers
     val identifier = lexer.lexeme.names.identifier  
-    val integer = lexer.lexeme.integer.decimal      
+    val integer = lexer.lexeme.integer.decimal32      
     val character = lexer.lexeme.character.ascii    
     val string = lexer.lexeme.string.ascii         
 

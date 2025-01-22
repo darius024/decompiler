@@ -71,6 +71,9 @@ object exprs {
     case object PairLit extends Atom with ParserBridge0[Atom]
     case class Id(value: String)(val pos: Position) extends Atom with LValue
     case class ArrayElem(id: Id, indices: List[Expr])(val pos: Position) extends Atom with LValue
+    // optimisation reduce backtracking for ArrayElem and Ident
+    case class IdOrArrayElem(id: Id, indices: List[Expr])(val pos: Position) extends Atom with LValue
+
     case class ParensExpr(expr: Expr)(val pos: Position) extends Atom
 
     // ========== RValue ==========
@@ -109,6 +112,7 @@ object exprs {
 
     object Mul extends ParserBridgePos2[ExprMul, ExprUnary, ExprMul]
     object Div extends ParserBridgePos2[ExprMul, ExprUnary, ExprMul]
+    object Mod extends ParserBridgePos2[ExprMul, ExprUnary, ExprMul]
 
     object Not extends ParserBridgePos1[ExprUnary, ExprUnary]
     object Neg extends ParserBridgePos1[ExprUnary, ExprUnary]
@@ -122,6 +126,14 @@ object exprs {
     object StrLit extends ParserBridgePos1[String, StrLit]
     object Id extends ParserBridgePos1[String, Id]
     object ArrayElem extends ParserBridgePos2[Id, List[Expr], ArrayElem]
+    // optimisation reduce backtracking for ArrayElem and Ident
+    object IdOrArrayElem extends ParserBridgePos2[Id, List[Expr], Atom & LValue] {
+        override def apply(id: Id, indices: List[Expr])(pos: Position): Atom & LValue = indices match {
+            case Nil => id
+            case _ => IdOrArrayElem(id, indices)(pos)
+        }
+    }
+    
     object ParensExpr extends ParserBridgePos1[Expr, ParensExpr]
 
     object ArrayLit extends ParserBridgePos1[List[Expr], ArrayLit]
