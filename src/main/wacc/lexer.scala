@@ -5,24 +5,13 @@ import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions.*
 import parsley.token.errors.*
 
-/** WACC Lexical Analyzer
- *
- * Implements lexical analysis for WACC language tokens:
- * - Identifiers (variables, functions)
- * - Keywords (control flow, types)
- * - Operators (arithmetic, logical)
- * - Literals (numbers, strings, characters)
- * - Comments (# to end of line)
- *
- * The lexer processes source text into a stream of tokens
- * that can be consumed by the parser.
- */
-
+/** WACC Lexical Analyzer (Tokenizer).
+  *
+  * Implements the lexical rules and parsers for the WACC language.
+  */
 object lexer {
     // ========== Escape Sequences ==========
-    // Handles special characters in strings/chars:
-    // \0 (null), \b (backspace), \t (tab), \n (newline),
-    // \f (form feed), \r (carriage return), \" (quote), \' (quote)
+    // Handles special characters in string and character literals
     private val escDesc = EscapeDesc.plain.copy(
         literals = Set('\"', '\'', '\\'),
         mapping = Map(
@@ -34,20 +23,18 @@ object lexer {
             "r" -> 0x000d,
         ),
     )
-    // ========== Lexical Elements ==========
-    // Configures identifier rules, keywords, operators
-    private val desc = LexicalDesc(
 
+    // ========== Lexical Elements ==========
+    // Describes the lexical elements of the WACC language
+    private val desc = LexicalDesc(
         // Identifiers: Start with letter/underscore, followed by letters/digits/underscore
         NameDesc.plain.copy(
             identifierStart = Basic(c => Character.isLetter(c) || c == '_'),
             identifierLetter = Basic(c => Character.isLetterOrDigit(c) || c == '_'),
         ),
 
-        // Keywords and Operators from WACC specification
+        // Keywords and Operators from the WACC specification
         SymbolDesc.plain.copy(
-
-            // Reserved keywords
             hardKeywords = Set(
                 "int", "bool", "char", "string", "pair", 
                 "begin", "end", "is", "skip", "return", "exit",
@@ -56,7 +43,6 @@ object lexer {
                 "newpair", "fst", "snd", "call",
                 "true", "false", "null", 
             ),
-            // Operators for expressions
             hardOperators = Set(
                 "+", "-", "*", "/", "%", 
                 "==", "!=", "<", "<=", ">", ">=", 
@@ -65,25 +51,25 @@ object lexer {
             ),        
         ),
 
-        // Numeric literals configured in WACC 
+        // Integer numbers can be decimal only
         NumericDesc.plain.copy(
             integerNumbersCanBeHexadecimal = false,
             integerNumbersCanBeOctal = false,
         ),
 
-        // Textual literals for strings and characters
+        // Escape sequences for strings and characters
         TextDesc.plain.copy(
             escapeSequences = escDesc,
         ),
 
-
+        // Comments start with # and continue to end of line
         SpaceDesc.plain.copy(
             lineCommentStart = "#",
         ),
     )
 
     // ========== Error Configurations ==========
-    // Define custom error messages for different token types
+    // Defines custom error messages for different token types
     private val errConfig = new ErrorConfig {
         override def labelSymbol = List(
             List("!", "-", "len", "ord", "chr")
@@ -102,7 +88,7 @@ object lexer {
     }
     
     // ========== Lexer Instance ==========
-    // Create lexer with configured descriptions and error handling
+    // Creates the lexer with the configured description and error handling
     private val lexer = Lexer(desc, errConfig)
 
     // ========== Token Parsers ==========
@@ -120,7 +106,7 @@ object lexer {
     def semiSep1[A](p: Parsley[A]): Parsley[List[A]] = lexer.lexeme.semiSep1(p)  
 
     // ========== Symbol Handling ==========
-    // Handle symbols and whitespace
+    // Implicit handling of symbols and whitespace
     val implicits = lexer.lexeme.symbol.implicits  
     def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)  
 }
