@@ -11,6 +11,7 @@ import prog.*
 import stmts.*
 
 private def parseExpr(s: String) = parser.parse(s"begin return $s end").toEither
+private def parseStmt(s: String) = parser.parse(s"begin $s end").toEither
 
 class Parser extends AnyFlatSpec {
     // ========== ATOMS  ==========
@@ -416,7 +417,7 @@ class Parser extends AnyFlatSpec {
         }
     }
 
-    "Array elements" should "be able to parse single indices" in {
+    "Array elements" should "be able to parse a single index" in {
         inside(parseExpr("arr[1]")) {
             case Right(Program(Nil, List(
                 Return(ArrayElem(Id("arr"), List(IntLit(1))))
@@ -427,6 +428,123 @@ class Parser extends AnyFlatSpec {
         inside(parseExpr("arr[1][2]")) {
             case Right(Program(Nil, List(
                 Return(ArrayElem(Id("arr"), List(IntLit(1), IntLit(2))))
+            ))) => succeed
+        }
+    }
+    
+    // ========== L-VALUE TESTS ==========
+
+    "LValues" should "parse simple identifiers" in {
+        inside(parseExpr("x")) {
+            case Right(Program(Nil, List(
+                Return(Id("x"))
+            ))) => succeed
+        }
+    }
+
+    they should "parse array elements with single index" in {
+        inside(parseStmt("arr[1] = 2")) {
+            case Right(Program(Nil, List(
+                Assignment(ArrayElem(Id("arr"), List(IntLit(1))), IntLit(2))
+            ))) => succeed
+        }
+    }
+
+    they should "parse array elements with multiple indices" in {
+        inside(parseStmt("arr[1][2] = 7")) {
+            case Right(Program(Nil, List(
+                Assignment(ArrayElem(Id("arr"), List(IntLit(1), IntLit(2))), IntLit(7))
+            ))) => succeed
+        }
+    }
+
+    they should "parse first pair elements" in {
+        inside(parseStmt("fst p = 2")) {
+            case Right(Program(Nil, List(
+                Assignment(Fst(Id("p")), IntLit(2))
+            ))) => succeed
+        }
+    }
+
+    they should "parse second pair elements" in {
+        inside(parseStmt("snd p = 3")) {
+            case Right(Program(Nil, List(
+                Assignment(Snd(Id("p")), IntLit(3))
+            ))) => succeed
+        }
+    }
+
+    they should "parse nested pair elements" in {
+        inside(parseStmt("fst snd p = 2")) {
+            case Right(Program(Nil, List(
+                Assignment(Fst(Snd(Id("p"))), IntLit(2))
+            ))) => succeed
+        }
+    }
+
+    // ========== R-VALUE TESTS ==========
+    "RValues" should "parse array literals" in {
+        inside(parseStmt("x = [1, 2, 3]")) {
+            case Right(Program(Nil, List(
+                Assignment(Id("x"), ArrayLit(List(IntLit(1), IntLit(2), IntLit(3))))
+            ))) => succeed
+        }
+    }
+
+    they should "parse empty array literals" in {
+        inside(parseStmt("x = []")) {
+            case Right(Program(Nil, List(
+                Assignment(Id("x"), ArrayLit(Nil))
+            ))) => succeed
+        }
+    }
+
+    they should "parse newpair expressions" in {
+        inside(parseStmt("x = newpair(1, 2)")) {
+            case Right(Program(Nil, List(
+                Assignment(Id("x"), NewPair(IntLit(1), IntLit(2)))
+            ))) => succeed
+        }
+    }
+
+    they should "parse function calls" in {
+        inside(parseStmt("x = call f()")) {
+            case Right(Program(Nil, List(
+                Assignment(Id("x"), Call(Id("f"), Nil))
+            ))) => succeed
+        }
+    }
+
+    they should "parse function calls with arguments" in {
+        inside(parseStmt("x = call f(1, true, 'c')")) {
+            case Right(Program(Nil, List(
+                Assignment(Id("x"), Call(Id("f"), List(
+                    IntLit(1), BoolLit(true), CharLit('c')
+                )))
+            ))) => succeed
+        }
+    }
+
+    they should "parse pair elements" in {
+        inside(parseStmt("x = fst p")) {
+            case Right(Program(Nil, List(
+                Assignment(Id("x"), Fst(Id("p")))
+            ))) => succeed
+        }
+    }
+
+    they should "parse second pair elements" in {
+        inside(parseStmt("x = snd p")) {
+            case Right(Program(Nil, List(
+                Assignment(Id("x"), Snd(Id("p")))
+            ))) => succeed
+        }
+    }
+
+    they should "parse nested pair elements" in {
+        inside(parseStmt("x = fst snd p")) {
+            case Right(Program(Nil, List(
+                Assignment(Id("x"), Fst(Snd(Id("p"))))
             ))) => succeed
         }
     }

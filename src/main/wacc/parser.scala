@@ -50,12 +50,33 @@ object parser {
 
     // ========== Statements ==========
     // <stmt> ::= 'return' <expr>
-    private lazy val stmt: Parsley[Stmt] = Return("return" ~> expr)
+
+    private lazy val simpleStmt: Parsley[Stmt] = Assignment(lvalue, "=" ~> rvalue)
+    private lazy val stmt: Parsley[Stmt] = Return("return" ~> expr) <|> simpleStmt
     private lazy val stmts: Parsley[List[Stmt]] = semiSep1(stmt)
 
     // ========== Program ==========
     // <program> ::= <begin> <func>* <stmt> <end>
     private lazy val program: Parsley[Program] = 
         Program("begin" ~>  pure(List[Function]()), stmts <~ "end")
+
+    // ========== L-Values ==========
+    // <lvalue> ::= <ident> | <array-elem> | <pair-elem>
+    private lazy val lvalue: Parsley[LValue] = {
+        Fst("fst" ~> lvalue) <|> Snd("snd" ~> lvalue)
+        <|> IdOrArrayElem(Id(identifier), many(brackets(expr)))
+    }
+
+    // ========== R-Values ==========
+    // <rvalue> ::= expr | <array-lit> | <newpair> | <pair-elem> | <call>
+    private lazy val rvalue: Parsley[RValue] = {
+        ArrayLit(brackets(commaSep(expr)))
+        // TODO: Use between and pair brackets
+        <|> NewPair("newpair" ~> "(" ~> expr <~ ",", expr <~ ")")
+        <|> (Fst("fst" ~> lvalue) <|> Snd("snd" ~> lvalue))
+        <|> Call("call" ~> Id(identifier), parens(commaSep(expr)))
+        <|> expr
+    }
 }
+
 
