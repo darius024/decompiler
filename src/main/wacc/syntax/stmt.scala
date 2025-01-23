@@ -5,38 +5,39 @@ import bridges.*
 import exprs.*
 import types.*
 
-/** Statement AST nodes.
-  * 
-  * <stmt> ::= 'skip'
-  *          | <type> <ident> '=' <rvalue>
-  *          | <lvalue> '=' <rvalue>
-  *          | 'read' <lvalue>
-  *          | 'free' <expr>
-  *          | 'return' <expr>
-  *          | 'exit' <expr>
-  *          | 'print' <expr>
-  *          | 'println' <expr>
-  *          | 'if' <expr> 'then' <stmt>* 'else' <stmt>* 'fi'
-  *          | 'while' <expr> 'do' <stmt>* 'done'
-  *          | 'begin' <stmt>* 'end'
-  *          | <stmt> ';' <stmt>
-  */
+/** Statement AST nodes. */
 object stmts {
     /** Alias to bundle parameter and type. */
     type TypeId = (IdType, Id)
 
-    /** Statement node */
+    /** Statement node. */
     sealed trait Stmt
+
+    /** <stmt> ::= 'skip'
+      *          | <type> <ident> '=' <rvalue>
+      *          | <lvalue> '=' <rvalue>
+      *          | 'read' <lvalue>
+      *          | 'free' <expr>
+      *          | 'return' <expr>
+      *          | 'exit' <expr>
+      *          | 'print' <expr>
+      *          | 'println' <expr>
+      *          | 'if' <expr> 'then' <stmts> 'else' <stmts> 'fi'
+      *          | 'while' <expr> 'do' <stmts> 'done'
+      *          | 'begin' <stmts> 'end'
+      * 
+      *  <stmts> ::= <stmt> (';' <stmt>)*
+      */
 
     case object Skip extends Stmt with ParserBridge0[Stmt]
     case class Declaration(typeId: TypeId, rvalue: RValue)(val pos: Position) extends Stmt
     case class Assignment(lvalue: LValue, rvalue: RValue)(val pos: Position) extends Stmt
     case class Read(lvalue: LValue)(val pos: Position) extends Stmt
+    case class Print(expr: Expr)(val pos: Position) extends Stmt
+    case class Println(expr: Expr)(val pos: Position) extends Stmt
     case class Free(expr: Expr)(val pos: Position) extends Stmt
     case class Return(expr: Expr)(val pos: Position) extends Stmt
     case class Exit(expr: Expr)(val pos: Position) extends Stmt
-    case class Print(expr: Expr)(val pos: Position) extends Stmt
-    case class Println(expr: Expr)(val pos: Position) extends Stmt
     case class If(cond: Expr, thenStmts: List[Stmt], elseStmts: List[Stmt])(val pos: Position) extends Stmt
     case class While(cond: Expr, doStmts: List[Stmt])(val pos: Position) extends Stmt
     case class Block(stmts: List[Stmt])(val pos: Position) extends Stmt

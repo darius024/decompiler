@@ -18,7 +18,7 @@ object types {
     case object CharType extends BaseType with ParserBridge0[BaseType]
     case object StringType extends BaseType with ParserBridge0[BaseType]
 
-    /** <array-type> ::= <type> '[]' */
+    /** <array-type> ::= <type> '[' ']' */
     case class ArrayType(idType: IdType, arity: Int)(val pos: Position) extends IdType with PairElemType
 
     /** <pair-type> ::= 'pair' '(' <pair-elem-type> ',' <pair-elem-type> ')' */
