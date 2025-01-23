@@ -1,0 +1,33 @@
+{
+    "valid": [
+        "advanced",
+        "array",
+        "pairs",
+        "if",
+        "runtimeErr",
+        "IO",
+        "basic",
+        "scope",
+        "function",
+        "variables",
+        "expressions",
+        "sequence",
+        "while"
+    ],
+    "syntaxErr": [],
+    "semanticErr": [
+        "multiple",
+        "array",
+        "pairs",
+        "read",
+        "if",
+        "IO",
+        "scope",
+        "function",
+        "print",
+        "variables",
+        "expressions",
+        "exit",
+        "while"
+    ]
+}

@@ -3,56 +3,61 @@ package wacc.syntax
 import parsley.generic.*
 import bridges.*
 
-/** Expression Nodes of the Abstract Syntax Tree.
+/** Expression AST nodes.
   * 
-  * Implements the expressions that the WACC language supports.
-  * The structure of the nodes mimics the grammar rules for expressions.
-  * It also embodies information about the precedence and fixity of the operators.
-  * The top-down approach allows any trait to replace any trait that is defined above it.
+  * Precedence levels and operator associativity have been encoded using
+  * cascading trait implementation.
   */
 object exprs {
-    // ========== Expressions ==========
-    // <expr> ::= <unary-oper> <expr> | <expr> <binary-oper> <expr> | <atom> 
+    /** <expr> ::= <unary-oper> <expr>
+      *          | <expr> <binary-oper> <expr>
+      *          | <atom> 
+      */
     sealed trait Expr extends RValue
     
-    // ========== Logical OR (||) ==========
-    // <expr> :: <expr-and> '||' <expr> | <expr-and>
+    /** <expr> :: <expr>
+      *         | <and-expr> '||' <expr>
+      */
     case class Or(lhs: ExprAnd, rhs: Expr)(val pos: Position) extends Expr
     
-    // ========== Logical AND (&&) ==========
-    // <expr-and> ::= <expr-eq> '&&' <expr-and> | <expr-eq>  
+    /** <and-expr> ::= <eq-expr>
+      *              | <and-expr> '&&' <eq-expr>
+      */
     sealed trait ExprAnd extends Expr
     case class And(lhs: ExprEq, rhs: ExprAnd)(val pos: Position) extends ExprAnd
     
-    // ========== Equality/Inequality (==, !=) ==========
-    // <expr-eq> ::= <expr-rel> ('==' | '!=') <expr-rel> | <expr-rel>
+    /** <eq-expr> ::= <rel-expr>
+      *             | <eq-expr> ('==' | '!=') <rel-expr>
+      */
     sealed trait ExprEq extends ExprAnd
     case class Equal(lhs: ExprRel, rhs: ExprRel)(val pos: Position) extends ExprEq
     case class NotEqual(lhs: ExprRel, rhs: ExprRel)(val pos: Position) extends ExprEq
 
-    // ========== Relational comparisons (>, >=, <, <=) ==========
-    // <expr-rel> ::= <expr-add> ('>' | '>=' | '<' | '<=') <expr-add> | <expr-add>
+    /** <rel-expr> ::= <add-expr>
+      *              | <rel-expr> ('>' | '>=' | '<' | '<=') <add-expr>
+      */
     sealed trait ExprRel extends ExprEq
     case class Greater(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
     case class GreaterEqual(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
     case class Less(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
     case class LessThan(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
 
-    // ========== Additive ==========
-    // <expr-add> ::= <expr-add> ('+' | '-') <expr-mul> | <expr-mul>
+    /** <add-expr> ::= <mul-expr>
+      *              | <add-expr> ('+' | '-') <mul-expr>
+      */
     sealed trait ExprAdd extends ExprRel
     case class Add(lhs: ExprAdd, rhs: ExprMul)(val pos: Position) extends ExprAdd
     case class Sub(lhs: ExprAdd, rhs: ExprMul)(val pos: Position) extends ExprAdd
 
-    // ========== Multiplicative ==========
-    // <expr-mul> ::= <expr-mul> ('*' | '/' | '%') <expr-unary> | <expr-unary>
+    /** <mul-expr> ::= <unary-expr>
+      *              | <mul-expr> ('*' | '/' | '%') <unary-expr>
+      */
     sealed trait ExprMul extends ExprAdd
     case class Mul(lhs: ExprMul, rhs: ExprUnary)(val pos: Position) extends ExprMul
     case class Div(lhs: ExprMul, rhs: ExprUnary)(val pos: Position) extends ExprMul
     case class Mod(lhs: ExprMul, rhs: ExprUnary)(val pos: Position) extends ExprMul
 
-    // ========== Unary (highest precedence) ==========
-    // <expr-unary> ::= ('!' | '-' | 'len' | 'ord' | 'chr') <atom> | <atom>
+    /** <unary-expr> ::= ('!' | '-' | 'len' | 'ord' | 'chr') <expr> */
     sealed trait ExprUnary extends ExprMul
     case class Not(expr: ExprUnary)(val pos: Position) extends ExprUnary
     case class Neg(expr: ExprUnary)(val pos: Position) extends ExprUnary
@@ -60,9 +65,15 @@ object exprs {
     case class Ord(expr: ExprUnary)(val pos: Position) extends ExprUnary
     case class Chr(expr: ExprUnary)(val pos: Position) extends ExprUnary
 
-    // ========== Atoms ==========
-    // <atom> ::= <int-liter> | <bool-liter> | <char-liter> | <str-liter> | <pair-liter>
-    //          | <ident> | <array-elem> | '(' <expr> ')'
+    /** <atom> ::= <int-liter>
+      *          | <bool-liter>
+      *          | <char-liter>
+      *          | <str-liter>
+      *          | <pair-liter>
+      *          | <ident>
+      *          | <array-elem>
+      *          | '(' <expr> ')'
+      */
     sealed trait Atom extends ExprUnary
     case class IntLit(value: Int)(val pos: Position) extends Atom
     case class BoolLit(value: Boolean)(val pos: Position) extends Atom
@@ -73,26 +84,33 @@ object exprs {
     case class ArrayElem(id: Id, indices: List[Expr])(val pos: Position) extends Atom with LValue
     case class ParensExpr(expr: Expr)(val pos: Position) extends Atom
 
-    // ========== RValue ==========
-    // <rvalue> ::= <expr> | <array-lit> | 'newpair' '(' <expr> ',' <expr> ')'
-    //            | <pair-elem> | <call> <ident> '(' <arg-list> ')'
+    
+    /** <rvalue> ::= expr>
+      *            | <array-liter>
+      *            | ‘newpair’ ‘(’ <expr> ‘,’ <expr> ‘)’
+      *            | <pair-elem>
+      *            | ‘call’ <ident> ‘(’ <arg-list>? ‘)’
+      */
     sealed trait RValue
     case class ArrayLit(exprs: List[Expr])(val pos: Position) extends RValue
     case class NewPair(fst: Expr, snd: Expr)(val pos: Position) extends RValue
     case class Call(func: Id, args: List[Expr])(val pos: Position) extends RValue
 
-    // ========== LValue ==========
-    // <lvalue> ::= <ident> | <array-elem> | <pair-elem> 
+    /** <lvalue> ::= <ident>
+      *            | <array-elem>
+      *            | <pair-elem> 
+      */
     sealed trait LValue
     
-    // ========== Pair Elements ==========
-    // <pair-elem> ::= 'fst' <lvalue> | 'snd' <lvalue>
+    /** <pair-elem> ::= 'fst'
+      *               | 'snd'
+      */
     sealed trait PairElem extends LValue with RValue
     case class Fst(value: LValue)(val pos: Position) extends PairElem
     case class Snd(value: LValue)(val pos: Position) extends PairElem
 
-
-    // ========== Companion objects ========== 
+    // companion objects
+    
     object Or extends ParserBridgePos2[ExprAnd, Expr, Expr]
     object And extends ParserBridgePos2[ExprEq, ExprAnd, ExprAnd]
 
