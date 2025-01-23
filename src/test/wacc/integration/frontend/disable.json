@@ -14,19 +14,7 @@
         "sequence",
         "while"
     ],
-    "syntaxErr": [
-        "array",
-        "pairs",
-        "if",
-        "basic",
-        "function",
-        "print",
-        "variables",
-        "expressions",
-        "literals",
-        "sequence",
-        "while"
-    ],
+    "syntaxErr": [],
     "semanticErr": [
         "multiple",
         "array",

@@ -1,20 +1,24 @@
 package wacc.integration
 
-import os.Path
-import os.RelPath
+import os.{Generator, Path}
 
-// path to test enabling file
-val disablingFilePath = os.pwd / "src" / "test" / "wacc" / "integration" / "frontend" / "disable.json"
-val disables = ujson.read(os.read(disablingFilePath))
+/** Utility functions for integration tests. */
+object utils {
+    private val disablingFilePath =
+        os.pwd / "src" / "test" / "wacc" / "integration" / "frontend" / "disable.json"
+    private val disables = ujson.read(os.read(disablingFilePath))
 
-// check in JSON disabling config
-def isDisabled(testSet: String, category: String): Boolean = disables(testSet).arr.map(_.str).contains(category)
+    /** Checks if a test category is disabled, indicating it should be marked as pending. */
+    def isDisabled(testSet: String, category: String): Boolean =
+        disables(testSet).arr.exists(_.str == category)
 
-// convenience wrapper to compile from file
-def compile(p: Path) = wacc.compile(os.read(p))
+    /** Compiles a test program and returns the error message and exit code. */
+    def compileTest(p: Path): (String, Int) = wacc.compile(os.read(p))
 
-def listCategories(p: Path) = os.list.stream(p)
-    .filter(os.isDir)
-    .map(_.baseName)
+    /** Lists the categories of tests in a directory. */
+    def listCategories(p: Path): Generator[String] =
+        os.list.stream(p).filter(os.isDir).map(_.baseName)
 
-def listTests(p: Path) = os.walk.stream(p)
+    /** Lists the tests in a directory. */
+    def listTests(p: Path): Generator[Path] = os.walk.stream(p)
+}

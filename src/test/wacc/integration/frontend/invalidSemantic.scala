@@ -1,27 +1,31 @@
 package wacc.integration
 
 import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.must.Matchers
-import wacc.exitCodes
+import org.scalatest.matchers.must.Matchers.*
 
-class InvalidSemanticTest extends AnyWordSpec with Matchers {
+import wacc.exitCodes
+import utils.*
+
+/** Tests the frontend of the compiler on invalid semantic programs. */
+class InvalidSemanticTest extends AnyWordSpec {
     val root = os.pwd / "src" / "test" / "wacc" / "examples" / "invalid" / "semanticErr"
     val categories = listCategories(root)
 
     categories foreach { category =>
-        s"$category tests" should {
+        // Test each category of tests
+        s"$category tests:" should {
             listTests(root / category) foreach { test =>
+                // Test each file in the category
                 s"not parse ${test.relativeTo(root / category)}" in {
                     if (isDisabled(root.baseName, category)) pending
             
-                    // run test
-                    val (msg, code) = wacc.integration.compile(test)
+                    // Run test
+                    val (msg, code) = compileTest(test)
                     withClue(s"$msg\n") {
-                        code mustEqual exitCodes.SemanticError
+                        code mustBe exitCodes.SemanticError
                     }
                 }
             }
         }
     }
 }
-
