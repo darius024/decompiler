@@ -5,15 +5,7 @@ import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions.*
 import parsley.token.errors.*
 
-/** WACC Lexical Analyzer
- *
- * Implements lexical analysis for WACC language tokens:
- * - Identifiers (variables, functions)
- * - Keywords (control flow, types)
- * - Operators (arithmetic, logical)
- * - Literals (numbers, strings, characters)
- * - Comments (# to end of line)
- *
+/**
  * The lexer processes source text into a stream of tokens
  * that can be consumed by the parser.
  */
