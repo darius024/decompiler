@@ -9,32 +9,29 @@ import bridges.*
   * cascading trait implementation.
   */
 object exprs {
-    /** <expr> ::= <unary-oper> <expr>
-      *          | <expr> <binary-oper> <expr>
-      *          | <atom> 
-      */
+    /** Expression trait. */
     sealed trait Expr extends RValue
     
-    /** <expr> :: <expr>
-      *         | <and-expr> '||' <expr>
+    /** <expr> :: <and-expr> '||' <expr>
+      *         | <and-expr>
       */
     case class Or(lhs: ExprAnd, rhs: Expr)(val pos: Position) extends Expr
     
-    /** <and-expr> ::= <eq-expr>
-      *              | <and-expr> '&&' <eq-expr>
+    /** <and-expr> ::= <eq-expr> '&&' <and-expr>
+      *              | <eq-expr>
       */
     sealed trait ExprAnd extends Expr
     case class And(lhs: ExprEq, rhs: ExprAnd)(val pos: Position) extends ExprAnd
     
-    /** <eq-expr> ::= <rel-expr>
-      *             | <eq-expr> ('==' | '!=') <rel-expr>
+    /** <eq-expr> ::= <rel-expr> ('==' | '!=') <rel-expr>
+      *             | <rel-expr>
       */
     sealed trait ExprEq extends ExprAnd
     case class Equal(lhs: ExprRel, rhs: ExprRel)(val pos: Position) extends ExprEq
     case class NotEqual(lhs: ExprRel, rhs: ExprRel)(val pos: Position) extends ExprEq
 
-    /** <rel-expr> ::= <add-expr>
-      *              | <rel-expr> ('>' | '>=' | '<' | '<=') <add-expr>
+    /** <rel-expr> ::= <add-expr> ('>' | '>=' | '<' | '<=') <add-expr>
+      *              | <add-expr>
       */
     sealed trait ExprRel extends ExprEq
     case class Greater(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
@@ -42,22 +39,22 @@ object exprs {
     case class Less(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
     case class LessEqual(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
 
-    /** <add-expr> ::= <mul-expr>
-      *              | <add-expr> ('+' | '-') <mul-expr>
+    /** <add-expr> ::= <add-expr> ('+' | '-') <mul-expr>
+      *              | <mul-expr>
       */
     sealed trait ExprAdd extends ExprRel
     case class Add(lhs: ExprAdd, rhs: ExprMul)(val pos: Position) extends ExprAdd
     case class Sub(lhs: ExprAdd, rhs: ExprMul)(val pos: Position) extends ExprAdd
 
-    /** <mul-expr> ::= <unary-expr>
-      *              | <mul-expr> ('*' | '/' | '%') <unary-expr>
+    /** <mul-expr> ::= <mul-expr> ('*' | '/' | '%') <unary-expr>
+      *              | <unary-expr>
       */
     sealed trait ExprMul extends ExprAdd
     case class Mul(lhs: ExprMul, rhs: ExprUnary)(val pos: Position) extends ExprMul
     case class Div(lhs: ExprMul, rhs: ExprUnary)(val pos: Position) extends ExprMul
     case class Mod(lhs: ExprMul, rhs: ExprUnary)(val pos: Position) extends ExprMul
 
-    /** <unary-expr> ::= ('!' | '-' | 'len' | 'ord' | 'chr') <expr> */
+    /** <unary-expr> ::= ('!' | '-' | 'len' | 'ord' | 'chr') <atom> */
     sealed trait ExprUnary extends ExprMul
     case class Not(expr: ExprUnary)(val pos: Position) extends ExprUnary
     case class Neg(expr: ExprUnary)(val pos: Position) extends ExprUnary
@@ -87,9 +84,9 @@ object exprs {
     
     /** <rvalue> ::= expr>
       *            | <array-liter>
-      *            | ‘newpair’ ‘(’ <expr> ‘,’ <expr> ‘)’
+      *            | 'newpair' '(' <expr> ',' <expr> ')'
       *            | <pair-elem>
-      *            | ‘call’ <ident> ‘(’ <arg-list>? ‘)’
+      *            | 'call' <ident> '(' <arg-list>? ')'
       */
     sealed trait RValue
     case class ArrayLit(exprs: List[Expr])(val pos: Position) extends RValue
@@ -102,8 +99,8 @@ object exprs {
       */
     sealed trait LValue
     
-    /** <pair-elem> ::= 'fst'
-      *               | 'snd'
+    /** <pair-elem> ::= 'fst' <lvalue>
+      *               | 'snd' <lvalue>
       */
     sealed trait PairElem extends LValue with RValue
     case class Fst(value: LValue)(val pos: Position) extends PairElem
@@ -141,14 +138,6 @@ object exprs {
     object StrLit extends ParserBridgePos1[String, StrLit]
     object Id extends ParserBridgePos1[String, Id]
     object ArrayElem extends ParserBridgePos2[Id, List[Expr], ArrayElem]
-    // optimisation reduce backtracking for ArrayElem and Ident
-    object IdOrArrayElem extends ParserBridgePos2[Id, List[Expr], Atom & LValue] {
-        def apply(id: Id, indices: List[Expr])(pos: Position): Atom & LValue = indices match {
-            case Nil => id
-            case _ => ArrayElem(id, indices)(pos)
-        }
-    }
-    
     object ParensExpr extends ParserBridgePos1[Expr, ParensExpr]
 
     object ArrayLit extends ParserBridgePos1[List[Expr], ArrayLit]
@@ -157,4 +146,12 @@ object exprs {
 
     object Fst extends ParserBridgePos1[LValue, Fst]
     object Snd extends ParserBridgePos1[LValue, Snd]
+
+    // optimisation reduce backtracking for ArrayElem and Ident
+    object IdOrArrayElem extends ParserBridgePos2[Id, List[Expr], Atom & LValue] {
+        def apply(id: Id, indices: List[Expr])(pos: Position): Atom & LValue = indices match {
+            case Nil => id
+            case _ => ArrayElem(id, indices)(pos)
+        }
+    }
 }

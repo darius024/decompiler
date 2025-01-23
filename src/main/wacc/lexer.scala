@@ -80,10 +80,10 @@ object lexer {
     )
 
     // basic token type parsers
-    val identifier = lexer.lexeme.names.identifier  
-    val integer = lexer.lexeme.integer.decimal      
-    val character = lexer.lexeme.character.ascii    
-    val string = lexer.lexeme.string.ascii         
+    val identifier = lexer.lexeme.names.identifier
+    val integer = lexer.lexeme.integer.decimal32   
+    val character = lexer.lexeme.character.ascii
+    val string = lexer.lexeme.string.ascii
 
     // higher-order parsers
     def brackets[A](p: => Parsley[A]): Parsley[A] = lexer.lexeme.brackets(p)      

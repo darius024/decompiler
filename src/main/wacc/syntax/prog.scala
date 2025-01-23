@@ -5,7 +5,7 @@ import stmts.*
 
 /** Program structure AST nodes. */
 object prog {
-    /** <program> ::= 'begin' <func>* <stmt>* 'end' */
+    /** <program> ::= 'begin' <func>* <stmt>+ 'end' */
     case class Program(funcs: List[Function], stmts: List[Stmt])(val pos: Position)
     
     /** <func> ::= <type> <ident> '(' <param-list>? ')' 'is' <stmt>* 'end'
