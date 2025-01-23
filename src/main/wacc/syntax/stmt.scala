@@ -5,15 +5,27 @@ import bridges.*
 import exprs.*
 import types.*
 
-/** Statement Nodes of the Abstract Syntax Tree.
-  *
-  * Implements the statements that the WACC language supports.       
+/** Statement AST nodes.
+  * 
+  * <stmt> ::= 'skip'
+  *          | <type> <ident> '=' <rvalue>
+  *          | <lvalue> '=' <rvalue>
+  *          | 'read' <lvalue>
+  *          | 'free' <expr>
+  *          | 'return' <expr>
+  *          | 'exit' <expr>
+  *          | 'print' <expr>
+  *          | 'println' <expr>
+  *          | 'if' <expr> 'then' <stmt>* 'else' <stmt>* 'fi'
+  *          | 'while' <expr> 'do' <stmt>* 'done'
+  *          | 'begin' <stmt>* 'end'
+  *          | <stmt> ';' <stmt>
   */
 object stmts {
+    /** Alias to bundle parameter and type. */
     type TypeId = (IdType, Id)
 
-    // ========== Base Statement Trait ==========
-    // <stmts> ::= <stmt> ';' <stmt> | <stmt>
+    /** Statement node */
     sealed trait Stmt
 
     // ========== Basic Statements ==========
@@ -54,8 +66,8 @@ object stmts {
     // <stmt> ::= 'begin' <stmts> 'end'
     case class Block(stmts: List[Stmt])(val pos: Position) extends Stmt
 
+    // companion objects
 
-    // ========== Companion Objects ==========
     object Declaration extends ParserBridgePos2[TypeId, RValue, Declaration]
     object Assignment extends ParserBridgePos2[LValue, RValue, Assignment]
     object Read extends ParserBridgePos1[LValue, Read]
