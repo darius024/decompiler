@@ -93,10 +93,10 @@ object lexer {
 
     // ========== Token Parsers ==========
     // Basic token type parsers
-    val identifier = lexer.lexeme.names.identifier  
-    val integer = lexer.lexeme.integer.decimal32      
-    val character = lexer.lexeme.character.ascii    
-    val string = lexer.lexeme.string.ascii         
+    val identifier = lexer.lexeme.names.identifier
+    val integer = lexer.lexeme.integer.decimal32
+    val character = lexer.lexeme.character.ascii
+    val string = lexer.lexeme.string.ascii
 
     // ========== Lexeme Combinators ==========
     // Higher-order parsers for common patterns
@@ -104,7 +104,7 @@ object lexer {
     def parens[A](p: => Parsley[A]): Parsley[A] = lexer.lexeme.parens(p)         
     def commaSep[A](p: Parsley[A]): Parsley[List[A]] = lexer.lexeme.commaSep(p)  
     def semiSep1[A](p: Parsley[A]): Parsley[List[A]] = lexer.lexeme.semiSep1(p)  
-
+    
     // ========== Symbol Handling ==========
     // Implicit handling of symbols and whitespace
     val implicits = lexer.lexeme.symbol.implicits  

@@ -7,25 +7,51 @@ import types.*
 
 /** Statement Nodes of the Abstract Syntax Tree.
   *
-  * Implements the statements that the WACC language supports.
+  * Implements the statements that the WACC language supports.       
   */
 object stmts {
     type TypeId = (IdType, Id)
 
-    // ========== Statements ==========
+    // ========== Base Statement Trait ==========
+    // <stmts> ::= <stmt> ';' <stmt> | <stmt>
     sealed trait Stmt
 
+    // ========== Basic Statements ==========
+    // <stmt> ::= 'skip'
     case object Skip extends Stmt with ParserBridge0[Stmt]
+
+    // ========== Variable Declarations and Assignments ==========
+    // <stmt> ::= <type> <ident> '=' <rvalue>
     case class Declaration(typeId: TypeId, rvalue: RValue)(val pos: Position) extends Stmt
+    // <stmt> ::= <lvalue> '=' <rvalue>
     case class Assignment(lvalue: LValue, rvalue: RValue)(val pos: Position) extends Stmt
+
+    // ========== I/O Statements ==========
+    // <stmt> ::= 'read' <lvalue>
     case class Read(lvalue: LValue)(val pos: Position) extends Stmt
-    case class Free(expr: Expr)(val pos: Position) extends Stmt
-    case class Return(expr: Expr)(val pos: Position) extends Stmt
-    case class Exit(expr: Expr)(val pos: Position) extends Stmt
+    // <stmt> ::= 'print' <expr>
     case class Print(expr: Expr)(val pos: Position) extends Stmt
+    // <stmt> ::= 'println' <expr>
     case class Println(expr: Expr)(val pos: Position) extends Stmt
+
+    // ========== Memory Management ==========
+    // <stmt> ::= 'free' <expr>
+    case class Free(expr: Expr)(val pos: Position) extends Stmt
+
+    // ========== Control Flow ==========
+    // <stmt> ::= 'return' <expr>
+    case class Return(expr: Expr)(val pos: Position) extends Stmt
+    // <stmt> ::= 'exit' <expr>
+    case class Exit(expr: Expr)(val pos: Position) extends Stmt
+    
+    // ========== Conditional and Looping ==========
+    // <stmt> ::= 'if' <expr> 'then' <stmts> 'else' <stmts> 'fi'
     case class If(cond: Expr, thenStmts: List[Stmt], elseStmts: List[Stmt])(val pos: Position) extends Stmt
+    // <stmt> ::= 'while' <expr> 'do' <stmts> 'done'
     case class While(cond: Expr, doStmts: List[Stmt])(val pos: Position) extends Stmt
+
+    // ========== Scope ==========
+    // <stmt> ::= 'begin' <stmts> 'end'
     case class Block(stmts: List[Stmt])(val pos: Position) extends Stmt
 
 

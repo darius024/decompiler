@@ -36,7 +36,7 @@ object exprs {
     case class Greater(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
     case class GreaterEqual(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
     case class Less(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
-    case class LessThan(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
+    case class LessEqual(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
 
     // ========== Additive ==========
     // <expr-add> ::= <expr-add> ('+' | '-') <expr-mul> | <expr-mul>
@@ -71,9 +71,6 @@ object exprs {
     case object PairLit extends Atom with ParserBridge0[Atom]
     case class Id(value: String)(val pos: Position) extends Atom with LValue
     case class ArrayElem(id: Id, indices: List[Expr])(val pos: Position) extends Atom with LValue
-    // optimisation reduce backtracking for ArrayElem and Ident
-    case class IdOrArrayElem(id: Id, indices: List[Expr])(val pos: Position) extends Atom with LValue
-
     case class ParensExpr(expr: Expr)(val pos: Position) extends Atom
 
     // ========== RValue ==========
@@ -105,7 +102,7 @@ object exprs {
     object Greater extends ParserBridgePos2[ExprAdd, ExprAdd, ExprRel]
     object GreaterEqual extends ParserBridgePos2[ExprAdd, ExprAdd, ExprRel]
     object Less extends ParserBridgePos2[ExprAdd, ExprAdd, ExprRel]
-    object LessThan extends ParserBridgePos2[ExprAdd, ExprAdd, ExprRel]
+    object LessEqual extends ParserBridgePos2[ExprAdd, ExprAdd, ExprRel]
 
     object Add extends ParserBridgePos2[ExprAdd, ExprMul, ExprAdd]
     object Sub extends ParserBridgePos2[ExprAdd, ExprMul, ExprAdd]
@@ -128,9 +125,9 @@ object exprs {
     object ArrayElem extends ParserBridgePos2[Id, List[Expr], ArrayElem]
     // optimisation reduce backtracking for ArrayElem and Ident
     object IdOrArrayElem extends ParserBridgePos2[Id, List[Expr], Atom & LValue] {
-        override def apply(id: Id, indices: List[Expr])(pos: Position): Atom & LValue = indices match {
+        def apply(id: Id, indices: List[Expr])(pos: Position): Atom & LValue = indices match {
             case Nil => id
-            case _ => IdOrArrayElem(id, indices)(pos)
+            case _ => ArrayElem(id, indices)(pos)
         }
     }
     
