@@ -8,11 +8,11 @@ object utils {
         os.pwd / "src" / "test" / "wacc" / "integration" / "frontend" / "disable.json"
     private val disables = ujson.read(os.read(disablingFilePath))
 
-    /** Checks if a test category is disabled, indicating it should be marked as pending. */
+    /** Checks disable file if @tparam testSet contains @tparam category. */
     def isDisabled(testSet: String, category: String): Boolean =
         disables(testSet).arr.exists(_.str == category)
 
-    /** Compiles a test program and returns the error message and exit code. */
+    /** Compiles program at @tparam p, returning error message and exit code. */
     def compileTest(p: Path): (String, Int) = wacc.compile(os.read(p))
 
     /** Lists the categories of tests in a directory. */

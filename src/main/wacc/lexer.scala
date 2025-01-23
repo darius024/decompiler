@@ -5,10 +5,9 @@ import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions.*
 import parsley.token.errors.*
 
-/**
- * The lexer processes source text into a stream of tokens
- * that can be consumed by the parser.
- */
+/** The lexer processes source text into a stream of tokens that can
+  * be consumed by the parser.
+  */
 object lexer {
     private val lexer = Lexer(
         LexicalDesc(

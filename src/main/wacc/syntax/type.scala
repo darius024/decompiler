@@ -3,14 +3,11 @@ package wacc.syntax
 import parsley.generic.*
 import bridges.*
 
-/**
- * Type system AST nodes.
- */
+/** Type system AST nodes. */
 object types {
     sealed trait IdType
 
-    /**
-      * <base-type> ::= 'int'
+    /** <base-type> ::= 'int'
       *               | 'bool'
       *               | 'char'
       *               | 'string'
@@ -21,18 +18,13 @@ object types {
     case object CharType extends BaseType with ParserBridge0[BaseType]
     case object StringType extends BaseType with ParserBridge0[BaseType]
 
-    /**
-      * <array-type> ::= <type> '[]'
-      */
+    /** <array-type> ::= <type> '[]' */
     case class ArrayType(idType: IdType, arity: Int)(val pos: Position) extends IdType with PairElemType
 
-    /**
-      * <pair-type> ::= 'pair' '(' <pair-elem-type> ',' <pair-elem-type> ')'
-      */
+    /** <pair-type> ::= 'pair' '(' <pair-elem-type> ',' <pair-elem-type> ')' */
     case class PairType(fst: PairElemType, snd: PairElemType)(val pos: Position) extends IdType
 
-    /**
-      * <pair-elem-type> ::= <base-type>
+    /** <pair-elem-type> ::= <base-type>
       *                    | <array-type>
       *                    | 'pair'
       */

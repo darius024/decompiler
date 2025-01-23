@@ -5,32 +5,27 @@ import bridges.*
 import exprs.*
 import types.*
 
-/** 
- * Statement AST nodes.
- * 
- * <stmt> ::= 'skip'
- *          | <type> <ident> '=' <rvalue>
- *          | <lvalue> '=' <rvalue>
- *          | 'read' <lvalue>
- *          | 'free' <expr>
- *          | 'return' <expr>
- *          | 'exit' <expr>
- *          | 'print' <expr>
- *          | 'println' <expr>
- *          | 'if' <expr> 'then' <stmt>* 'else' <stmt>* 'fi'
- *          | 'while' <expr> 'do' <stmt>* 'done'
- *          | 'begin' <stmt>* 'end'
- *          | <stmt> ';' <stmt>
- */
+/** Statement AST nodes.
+  * 
+  * <stmt> ::= 'skip'
+  *          | <type> <ident> '=' <rvalue>
+  *          | <lvalue> '=' <rvalue>
+  *          | 'read' <lvalue>
+  *          | 'free' <expr>
+  *          | 'return' <expr>
+  *          | 'exit' <expr>
+  *          | 'print' <expr>
+  *          | 'println' <expr>
+  *          | 'if' <expr> 'then' <stmt>* 'else' <stmt>* 'fi'
+  *          | 'while' <expr> 'do' <stmt>* 'done'
+  *          | 'begin' <stmt>* 'end'
+  *          | <stmt> ';' <stmt>
+  */
 object stmts {
-    /**
-      * Alias to bundle parameter and type.
-      */
+    /** Alias to bundle parameter and type. */
     type TypeId = (IdType, Id)
 
-    /**
-      * Statement node.
-      */
+    /** Statement node */
     sealed trait Stmt
 
     case object Skip extends Stmt with ParserBridge0[Stmt]

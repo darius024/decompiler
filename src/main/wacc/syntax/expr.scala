@@ -3,43 +3,37 @@ package wacc.syntax
 import parsley.generic.*
 import bridges.*
 
-/**
- * Expression AST nodes.
- * 
- * Precedence levels and operator associativity have been encoded using
- * cascading trait implementation.
- */
+/** Expression AST nodes.
+  * 
+  * Precedence levels and operator associativity have been encoded using
+  * cascading trait implementation.
+  */
 object exprs {
-    /**
-      * <expr> ::= <unary-oper> <expr>
+    /** <expr> ::= <unary-oper> <expr>
       *          | <expr> <binary-oper> <expr>
       *          | <atom> 
       */
     sealed trait Expr extends RValue
     
-    /**
-      * <expr> :: <expr>
+    /** <expr> :: <expr>
       *         | <and-expr> '||' <expr>
       */
     case class Or(lhs: ExprAnd, rhs: Expr)(val pos: Position) extends Expr
     
-    /**
-      * <and-expr> ::= <eq-expr>
+    /** <and-expr> ::= <eq-expr>
       *              | <and-expr> '&&' <eq-expr>
       */
     sealed trait ExprAnd extends Expr
     case class And(lhs: ExprEq, rhs: ExprAnd)(val pos: Position) extends ExprAnd
     
-    /**
-      * <eq-expr> ::= <rel-expr>
+    /** <eq-expr> ::= <rel-expr>
       *             | <eq-expr> ('==' | '!=') <rel-expr>
       */
     sealed trait ExprEq extends ExprAnd
     case class Equal(lhs: ExprRel, rhs: ExprRel)(val pos: Position) extends ExprEq
     case class NotEqual(lhs: ExprRel, rhs: ExprRel)(val pos: Position) extends ExprEq
 
-    /**
-      * <rel-expr> ::= <add-expr>
+    /** <rel-expr> ::= <add-expr>
       *              | <rel-expr> ('>' | '>=' | '<' | '<=') <add-expr>
       */
     sealed trait ExprRel extends ExprEq
@@ -48,16 +42,14 @@ object exprs {
     case class Less(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
     case class LessThan(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
 
-    /**
-      * <add-expr> ::= <mul-expr>
+    /** <add-expr> ::= <mul-expr>
       *              | <add-expr> ('+' | '-') <mul-expr>
       */
     sealed trait ExprAdd extends ExprRel
     case class Add(lhs: ExprAdd, rhs: ExprMul)(val pos: Position) extends ExprAdd
     case class Sub(lhs: ExprAdd, rhs: ExprMul)(val pos: Position) extends ExprAdd
 
-    /**
-      * <mul-expr> ::= <unary-expr>
+    /** <mul-expr> ::= <unary-expr>
       *              | <mul-expr> ('*' | '/' | '%') <unary-expr>
       */
     sealed trait ExprMul extends ExprAdd
@@ -65,9 +57,7 @@ object exprs {
     case class Div(lhs: ExprMul, rhs: ExprUnary)(val pos: Position) extends ExprMul
     case class Mod(lhs: ExprMul, rhs: ExprUnary)(val pos: Position) extends ExprMul
 
-    /**
-      * <unary-expr> ::= ('!' | '-' | 'len' | 'ord' | 'chr') <expr>
-      */
+    /** <unary-expr> ::= ('!' | '-' | 'len' | 'ord' | 'chr') <expr> */
     sealed trait ExprUnary extends ExprMul
     case class Not(expr: ExprUnary)(val pos: Position) extends ExprUnary
     case class Neg(expr: ExprUnary)(val pos: Position) extends ExprUnary
@@ -75,8 +65,7 @@ object exprs {
     case class Ord(expr: ExprUnary)(val pos: Position) extends ExprUnary
     case class Chr(expr: ExprUnary)(val pos: Position) extends ExprUnary
 
-    /**
-      * <atom> ::= <int-liter>
+    /** <atom> ::= <int-liter>
       *          | <bool-liter>
       *          | <char-liter>
       *          | <str-liter>
@@ -96,8 +85,7 @@ object exprs {
     case class ParensExpr(expr: Expr)(val pos: Position) extends Atom
 
     
-    /**
-      * <rvalue> ::= expr>
+    /** <rvalue> ::= expr>
       *            | <array-liter>
       *            | ‘newpair’ ‘(’ <expr> ‘,’ <expr> ‘)’
       *            | <pair-elem>
@@ -108,15 +96,13 @@ object exprs {
     case class NewPair(fst: Expr, snd: Expr)(val pos: Position) extends RValue
     case class Call(func: Id, args: List[Expr])(val pos: Position) extends RValue
 
-    /**
-      * <lvalue> ::= <ident>
+    /** <lvalue> ::= <ident>
       *            | <array-elem>
       *            | <pair-elem> 
       */
     sealed trait LValue
     
-    /**
-      * <pair-elem> ::= 'fst'
+    /** <pair-elem> ::= 'fst'
       *               | 'snd'
       */
     sealed trait PairElem extends LValue with RValue
