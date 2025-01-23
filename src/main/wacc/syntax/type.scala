@@ -4,7 +4,7 @@ import parsley.generic.*
 import bridges.*
 
 /**
- * Type System AST nodes.
+ * Type system AST nodes.
  */
 object types {
     sealed trait IdType
