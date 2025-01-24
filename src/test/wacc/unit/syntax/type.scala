@@ -15,7 +15,6 @@ private def parseProg(s: String): Either[String, Program] = parser.parse(s"begin
 private def parseType(s: String): Either[String, Program] = parseProg(s"$s x = 0")
 
 class TypeParser extends AnyFlatSpec {
-    //////////////////  TYPES  ////////////////
     "Base types" should "be able to parse int" in {
         inside(parseType("int")) {
             case Right(Program(Nil, List(Declaration((IntType, Id("x")), IntLit(0))))) => succeed

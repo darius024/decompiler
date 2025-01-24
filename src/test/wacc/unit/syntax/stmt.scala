@@ -14,14 +14,12 @@ import types.*
 private def parseProg(s: String): Either[String, Program] = parser.parse(s"begin $s end").toEither
 
 class StmtParser extends AnyFlatSpec {
-    // ========== BASIC STATEMENTS ==========
     "Skip statement" should "parse successfully" in {
         inside(parseProg("skip; skip")) {
             case Right(Program(Nil, List(Skip, Skip))) => succeed
         }
     }
 
-    // ========== VARIABLE DECLARATIONS ==========
     "Variable declarations" should "parse basic types" in {
         inside(parseProg("int x = 42")) {
             case Right(Program(Nil, List(
@@ -92,7 +90,6 @@ class StmtParser extends AnyFlatSpec {
         }
     }
 
-    // ========== ASSIGNMENTS ==========
     "Assignments" should "parse simple assignments" in {
         inside(parseStmt("x = 42")) {
             case Right(Program(Nil, List(
@@ -117,7 +114,6 @@ class StmtParser extends AnyFlatSpec {
         }
     }
 
-    // ========== IO STATEMENTS ==========
     "IO statements" should "parse read" in {
         inside(parseStmt("read x")) {
             case Right(Program(Nil, List(
@@ -142,7 +138,6 @@ class StmtParser extends AnyFlatSpec {
         }
     }
 
-    // ========== CONTROL FLOW ==========
     "Control flow" should "parse if statements" in {
         inside(parseStmt("if true then x = 1 else x = 2 fi")) {
             case Right(Program(Nil, List(
@@ -163,7 +158,6 @@ class StmtParser extends AnyFlatSpec {
         }
     }
 
-    // ========== BLOCKS ==========
     "Blocks" should "parse begin end blocks" in {
         inside(parseStmt("begin skip end")) {
             case Right(Program(Nil, List(

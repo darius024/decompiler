@@ -15,7 +15,6 @@ private def parseExpr(s: String): Either[String, Program] = parseProg(s"return $
 private def parseStmt(s: String): Either[String, Program] = parseProg(s)
 
 class Parser extends AnyFlatSpec {
-    // ========== ATOMS  ==========
     "Integer Literals" should "be able to parse numbers" in {
         inside(parseExpr("123")) {
             case Right(Program(Nil, List(
@@ -171,8 +170,6 @@ class Parser extends AnyFlatSpec {
         }
     }
 
-
-    // ========== EXPRESSIONS  ==========
     "Unary operators" should "be able to parse '!'" in {
         inside(parseExpr("!true")) {
             case Right(Program(Nil, List(
@@ -433,8 +430,6 @@ class Parser extends AnyFlatSpec {
         }
     }
     
-    // ========== L-VALUE TESTS ==========
-
     "LValues" should "parse simple identifiers" in {
         inside(parseExpr("x")) {
             case Right(Program(Nil, List(
@@ -499,7 +494,6 @@ class Parser extends AnyFlatSpec {
         }
     }
 
-    // ========== R-VALUE TESTS ==========
     "RValues" should "parse array literals" in {
         inside(parseStmt("x = [1, 2, 3]")) {
             case Right(Program(Nil, List(
@@ -581,6 +575,4 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
-
 }
