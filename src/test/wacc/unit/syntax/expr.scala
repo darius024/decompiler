@@ -483,6 +483,22 @@ class Parser extends AnyFlatSpec {
         }
     }
 
+    they should "parse nested pair elements with array elements using fst" in {
+        inside(parseStmt("fst arr[1] = 2")) {
+            case Right(Program(Nil, List(
+                Assignment(Fst(ArrayElem(Id("arr"), List(IntLit(1)))), IntLit(2))
+            ))) => succeed
+        }
+    }
+
+    they should "parse nested pair elements with array elements using snd" in {
+        inside(parseStmt("snd arr[1] = 2")) {
+            case Right(Program(Nil, List(
+                Assignment(Snd(ArrayElem(Id("arr"), List(IntLit(1)))), IntLit(2))
+            ))) => succeed
+        }
+    }
+
     // ========== R-VALUE TESTS ==========
     "RValues" should "parse array literals" in {
         inside(parseStmt("x = [1, 2, 3]")) {
@@ -549,4 +565,22 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
+
+    they should "parse nested pair elements with array elements using fst" in {
+        inside(parseStmt("x = fst arr[1]")) {
+            case Right(Program(Nil, List(
+                Assignment(Id("x"), Fst(ArrayElem(Id("arr"), List(IntLit(1)))))
+            ))) => succeed
+        }
+    }
+
+    they should "parse nested pair elements with array elements using snd" in {
+        inside(parseStmt("x = snd arr[1]")) {
+            case Right(Program(Nil, List(
+                Assignment(Id("x"), Snd(ArrayElem(Id("arr"), List(IntLit(1)))))
+            ))) => succeed
+        }
+    }
+
+
 }

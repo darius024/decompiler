@@ -13,6 +13,7 @@ import prog.*
 import stmts.*
 import types.*
 
+
 object parser {
     // ========== Top Level Parser ==========
     def parse(input: String): Result[String, Program] = parser.parse(input)
@@ -53,8 +54,25 @@ object parser {
     // ========== Statements ==========
     // <stmt> ::= 'return' <expr>
 
-    private lazy val simpleStmt: Parsley[Stmt] = Declaration(idType, "=" ~> rvalue) <|> Assignment(lvalue, "=" ~> rvalue)
-    private lazy val stmt: Parsley[Stmt] = Return("return" ~> expr) <|> simpleStmt
+    private lazy val simpleStmt: Parsley[Stmt] = {
+        "skip".as(Skip)
+        <|> Declaration(idType, "=" ~> rvalue)
+        <|> Assignment(lvalue, "=" ~> rvalue)
+        <|> Read("read" ~> lvalue)
+        <|> Print("print" ~> expr)
+        <|> Println("println" ~> expr)
+        <|> Free("free" ~> expr)
+        <|> Return("return" ~> expr)
+        <|> Exit("exit" ~> expr)
+    }
+
+    private lazy val compundStmt: Parsley[Stmt] = {
+        If("if" ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
+        <|> While("while" ~> expr, "do" ~> stmts <~ "done")
+        <|> Block("begin" ~> stmts <~ "end")
+    }
+        
+    private lazy val stmt: Parsley[Stmt] = simpleStmt <|> compundStmt
     private lazy val stmts: Parsley[List[Stmt]] = semiSep1(stmt)
 
     // ========== Program ==========
