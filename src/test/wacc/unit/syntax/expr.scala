@@ -10,8 +10,9 @@ import exprs.*
 import prog.*
 import stmts.*
 
-private def parseExpr(s: String) = parser.parse(s"begin return $s end").toEither
-private def parseStmt(s: String) = parser.parse(s"begin $s end").toEither
+private def parseProg(s: String): Either[String, Program] = parser.parse(s"begin $s end").toEither
+private def parseExpr(s: String): Either[String, Program] = parseProg(s"return $s")
+private def parseStmt(s: String): Either[String, Program] = parseProg(s)
 
 class Parser extends AnyFlatSpec {
     // ========== ATOMS  ==========

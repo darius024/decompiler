@@ -52,8 +52,9 @@ object lexer {
                     "n" -> 0x000a,  // new line
                     "f" -> 0x000c,  // form feed
                     "r" -> 0x000d,  // carriage return
-                ),
-            )),
+                )),
+                graphicCharacter = Basic(c => !Set('\"', '\'', '\\', '\n').contains(c))
+            ),
 
             SpaceDesc.plain.copy(
                 lineCommentStart = "#",

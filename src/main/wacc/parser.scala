@@ -1,6 +1,7 @@
 package wacc
 import parsley.{Parsley, Result}
 import parsley.Parsley.{atomic, many, lookAhead, pure}
+import parsley.combinator.countSome
 import parsley.expr.{precedence, SOps, InfixL, InfixR, InfixN, Prefix, Atoms}
 
 import lexer.*
@@ -10,6 +11,7 @@ import syntax.*
 import exprs.*
 import prog.*
 import stmts.*
+import types.*
 
 object parser {
     // ========== Top Level Parser ==========
@@ -51,7 +53,7 @@ object parser {
     // ========== Statements ==========
     // <stmt> ::= 'return' <expr>
 
-    private lazy val simpleStmt: Parsley[Stmt] = Assignment(lvalue, "=" ~> rvalue)
+    private lazy val simpleStmt: Parsley[Stmt] = Declaration(idType, "=" ~> rvalue) <|> Assignment(lvalue, "=" ~> rvalue)
     private lazy val stmt: Parsley[Stmt] = Return("return" ~> expr) <|> simpleStmt
     private lazy val stmts: Parsley[List[Stmt]] = semiSep1(stmt)
 
@@ -77,6 +79,38 @@ object parser {
         <|> Call("call" ~> Id(identifier), parens(commaSep(expr)))
         <|> expr
     }
+
+    // ========== Type System ==========
+    // All types including pairs
+
+    // Array and base types
+    private val arrayAndBasetypes: Parsley[IdType & PairElemType] = {
+        // Base types: int, bool, char, string
+        lazy val baseType: Parsley[IdType & PairElemType] = {
+            "int".as(IntType)
+            <|> "bool".as(BoolType)
+            <|> "char".as(CharType)
+            <|> "string".as(StringType)
+        }
+
+        // Array types: <type>[]
+        lazy val arrayType: Parsley[IdType & PairElemType] = {
+            ArrayType(baseType, countSome("[" <~> "]"))
+        }
+
+         atomic(arrayType) <|> baseType
+    }
+
+    // Pair element types
+    private lazy val pairElemType: Parsley[PairElemType] =
+        "pair".as(Pair) <|> arrayAndBasetypes
+
+    // All types besides erased pair type
+    private lazy val types: Parsley[IdType] =
+        arrayAndBasetypes <|> PairType("pair" ~>"(" ~> pairElemType, "," ~> pairElemType <~ ")")
+
+    // Type-identifier pairs for declarations
+    private lazy val idType: Parsley[TypeId] = {
+        (types <~> Id(identifier))
+    }
 }
-
-
