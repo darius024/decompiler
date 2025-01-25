@@ -1,13 +1,5 @@
 {
-    "valid": [
-        "advanced",
-        "runtimeErr",
-        "IO",
-        "basic",
-        "scope",
-        "function",
-        "expressions"
-    ],
+    "valid": [],
     "syntaxErr": [],
     "semanticErr": [
         "multiple",

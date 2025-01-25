@@ -79,5 +79,125 @@ class ProgTest extends AnyFlatSpec {
         }
     }
 
+    it should "parse multiple nested scopes in functions" in {
+        inside(parseProg(
+            """
+            int f() is
+                int x = 1;
+                int y = 2;
+                return x + y
+            end
+            skip
+            """   
+        )
+        ) {
+            case Right(Program(
+                List(Function((IntType, Id("f")), Nil,
+                    (List(
+                        Declaration((IntType, Id("x")), IntLit(1)),
+                        Declaration((IntType, Id("y")), IntLit(2)),
+                        Return(Add(Id("x"), Id("y")))
+                    ))
+                )),
+                List(Skip)
+            )) => succeed
+        }
+    }
 
+    it should "parse multiple functions with nested scopes" in {
+        inside(parseProg(
+            """
+            int f() is
+                int x = 1;
+                return x
+            end
+            bool g() is
+                bool y = true;
+                return y
+            end
+            skip
+            """   
+        )
+        ) {
+            case Right(Program(
+                List(
+                    Function((IntType, Id("f")), Nil,
+                        (List(
+                            Declaration((IntType, Id("x")), IntLit(1)),
+                            Return(Id("x"))
+                        ))
+                    ),
+                    Function((BoolType, Id("g")), Nil,
+                        (List(
+                            Declaration((BoolType, Id("y")), BoolLit(true)),
+                            Return(Id("y"))
+                        ))
+                    )
+                ),
+                List(Skip)
+            )) => succeed
+        }
+    }
+
+    it should "parse multiple functions with nested scopes and parameters" in {
+        inside(parseProg(
+            """
+            int f(int x) is
+                return x
+            end
+            bool g(bool y) is
+                return y
+            end
+            skip
+            """   
+        )
+        ) {
+            case Right(Program(
+                List(
+                    Function((IntType, Id("f")), List((IntType, Id("x"))),
+                        (List(
+                            Return(Id("x"))
+                        ))
+                    ),
+                    Function((BoolType, Id("g")), List((BoolType, Id("y"))),
+                        (List(
+                            Return(Id("y"))
+                        ))
+                    )
+                ),
+                List(Skip)
+            )) => succeed
+        }
+    }
+
+    it should "parse multiple functions with nested scopes and parameters and expressions" in {
+        inside(parseProg(
+            """
+            int f(int x) is
+                return x + 1
+            end
+            bool g(bool y) is
+                return !y
+            end
+            skip
+            """   
+        )
+        ) {
+            case Right(Program(
+                List(
+                    Function((IntType, Id("f")), List((IntType, Id("x"))),
+                        (List(
+                            Return(Add(Id("x"), IntLit(1)))
+                        ))
+                    ),
+                    Function((BoolType, Id("g")), List((BoolType, Id("y"))),
+                        (List(
+                            Return(Not(Id("y")))
+                        ))
+                    )
+                ),
+                List(Skip)
+            )) => succeed
+        }
+    }
 }

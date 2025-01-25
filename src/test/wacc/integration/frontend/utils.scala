@@ -19,6 +19,7 @@ object utils {
     def listCategories(p: Path): Generator[String] =
         os.list.stream(p).filter(os.isDir).map(_.baseName)
 
-    /** Lists the tests in a directory. */
-    def listTests(p: Path): Generator[Path] = os.walk.stream(p)
+    /** Lists the tests in a directory and its subdirectories. */
+    def listTests(p: Path): Generator[Path] = 
+        os.walk.stream(p).filter(os.isFile)
 }

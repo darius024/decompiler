@@ -501,7 +501,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse empty array literals" in {
         inside(parseStmt("x = []")) {
             case Right(Program(Nil, List(
@@ -509,7 +508,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse newpair expressions" in {
         inside(parseStmt("x = newpair(1, 2)")) {
             case Right(Program(Nil, List(
@@ -517,7 +515,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse function calls" in {
         inside(parseStmt("x = call f()")) {
             case Right(Program(Nil, List(
@@ -525,7 +522,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse function calls with arguments" in {
         inside(parseStmt("x = call f(1, true, 'c')")) {
             case Right(Program(Nil, List(
@@ -535,7 +531,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse pair elements" in {
         inside(parseStmt("x = fst p")) {
             case Right(Program(Nil, List(
@@ -543,7 +538,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse second pair elements" in {
         inside(parseStmt("x = snd p")) {
             case Right(Program(Nil, List(
@@ -551,7 +545,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse nested pair elements" in {
         inside(parseStmt("x = fst snd p")) {
             case Right(Program(Nil, List(
@@ -559,7 +552,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse nested pair elements with array elements using fst" in {
         inside(parseStmt("x = fst arr[1]")) {
             case Right(Program(Nil, List(
@@ -567,7 +559,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse nested pair elements with array elements using snd" in {
         inside(parseStmt("x = snd arr[1]")) {
             case Right(Program(Nil, List(

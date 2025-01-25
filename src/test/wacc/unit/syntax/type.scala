@@ -20,16 +20,19 @@ class TypeParser extends AnyFlatSpec {
             case Right(Program(Nil, List(Declaration((IntType, Id("x")), IntLit(0))))) => succeed
         }
     }
+
     they should "be able to parse bool" in {
         inside(parseType("bool")) {
             case Right(Program(Nil, List(Declaration((BoolType, Id("x")), IntLit(0))))) => succeed
         }
     }
+
     they should "be able to parse char" in {
         inside(parseType("char")) {
             case Right(Program(Nil, List(Declaration((CharType, Id("x")), IntLit(0))))) => succeed
         }
     }
+
     they should "be able to parse string" in {
         inside(parseType("string")) {
             case Right(Program(Nil, List(Declaration((StringType, Id("x")), IntLit(0))))) => succeed
@@ -41,6 +44,7 @@ class TypeParser extends AnyFlatSpec {
             case Right(Program(Nil, List(Declaration((ArrayType(IntType, 1), Id("x")), ArrayLit(List(IntLit(0))))))) => succeed
         }
     }
+
     they should "be able to parse multiple dimensions" in {
         inside(parseProg("int[][] x = [p]")) {
             case Right(Program(Nil, List(Declaration((ArrayType(IntType, 2), Id("x")), ArrayLit(List(Id(p))))))) => succeed
@@ -55,11 +59,13 @@ class TypeParser extends AnyFlatSpec {
             case Right(Program(Nil, List(Declaration((PairType(IntType, BoolType), Id("x")), IntLit(0))))) => succeed
         }
     }
+
     they should "be able to parse pairs of array types" in {
         inside(parseType("pair(int[], bool[])")) {
             case Right(Program(Nil, List(Declaration((PairType(ArrayType(IntType, 1), ArrayType(BoolType, 1)), Id("x")), IntLit(0))))) => succeed
         }
     }
+    
     they should "be able to parse pairs of pair types" in {
         inside(parseType("pair(pair, pair)")) {
             case Right(Program(Nil, List(Declaration((PairType(Pair, Pair), Id("x")), IntLit(0))))) => succeed
