@@ -1,6 +1,6 @@
 package wacc
 import parsley.{Parsley, Result}
-import parsley.Parsley.{atomic, many, lookAhead, pure}
+import parsley.Parsley.{atomic, many, lookAhead}
 import parsley.combinator.countSome
 import parsley.expr.{precedence, SOps, InfixL, InfixR, InfixN, Prefix, Atoms}
 
@@ -65,20 +65,25 @@ object parser {
         <|> Return("return" ~> expr)
         <|> Exit("exit" ~> expr)
     }
-
-    private lazy val compundStmt: Parsley[Stmt] = {
+        
+    private lazy val compoundStmt: Parsley[Stmt] = {
         If("if" ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
         <|> While("while" ~> expr, "do" ~> stmts <~ "done")
         <|> Block("begin" ~> stmts <~ "end")
     }
         
-    private lazy val stmt: Parsley[Stmt] = simpleStmt <|> compundStmt
+    private lazy val stmt: Parsley[Stmt] = simpleStmt <|> compoundStmt
     private lazy val stmts: Parsley[List[Stmt]] = semiSep1(stmt)
 
     // ========== Program ==========
     // <program> ::= <begin> <func>* <stmt> <end>
     private lazy val program: Parsley[Program] = 
-        Program("begin" ~>  pure(List[Function]()), stmts <~ "end")
+        Program("begin" ~> many(func), stmts <~ "end")
+
+    // ========== Funcs ============
+    // <func>  ::= <type> <ident> '(' <param-list>? ')' 'is' <stmt>* 'end'
+    private lazy val func: Parsley[Function] = 
+        Function(atomic(idType <~ "("), commaSep(idType) <~ ")", "is" ~> stmts <~ "end")    
 
     // ========== L-Values ==========
     // <lvalue> ::= <ident> | <array-elem> | <pair-elem>
@@ -113,7 +118,7 @@ object parser {
 
         // Array types: <type>[]
         lazy val arrayType: Parsley[IdType & PairElemType] = {
-            ArrayType(baseType, countSome("[" <~> "]"))
+            ArrayType(baseType <|> PairType("pair" ~>"(" ~> pairElemType, "," ~> pairElemType <~ ")"), countSome("[" <~> "]"))
         }
 
          atomic(arrayType) <|> baseType
