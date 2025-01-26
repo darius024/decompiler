@@ -21,7 +21,7 @@ object lexer {
             SymbolDesc.plain.copy(
                 // reserved keywords
                 hardKeywords = Set(
-                    "int", "bool", "char", "string", "pair", 
+                    "int", "bool", "char", "string", "pair",  
                     "begin", "end", "is", "skip", "return", "exit",
                     "read", "free", "print", "println",
                     "if", "then", "else", "fi", "while", "do", "done",
@@ -52,8 +52,9 @@ object lexer {
                     "n" -> 0x000a,  // new line
                     "f" -> 0x000c,  // form feed
                     "r" -> 0x000d,  // carriage return
-                ),
-            )),
+                )),
+                graphicCharacter = Basic(c => !Set('\"', '\'', '\\', '\n').contains(c))
+            ),
 
             SpaceDesc.plain.copy(
                 lineCommentStart = "#",

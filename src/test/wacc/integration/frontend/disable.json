@@ -1,19 +1,5 @@
 {
-    "valid": [
-        "advanced",
-        "array",
-        "pairs",
-        "if",
-        "runtimeErr",
-        "IO",
-        "basic",
-        "scope",
-        "function",
-        "variables",
-        "expressions",
-        "sequence",
-        "while"
-    ],
+    "valid": [],
     "syntaxErr": [],
     "semanticErr": [
         "multiple",
