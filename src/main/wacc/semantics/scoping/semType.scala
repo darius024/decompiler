@@ -13,9 +13,10 @@ object semanticTypes {
         case Str
         case Array(ty: SemType, arity: Int)
         case Pair(fst: SemType, snd: SemType)
+        case Func(retTy: SemType, argsTy: List[SemType])
     }
 
-    def convertType(ty: IdType | PairElemType): SemType = ty match {
+    def convertType(ty: IdType | PairElemType): KType = ty match {
         case IntType => KType.Int
         case BoolType => KType.Bool
         case CharType => KType.Char
