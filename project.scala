@@ -4,6 +4,7 @@
 // dependencies
 //> using dep com.github.j-mie6::parsley::5.0.0-M10
 //> using dep com.lihaoyi::os-lib::0.11.3
+//> using dep org.typelevel::cats-core:2.13.0
 //> using test.dep org.scalatest::scalatest::3.2.19
 //> using test.dep com.lihaoyi::upickle:4.1.0
 
