@@ -77,7 +77,7 @@ object exprs {
     case class CharLit(value: Char)(val pos: Position) extends Atom
     case class StrLit(value: String)(val pos: Position) extends Atom
     case object PairLit extends Atom with ParserBridge0[Atom]
-    case class Id(value: String)(val pos: Position) extends Atom with LValue
+    case class Id(var value: String)(val pos: Position) extends Atom with LValue
     case class ArrayElem(id: Id, indices: List[Expr])(val pos: Position) extends Atom with LValue
     case class ParensExpr(expr: Expr)(val pos: Position) extends Atom
 
