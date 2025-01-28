@@ -11,7 +11,7 @@ object semanticTypes {
         case Bool
         case Char
         case Str
-        case Array(ty: SemType, arity: Int)
+        case Array(ty: SemType)
         case Pair(fst: SemType, snd: SemType)
         case Func(retTy: SemType, argsTy: List[SemType])
     }
@@ -21,7 +21,10 @@ object semanticTypes {
         case BoolType => KType.Bool
         case CharType => KType.Char
         case StringType => KType.Str
-        case ArrayType(idType, idx) => KType.Array(convertType(idType), idx)
+        case at @ ArrayType(idType, idx) => idx match {
+            case 1 => KType.Array(convertType(idType))
+            case _ => convertType(ArrayType(idType, idx - 1)(at.pos))
+        }
         case PairType(fst, snd) => KType.Pair(convertType(fst), convertType(snd))
         case Pair => KType.Pair(?, ?)
     }
