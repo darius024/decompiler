@@ -48,14 +48,19 @@ def scopeCheck(prog: Program): (List[SemanticError], Map[String, FuncInfo], Map[
                             List.newBuilder)
 
     val Program(funcs, stmts) = prog
-    funcs.foreach(rename)
+    (funcs zip funcs.map(addFunc)).foreach { (func, scope) =>
+        given funcScope: String = func.typeId._2.value
+
+        rename(func.stmts, scope)
+    }
+
     given funcScope: String = "main"
     rename(stmts, Map.empty[String, RenamedInfo])
 
     (ctx.errors, ctx.funcs, ctx.vars)
 }
 
-def rename(func: Function)(using ctx: ScopeCheckerContext[?]): Unit = {
+def addFunc(func: Function)(using ctx: ScopeCheckerContext[?]): Map[String, RenamedInfo] = {
     val Function((retTy, funcName), params, stmts) = func
     given funcScope: String = funcName.value
 
@@ -69,28 +74,58 @@ def rename(func: Function)(using ctx: ScopeCheckerContext[?]): Unit = {
     }.toMap
 
     ctx.addFunc(funcName, convertType(retTy), ps.values.map(_._2).toList, func.pos)
-    rename(stmts, ps)
+    ps
 }
 
 def rename(stmts: List[Stmt], parentScope: Map[String, RenamedInfo])
           (using funcScope: String)
-          (using ScopeCheckerContext[?]) = ???
+          (using ScopeCheckerContext[?]): Unit = {
+    val currentScope: mutable.Map[String, RenamedInfo] = mutable.Map.empty[String, RenamedInfo]
+
+    stmts.foreach { stmt =>
+        rename(stmt, parentScope, currentScope)
+    }
+}
 
 def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: mutable.Map[String, RenamedInfo])
           (using funcScope: String)
           (using ctx: ScopeCheckerContext[?]): Unit = stmt match {
-    case Skip => ???
-    case Declaration((id, ty), rv) => ??? 
-    case Assignment(lv, rv) => ???
-    case Read(lv) => ???
-    case Free(expr) => ???
-    case Return(expr) => ???
-    case Exit(expr) => ???
-    case Print(expr) => ???
-    case Println(expr) => ???
-    case If(cond, thenStmts, elseStmts) => ???
-    case While(cond, doStmts) => ???
-    case Block(stmts) => ???
+    case Skip =>
+    case Declaration((ty, id), rv) =>
+        if (currentScope.contains(id.value)) {
+            ctx.error(SemanticError.VariableAlreadyDeclared(id.value)(id.pos))
+        } else {
+            rename(rv, parentScope, currentScope)
+
+            val actualId = id.value
+            val kType = convertType(ty)
+            ctx.addVar(id, kType, id.pos)
+            currentScope += actualId -> (id.value, (kType, id.pos))
+        }
+    case Assignment(lv, rv) =>
+        rename(lv, parentScope, currentScope)
+        rename(rv, parentScope, currentScope)
+    case Read(lv)           => rename(lv, parentScope, currentScope)
+    case Free(expr)         => rename(expr, parentScope, currentScope)
+    case r@Return(expr)     =>
+        if (funcScope == "main") {
+            ctx.error(SemanticError.ReturnMainBody(r.pos))
+        } else {
+            rename(expr, parentScope, currentScope)
+        }
+    case Exit(expr)         => rename(expr, parentScope, currentScope)
+    case Print(expr)        => rename(expr, parentScope, currentScope)
+    case Println(expr)      => rename(expr, parentScope, currentScope)
+    
+    case If(cond, thenStmts, elseStmts) =>
+        rename(cond, parentScope, currentScope)
+        rename(thenStmts, parentScope.toMap)
+        rename(elseStmts, parentScope.toMap)
+    case While(cond, doStmts) =>
+        rename(cond, parentScope, currentScope)
+        rename(doStmts, parentScope.toMap)
+    case Block(stmts) =>
+        rename(stmts, parentScope.toMap)
 }
 
 def rename(rvalue: LValue | RValue, parentScope: Map[String, RenamedInfo], currentScope: mutable.Map[String, RenamedInfo])
