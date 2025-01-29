@@ -13,11 +13,14 @@ import prog.*
 
 import Constraint.*
 
+/** Syntactic errors that can occur during type checking. */
 enum SyntaxError {
     case TypeMismatch(unexpected: SemType, expected: SemType)(val pos: Position)
     case TypeCannotBeInfered(val pos: Position)
     case NumberArgumentsMismatch(expected: Int, got: Int)(val pos: Position)
 }
+
+/** Type constraints that can be imposed on types. */
 enum Constraint {
     case Is(ty: SemType)
     case IsEither(ty1: SemType, ty2: SemType)
@@ -28,22 +31,36 @@ object Constraint {
     val IsPair = Is(KType.Pair(?, ?))
 }
 
+/** Type information received from the scope-checking phase. */
 class TypeInfo(val funcs: Map[String, FuncInfo], val vars: Map[String, IdInfo])
 
+/** Context for the type checker.
+  * 
+  * It keeps track of the type information and errors.
+  */
 class TypeCheckerContext[C](tyInfo: TypeInfo, errs: mutable.Builder[SyntaxError, C]) {
     def errors: C = errs.result()
 
+    // get the type of the identifier
     def typeOf(id: String): KType = tyInfo.vars(id)._1
+    // get the return type of the function
     def returnTypeOf(funcName: String): KType = tyInfo.funcs(funcName)._1
+    // get the signature of the function
     def signatureOf(funcName: String): List[KType] = tyInfo.funcs(funcName)._2.map(_._1)
 
+    // add an error to the context
     def error(err: SyntaxError) = {
         errs += err
         None
     }
 }
 
+/** Checks the type soundness of a WACC program.
+  * 
+  * It verifies that all types match within statements.
+*/
 def typeCheck(prog: Program, tyInfo: TypeInfo): Either[NonEmptyList[SyntaxError], TyProg] = {
+    // initialise the context
     given ctx: TypeCheckerContext[List[SyntaxError]] = TypeCheckerContext(tyInfo, List.newBuilder)
     
     val Program(funcs, stmts) = prog
@@ -60,6 +77,7 @@ def typeCheck(prog: Program, tyInfo: TypeInfo): Either[NonEmptyList[SyntaxError]
     }
 }
 
+/** Checks the type soundness within a function body. */
 def check(func: Function)
          (using ctx: TypeCheckerContext[?]): TyFunc = {
     val Function((_, funcName), params, stmts) = func
@@ -71,6 +89,10 @@ def check(func: Function)
     TyFunc(TyExpr.LVal.Id(funcName.value, retTy), paramsTyped, stmtsTyped)
 }
 
+/** Checks the type soundness of a statement.
+  * 
+  * Uses the type parameter to verify the return values of statements.
+*/
 def check(stmt: Stmt, retTy: Option[SemType])
          (using TypeCheckerContext[?]): TyStmt = stmt match {
     case Declaration((_, id), rvalue) =>
@@ -125,6 +147,10 @@ def check(stmt: Stmt, retTy: Option[SemType])
     case _ => ???
 }
 
+/** Checks the type soundness of an expression.
+  * 
+  * Imposes specific constraints on the types of the operations.
+*/
 def checkExpr(expr: Expr, cons: Constraint)
              (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = expr match {
     case Or(x, y)           => checkBinExpr(x, y, KType.Bool, cons)(TyExpr.Or.apply)
@@ -160,11 +186,13 @@ def checkExpr(expr: Expr, cons: Constraint)
     case ParensExpr(e)      => checkExpr(e, cons)
 }
 
+/** Checks the type soundness of an rvalue. */
 def checkRValue(rvalue: RValue, cons: Constraint)
                (using ctx: TypeCheckerContext[?]): (Option[SemType], TyExpr) = rvalue match {
     case e: Expr => checkExpr(e, cons)
         
     case ArrayLit(exprs) =>
+        // the constraint should be an array of some type
         cons match {
             case Is(KType.Array(kTy)) =>
                 val exprsTyped = exprs.map { expr => checkExpr(expr, Is(kTy))._2 }
@@ -191,6 +219,7 @@ def checkRValue(rvalue: RValue, cons: Constraint)
         val retTy = ctx.returnTypeOf(id.value)
         val argsTy = ctx.signatureOf(id.value)
         
+        // check if the number of arguments match
         if (argsTy.length != args.length) {
             ctx.error(SyntaxError.NumberArgumentsMismatch(argsTy.length, args.length)(id.pos))
         }
@@ -203,6 +232,7 @@ def checkRValue(rvalue: RValue, cons: Constraint)
         (retTy.satisfies(cons), TyExpr.Call(TyExpr.LVal.Id(id.value, retTy), argsTyped, argTys))
 }
 
+/** Checks the type soundness of an lvalue. */
 def checkLValue(lvalue: LValue, cons: Constraint)
                (using ctx: TypeCheckerContext[?]): (Option[SemType], TyExpr.LVal) = lvalue match {
     case Id(value) => 
@@ -220,6 +250,7 @@ def checkLValue(lvalue: LValue, cons: Constraint)
     case pairElem: PairElem => checkPairElem(pairElem, cons)
 }
 
+/** Checks the type soundness of a pair element. */
 def checkPairElem(pairElem: PairElem, cons: Constraint)
                  (using TypeCheckerContext[?]): (Option[SemType], TyExpr.LVal) = pairElem match {
     case Fst(lval) =>
@@ -231,6 +262,7 @@ def checkPairElem(pairElem: PairElem, cons: Constraint)
         (KType.Pair(?, ?).satisfies(cons), TyExpr.LVal.PairSnd(lvalTyped, kTy.getOrElse(?)))
 }
 
+/** Checks the type soundness of a binary expression. */
 def checkBinExpr(x: Expr, y: Expr, semType: SemType, cons: Constraint)
                 (build: (TyExpr, TyExpr) => TyExpr)
                 (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
@@ -241,6 +273,7 @@ def checkBinExpr(x: Expr, y: Expr, semType: SemType, cons: Constraint)
     (ty.satisfies(cons), build(xTyped, yTyped))
 }
 
+/** Checks the type soundness of an integer or character binary expression. */
 def checkIntChar(x: Expr, y: Expr, cons: Constraint)
                 (build: (TyExpr, TyExpr) => TyExpr)
                 (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
@@ -251,6 +284,7 @@ def checkIntChar(x: Expr, y: Expr, cons: Constraint)
     (ty.satisfies(cons), build(xTyped, yTyped))
 }
 
+/** Checks the type soundness of a unary expression. */
 def checkUnary(x: Expr, argTy: SemType, RetTy: SemType, cons: Constraint)
               (build: (TyExpr) => TyExpr)
               (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
@@ -259,12 +293,14 @@ def checkUnary(x: Expr, argTy: SemType, RetTy: SemType, cons: Constraint)
     (exprTy.getOrElse(?).satisfies(cons), build(xTyped))
 }
 
+/** Returns the most specific type between two types. */
 def mostSpecific(ty1: Option[SemType], ty2: Option[SemType]): SemType = (ty1, ty2) match {
     case (Some(?), Some(t)) => t
     case (Some(t), _)       => t
     case (None, t)          => t.getOrElse(?)
 }
 
+/** Checks if a type satisfies a constraint. */
 extension (ty: SemType) def satisfies(cons: Constraint)
                                      (using ctx: TypeCheckerContext[?]): Option[SemType] = (ty, cons) match {
     case (?, Is(refTy)) => Some(refTy)
