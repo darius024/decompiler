@@ -36,14 +36,14 @@ object TyExpr {
 
     enum LVal(ty: SemType) extends TyExpr(ty) {
         case Id(value: String, kTy: KType) extends LVal(kTy)
-        case ArrayElem(lVal: LVal, idx: TyExpr, kTy: SemType) extends LVal(kTy)
+        case ArrayElem(lVal: LVal, idx: List[TyExpr], kTy: SemType) extends LVal(kTy)
         case PairFst(lval: LVal, kTy: SemType) extends LVal(kTy)
         case PairSnd(lval: LVal, kTy: SemType) extends LVal(kTy)
     }
 
     case class ArrayLit(exprs: List[TyExpr], kTy: SemType) extends TyExpr(kTy)
     case class NewPair(fst: TyExpr, snd: TyExpr, fstTy: SemType, sndTy: SemType) extends TyExpr(KType.Pair(fstTy, sndTy))
-    case class Call(func: LVal.Id, args: List[TyExpr], retTy: SemType, argTys: List[SemType]) extends TyExpr(KType.Func(retTy, argTys))
+    case class Call(func: LVal.Id, args: List[TyExpr], argTys: List[SemType]) extends TyExpr(KType.Func(func.ty, argTys))
 }
 
 enum TyStmt {
@@ -59,5 +59,5 @@ enum TyStmt {
     case Block(stmts: List[TyStmt])
 }
 
-case class TyFunc(id: TyExpr.LVal.Id, params: List[TyExpr.LVal.Id], stmts: List[TyStmt])
+case class TyFunc(id: TyExpr.LVal, params: List[TyExpr.LVal], stmts: List[TyStmt])
 case class TyProg(funcs: List[TyFunc], stmts: List[TyStmt])
