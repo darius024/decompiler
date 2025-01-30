@@ -3,6 +3,7 @@ package wacc.semantics.typing
 import cats.data.NonEmptyList
 import scala.collection.mutable
 
+import wacc.semantics.errors.*
 import wacc.semantics.scoping.*
 import semanticTypes.*
 import wacc.syntax.*
@@ -14,7 +15,7 @@ import prog.*
 import Constraint.*
 
 /** Syntactic errors that can occur during type checking. */
-enum SyntaxError {
+enum TypeError extends SemanticError {
     case TypeMismatch(unexpected: SemType, expected: SemType)(val pos: Position)
     case TypeCannotBeInfered(val pos: Position)
     case NumberArgumentsMismatch(expected: Int, got: Int)(val pos: Position)
@@ -38,7 +39,7 @@ class TypeInfo(val funcs: Map[String, FuncInfo], val vars: Map[String, IdInfo])
   * 
   * It keeps track of the type information and errors.
   */
-class TypeCheckerContext[C](tyInfo: TypeInfo, errs: mutable.Builder[SyntaxError, C]) {
+class TypeCheckerContext[C](tyInfo: TypeInfo, errs: mutable.Builder[TypeError, C]) {
     def errors: C = errs.result()
 
     // get the type of the identifier
@@ -49,7 +50,7 @@ class TypeCheckerContext[C](tyInfo: TypeInfo, errs: mutable.Builder[SyntaxError,
     def signatureOf(funcName: String): List[KType] = tyInfo.funcs(funcName)._2.map(_._1)
 
     // add an error to the context
-    def error(err: SyntaxError) = {
+    def error(err: TypeError) = {
         errs += err
         None
     }
@@ -59,9 +60,9 @@ class TypeCheckerContext[C](tyInfo: TypeInfo, errs: mutable.Builder[SyntaxError,
   * 
   * It verifies that all types match within statements.
 */
-def typeCheck(prog: Program, tyInfo: TypeInfo): Either[NonEmptyList[SyntaxError], TyProg] = {
+def typeCheck(prog: Program, tyInfo: TypeInfo): Either[NonEmptyList[TypeError], TyProg] = {
     // initialise the context
-    given ctx: TypeCheckerContext[List[SyntaxError]] = TypeCheckerContext(tyInfo, List.newBuilder)
+    given ctx: TypeCheckerContext[List[TypeError]] = TypeCheckerContext(tyInfo, List.newBuilder)
     
     val Program(funcs, stmts) = prog
     val typedFuncs = funcs.map(check)
@@ -221,7 +222,7 @@ def checkRValue(rvalue: RValue, cons: Constraint)
         
         // check if the number of arguments match
         if (argsTy.length != args.length) {
-            ctx.error(SyntaxError.NumberArgumentsMismatch(argsTy.length, args.length)(id.pos))
+            ctx.error(TypeError.NumberArgumentsMismatch(argsTy.length, args.length)(id.pos))
         }
 
         val (argTys, argsTyped) = args.zip(argsTy).map { (arg, argTy) =>
@@ -309,9 +310,9 @@ extension (ty: SemType) def satisfies(cons: Constraint)
     case (KType.Str, Is(KType.Array(KType.Char))) => Some(KType.Array(KType.Char))
     case (kTy, Is(refTy)) =>
         if kTy == refTy then Some(kTy)
-        else ctx.error(SyntaxError.TypeMismatch(kTy, refTy)((0, 0)))   
+        else ctx.error(TypeError.TypeMismatch(kTy, refTy)((0, 0)))   
     case (semTy, IsEither(ty1, ty2)) =>
         if semTy == ty1 || semTy == ty2 then Some(semTy)
-        else ctx.error(SyntaxError.TypeMismatch(semTy, ty1)((0, 0)))
+        else ctx.error(TypeError.TypeMismatch(semTy, ty1)((0, 0)))
     case _ => None
 }

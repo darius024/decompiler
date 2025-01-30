@@ -2,6 +2,8 @@ package wacc
 
 import parsley.{Success, Failure}
 
+import wacc.semantics.checkSemantics
+
 def main(args: Array[String]): Unit = {
     args.headOption match {
         case Some(program) => {
@@ -14,8 +16,11 @@ def main(args: Array[String]): Unit = {
 
 def compile(program: String): (String, Int) =
     parser.parse(program) match {
-        case Success(_) => ("succeed", exitCodes.SuccessfulCompilation)
-        case Failure(msg) => (msg, exitCodes.SyntaxError)
+        case Success(progAst) => checkSemantics(progAst) match {
+            case Right(_)   => ("succeed", exitCodes.SuccessfulCompilation)
+            case Left(errs) => (s"$errs", exitCodes.SemanticError)
+        }
+        case Failure(msg)     => (msg, exitCodes.SyntaxError)
     }
 
 object exitCodes {
