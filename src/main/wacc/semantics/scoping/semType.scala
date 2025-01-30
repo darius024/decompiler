@@ -2,10 +2,14 @@ package wacc.semantics.scoping
 
 import wacc.syntax.types.*
 
+/** Semantic types of the WACC language. */
 object semanticTypes {
     sealed trait SemType
 
+    /** Represents an unknown type. */
     case object ? extends SemType
+
+    /** Represents a known type. */
     enum KType extends SemType {
         case Int
         case Bool
@@ -16,6 +20,7 @@ object semanticTypes {
         case Func(retTy: SemType, argsTy: List[SemType])
     }
 
+    /** Converts a syntactic type to a semantic type. */
     def convertType(ty: IdType | PairElemType): KType = ty match {
         case IntType => KType.Int
         case BoolType => KType.Bool

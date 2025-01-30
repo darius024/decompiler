@@ -15,7 +15,7 @@ type IdInfo = (KType, Position)
 type RenamedInfo = (String, IdInfo)
 type FuncInfo = (KType, List[IdInfo], Position)
 
-/** Semantic errors that can occur during scoping. */
+/** Semantic errors that can occur during scope checking. */
 enum SemanticError {
     case VariableNotInScope(id: String)(val pos: Position)
     case VariableAlreadyDeclared(id: String)(val pos: Position)
