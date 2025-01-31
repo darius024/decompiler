@@ -21,7 +21,6 @@ class InvalidSyntaxTest extends AnyWordSpec {
 
                     // run
                     val (msg, code) = compileTest(test)
-                    println(msg)
                     withClue(s"$msg\n") {
                         code mustBe exitCodes.SyntaxError
                     }

@@ -1,5 +1,6 @@
 package wacc
 
+import os.*
 import parsley.{Success, Failure}
 
 import wacc.semantics.checkSemantics
@@ -7,7 +8,8 @@ import wacc.semantics.checkSemantics
 def main(args: Array[String]): Unit = {
     args.headOption match {
         case Some(program) => {
-            val (_, exitCode) = compile(program)
+            val (errs, exitCode) = compile(os.read(os.Path(program, os.pwd)))
+            println(errs)
             System.exit(exitCode)
         }
         case None => println("please enter a program")
