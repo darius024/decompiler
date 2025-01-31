@@ -6,7 +6,7 @@ import wacc.semantics.scoping.semanticTypes.*
   * Each node has a specific type associated with it,
   * which is used to store type information.
   */
-sealed abstract class TyExpr(val ty: SemType)
+sealed abstract class TyExpr(var ty: SemType)
 object TyExpr {
     case class Or(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
     case class And(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)

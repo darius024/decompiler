@@ -40,6 +40,7 @@ class ScopeCheckerContext[C](val funcTypes: mutable.Map[String, FuncInfo],
 
     // insert a function to the function map
     def addFunc(id: Id, retType: KType, params: List[IdInfo], pos: Position) =
+        // id.value = convertName(id, "main")
         funcTypes += id.value -> (retType, params, pos)
     
     // insert a renamed variable to the global variable map
@@ -72,7 +73,7 @@ def scopeCheck(prog: Program): (List[ScopeError], Map[String, FuncInfo], Map[Str
 
     // add all functions to the context and check their scopes
     // adding the function beforehand allows for mutual recursion
-    (funcs zip funcs.map(addFunc)).foreach { (func, scope) =>
+    (funcs zip funcs.map(addFunction)).foreach { (func, scope) =>
         given funcScope: String = func.typeId._2.value
         // perform renaming on the function body
         rename(func.stmts, scope)
@@ -86,9 +87,15 @@ def scopeCheck(prog: Program): (List[ScopeError], Map[String, FuncInfo], Map[Str
 }
 
 /** Adds a function to the context and returns a map of its parameters. */
-def addFunc(func: Function)(using ctx: ScopeCheckerContext[?]): Map[String, RenamedInfo] = {
+def addFunction(func: Function)(using ctx: ScopeCheckerContext[?]): Map[String, RenamedInfo] = {
     val Function((retTy, funcName), params, stmts) = func
     given funcScope: String = funcName.value
+
+    // check for parameter name duplication
+    val paramNames = params.map(_._2)
+    if (paramNames.distinct.length != paramNames.length) {
+        ctx.error(ScopeError.VariableAlreadyDeclared(funcName.value)(funcName.pos))
+    }
 
     // rename all parameters and add them to the context
     val ps: List[(String, RenamedInfo)] = params.map { (idType, id) =>
@@ -100,7 +107,11 @@ def addFunc(func: Function)(using ctx: ScopeCheckerContext[?]): Map[String, Rena
     }
 
     // add the function defintion to the context
-    ctx.addFunc(funcName, convertType(retTy), ps.map(_._2._2), func.pos)
+    if (ctx.funcs.contains(funcName.value)) {
+        ctx.error(ScopeError.VariableAlreadyDeclared(funcName.value)(funcName.pos))
+    } else {
+        ctx.addFunc(funcName, convertType(retTy), ps.map(_._2._2), func.pos)
+    }
     ps.toMap
 }
 

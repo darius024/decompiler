@@ -15,9 +15,6 @@ def checkSemantics(prog: Program): Either[List[SemanticError], Program] = {
             case _   => Left(scopeErrs)
         }
     }
-
-    // // dummy return
-    // Right(Program(Nil, Nil)(0, 0))
 }
 
 object errors {
