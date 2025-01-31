@@ -20,6 +20,7 @@ type FuncInfo    = (KType, List[IdInfo], Position)
 enum ScopeError extends SemanticError {
     case VariableNotInScope(id: String)(val pos: Position)
     case VariableAlreadyDeclared(id: String)(val pos: Position)
+    case FunctionAlreadyDeclared(id: String)(val pos: Position)
     case FunctionNotDefined(id: String)(val pos: Position)
     case ReturnMainBody(val pos: Position)
 }
@@ -93,8 +94,10 @@ def addFunction(func: Function)(using ctx: ScopeCheckerContext[?]): Map[String, 
 
     // check for parameter name duplication
     val paramNames = params.map(_._2)
-    if (paramNames.distinct.length != paramNames.length) {
-        ctx.error(ScopeError.VariableAlreadyDeclared(funcName.value)(funcName.pos))
+    paramNames.foreach { id =>
+        if (paramNames.count(_.value == id.value) > 1) {
+            ctx.error(ScopeError.VariableAlreadyDeclared(id.value)(id.pos))
+        }
     }
 
     // rename all parameters and add them to the context
@@ -108,7 +111,7 @@ def addFunction(func: Function)(using ctx: ScopeCheckerContext[?]): Map[String, 
 
     // add the function defintion to the context
     if (ctx.funcs.contains(funcName.value)) {
-        ctx.error(ScopeError.VariableAlreadyDeclared(funcName.value)(funcName.pos))
+        ctx.error(ScopeError.FunctionAlreadyDeclared(funcName.value)(funcName.pos))
     } else {
         ctx.addFunc(funcName, convertType(retTy), ps.map(_._2._2), func.pos)
     }

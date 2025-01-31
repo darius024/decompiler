@@ -16,10 +16,9 @@ import Constraint.*
 
 /** Syntactic errors that can occur during type checking. */
 enum TypeError extends SemanticError {
-    case TypeMismatch(unexpected: SemType, expected: SemType)(val pos: Position)
+    case TypeMismatch(unexpected: SemType, expected: List[SemType])(val pos: Position)
     case TypeCannotBeInfered(val pos: Position)
     case NumberArgumentsMismatch(expected: Int, got: Int)(val pos: Position)
-    case TypeUnknown(val pos: Position)
 }
 
 /** Type constraints that can be imposed on types. */
@@ -29,7 +28,6 @@ enum Constraint {
 }
 object Constraint {
     val Unconstrained = Is(?)
-    def IsArray(semTy: SemType) = Is(KType.Array(semTy))
     def IsPair(semTy1: SemType, semTy2: SemType) = Is(KType.Pair(semTy1, semTy2))
 }
 
@@ -45,11 +43,14 @@ class TypeCheckerContext[C](tyInfo: TypeInfo, errs: mutable.Builder[TypeError, C
     def errors: C = errs.result()
 
     // get the type of the identifier
-    def typeOf(id: String): SemType = tyInfo.vars.get(id).map(_._1).getOrElse(?)
+    def typeOf(id: String): SemType =
+        tyInfo.vars.get(id).map(_._1).getOrElse(?)
     // get the return type of the function
-    def returnTypeOf(funcName: String): SemType = tyInfo.funcs.get(funcName).map(_._1).getOrElse(?)
+    def returnTypeOf(funcName: String): SemType =
+        tyInfo.funcs.get(funcName).map(_._1).getOrElse(?)
     // get the signature of the function
-    def signatureOf(funcName: String): List[SemType] = tyInfo.funcs.get(funcName).map(_._2.map(_._1)).getOrElse(Nil)
+    def signatureOf(funcName: String): List[SemType] =
+        tyInfo.funcs.get(funcName).map(_._2.map(_._1)).getOrElse(Nil)
 
     // add an error to the context
     def error(err: TypeError) = {
@@ -203,15 +204,12 @@ def checkRValue(rvalue: RValue, cons: Constraint)
     case ArrayLit(exprs) =>
         // the constraint should be an array of some type
         cons match {
-            case Is(KType.Array(kTy)) =>
-                val exprsTyped = exprs.map { expr => checkExpr(expr, Is(kTy))._2 }
-                val arrayType = exprs match {
-                    case Nil => KType.Array(?)
-                    case ty :: tys => KType.Array(kTy)
-                }
+            case Is(KType.Array(elemTy)) =>
+                val exprsTyped = exprs.map { expr => checkExpr(expr, Is(elemTy))._2 }
+                val arrayType = KType.Array(elemTy)
                 (arrayType.satisfies(cons), TyExpr.ArrayLit(exprsTyped, arrayType))
             case _ =>
-                val (exprsTy, exprsTyped) = exprs.map { expr => checkExpr(expr, Unconstrained) }.unzip
+                val exprsTyped = exprs.map { expr => checkExpr(expr, Unconstrained)._2 }
                 (Some(KType.Array(?)), TyExpr.ArrayLit(exprsTyped, KType.Array(?)))
         }
     
@@ -249,26 +247,30 @@ def checkLValue(lvalue: LValue, cons: Constraint)
         (kTy.satisfies(cons), TyExpr.LVal.Id(value, kTy))
     
     case ArrayElem(id, idx) =>
-        val (kTy, idTyped) = checkLValue(id, Is(KType.Array(?)))
+        val (baseTy, idTyped) = checkLValue(id, Unconstrained)
         
-        kTy match {
-            case Some(KType.Array(ty)) => {
-                val (idxTy, idxTyped) = idx.map { idx =>
-                    val (exprTy, exprTyped) = checkExpr(idx, Is(KType.Int))
-                    (exprTy.getOrElse(?), exprTyped)
-                }.unzip
-                val finalTy = (1 until idx.length).foldLeft(ty) { (acc, _) =>
-                    acc match {
-                        case KType.Array(innerTy) => innerTy
-                        case _ => ctx.error(TypeError.TypeMismatch(acc, KType.Array(?))((0, 0)))
-                                  ?
+        // Check that all indices are integers
+        val (idxTy, idxTyped) = idx.map { idx =>
+            val (exprTy, exprTyped) = checkExpr(idx, Is(KType.Int))
+            (exprTy.getOrElse(?), exprTyped)
+        }.unzip
+
+        // calculate the resulting type by unwrapping the array type
+        val resultTy = baseTy match {
+            case Some(arrayTy) =>
+                var currentTy = arrayTy
+                for (_ <- idx.indices) {
+                    currentTy match {
+                        case KType.Array(elemTy) => currentTy = elemTy
+                        case _ => 
+                            ctx.error(TypeError.TypeMismatch(currentTy, List(KType.Array(?)))(id.pos))
                     }
                 }
-                (finalTy.satisfies(cons), TyExpr.LVal.ArrayElem(idTyped, idxTyped, finalTy))
-            }
-            case _ =>
-                (kTy.getOrElse(?).satisfies(IsArray(?)), TyExpr.LVal.ArrayElem(idTyped, idx.map(checkExpr(_, Unconstrained)._2), ?))
+                Some(currentTy)
+            case None => None
         }
+
+        (resultTy.getOrElse(?).satisfies(cons), TyExpr.LVal.ArrayElem(idTyped, idxTyped, resultTy.getOrElse(?)))
     
     case pairElem: PairElem => checkPairElem(pairElem, cons)
 }
@@ -340,15 +342,15 @@ extension (ty: SemType) def satisfies(cons: Constraint)
     case (KType.Str, Is(KType.Array(KType.Char))) => Some(KType.Array(KType.Char))
     // do not allow array covariance
     case (KType.Array(kTy), Is(KType.Array(refTy))) => kTy match {
-        case KType.Array(KType.Char) => ctx.error(TypeError.TypeMismatch(kTy, refTy)((0, 0)))
+        case KType.Array(KType.Char) => ctx.error(TypeError.TypeMismatch(kTy, List(refTy))((0, 0)))
         case _ => Some(KType.Array(kTy.satisfies(Is(refTy)).getOrElse(?)))
     }
 
     // do not allow pair covariance
     case (KType.Pair(KType.Array(KType.Char), kTy2), Is(KType.Pair(KType.Str, refTy2))) =>
-        ctx.error(TypeError.TypeMismatch(KType.Pair(KType.Array(KType.Char), kTy2), KType.Pair(KType.Str, refTy2))((0, 0)))
+        ctx.error(TypeError.TypeMismatch(KType.Pair(KType.Array(KType.Char), kTy2), List(KType.Pair(KType.Str, refTy2)))((0, 0)))
     case (KType.Pair(kTy1, KType.Array(KType.Char)), Is(KType.Pair(refTy1, KType.Str))) =>
-        ctx.error(TypeError.TypeMismatch(KType.Pair(kTy1, KType.Array(KType.Char)), KType.Pair(refTy1, KType.Str))((0, 0)))
+        ctx.error(TypeError.TypeMismatch(KType.Pair(kTy1, KType.Array(KType.Char)), List(KType.Pair(refTy1, KType.Str)))((0, 0)))
     
     case (KType.Pair(kTy1, kTy2), Is(KType.Pair(refTy1, refTy2))) =>
         val fstTy = kTy1.satisfies(Is(refTy1))
@@ -357,14 +359,14 @@ extension (ty: SemType) def satisfies(cons: Constraint)
 
     case (kTy, Is(refTy)) =>
         if kTy == refTy then Some(kTy)
-        else ctx.error(TypeError.TypeMismatch(kTy, refTy)((0, 0)))
+        else ctx.error(TypeError.TypeMismatch(kTy, List(refTy))((0, 0)))
 
     case (KType.Array(kTy), IsEither(KType.Array(?), KType.Pair(?, ?))) => Some(KType.Array(kTy))
     case (KType.Pair(kTy1, kTy2), IsEither(KType.Array(?), KType.Pair(?, ?))) => Some(KType.Pair(kTy1, kTy2))
 
     case (semTy, IsEither(ty1, ty2)) =>
         if semTy == ty1 || semTy == ty2 then Some(semTy)
-        else ctx.error(TypeError.TypeMismatch(semTy, ty1)((0, 0)))
+        else ctx.error(TypeError.TypeMismatch(semTy, List(ty1, ty2))((0, 0)))
 
     case _ => None
 }
