@@ -69,12 +69,59 @@ object lexer {
                 .map(_ -> Label("binary operator")),
             List("read", "free", "return", "exit", "print", "println", "if", "while", "begin")
                 .map(_ -> Label("statement")),
-            List("then" -> Label("then branch")),
-            List("else" -> Label("else branch")),
-            List("do" -> Label("while body")),
-            List("fi" -> Label("end of if statement")),
-            List("done" -> Label("end of while statement")),
-            List("end" -> Label("end of block")),
+            List("then" -> LabelAndReason(
+                                        reason = "then branch required", 
+                                        label  = "then"
+                                        )
+                ),
+            List("else" -> LabelAndReason(
+                                        reason = "else branch required", 
+                                        label  = "else"
+                                        )
+                ),
+            List("do" -> LabelAndReason(
+                                        reason = "do required to start while loop", 
+                                        label  = "do"
+                                        )
+                ),
+            List("fi" -> LabelAndReason(
+                                        reason = "fi required to close if statement", 
+                                        label  = "fi"
+                                        )
+                ),
+            List("done" -> LabelAndReason(
+                                        reason = "done required to close while loop", 
+                                        label  = "done"
+                                        )
+                ),
+            List("end" -> LabelAndReason(
+                                        reason = "end required to close block", 
+                                        label  = "end"
+                                        )
+                ),
+            List("begin" -> LabelAndReason(
+                                        reason = "begin required to start block", 
+                                        label  = "begin"
+                                        )
+                ),
+            List(";" -> LabelAndReason( 
+                                        reason = "semicolon required to separate statements", 
+                                        label  = "semicolon"
+                                     )
+                ),
+            List("=" -> LabelAndReason(
+                                        reason = "assignment operator required", 
+                                        label  = "assignment"
+                                        )
+                ),
+            List("[" -> LabelAndReason(
+                                        reason = "array index/constructor operator required", 
+                                        label  = "array index/constructor"
+                                        )
+                ),
+            
+            
+                       
         ).flatten.toMap
     }
 

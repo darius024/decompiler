@@ -4,6 +4,7 @@ import parsley.Parsley.{atomic, many, notFollowedBy}
 import parsley.character.digit
 import parsley.combinator.countMany
 import parsley.expr.{precedence, SOps, InfixL, InfixR, InfixN, Prefix, Atoms}
+import parsley.errors.combinator.*
 
 import lexer.*
 import implicits.implicitSymbol
@@ -25,13 +26,13 @@ object parser {
         IdOrArrayElem(Id(identifier), many(brackets(expr)))
     
     private lazy val atom: Parsley[Atom] = 
-        ( IntLit(integer)
+        ( IntLit(integer).label("integer")
         | BoolLit("true".as(true) | "false".as(false)) 
-        | CharLit(character)
-        | StrLit(string)
-        | PairLit.from("null")
-        | idOrArrayElem
-        | ParensExpr(parens(expr))
+        | CharLit(character).label("character")
+        | StrLit(string).label("string")
+        | PairLit.from("null").label("null")
+        | idOrArrayElem.label("identifier or array element")
+        | ParensExpr(parens(expr)).label("parenthesized expression")
         )
 
     // operator precedence hierarchy
@@ -48,7 +49,7 @@ object parser {
                      Not      from "!",   Len          from "len",
                      Ord      from "ord", Chr          from "chr") +:
         Atoms(atom)
-    }
+    }.label("expression")
 
     private lazy val pairElem: Parsley[PairElem] = 
         ( Fst("fst" ~> lvalue) 
@@ -102,13 +103,13 @@ object parser {
         )
         
     private lazy val compoundStmt: Parsley[Stmt] = 
-        ( If   ("if"    ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
+        ( If   ("if"    ~> expr, "then" ~> stmts, "else".explain("else branch required") ~> stmts <~ "fi")
         | While("while" ~> expr, "do"   ~> stmts                  <~ "done")
         | Block("begin"                 ~> stmts                  <~ "end")
         )
         
     private lazy val stmts: Parsley[List[Stmt]] =
-        semiSep1(simpleStmt | compoundStmt)
+        semiSep1(simpleStmt | compoundStmt).label("statements")
 
     /** Functions and programs. */
     private lazy val function: Parsley[Function] =

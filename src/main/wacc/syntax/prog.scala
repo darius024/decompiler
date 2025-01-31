@@ -33,6 +33,10 @@ object prog {
         override def apply(x: Parsley[TypeId], y: => Parsley[List[TypeId]], z: => Parsley[List[Stmt]]): Parsley[Function] = super.apply(x, y, z).guardAgainst {
             case Function(_, _, stmts) if !endsWithReturnOrExit(stmts) =>
                 Seq("Function does not end with a return statement, exit statement or a terminating if statement")
-        } 
+        }
+
+        override def labels = List("Function")
+
+        override def reason = Some("function body must end with a return statement, exit statement or a terminating if statement") 
     }
 }
