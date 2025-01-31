@@ -35,4 +35,20 @@ object types {
 
     object ArrayType extends ParserBridgePos2[IdType, Int, ArrayType]
     object PairType extends ParserBridgePos2[PairElemType, PairElemType, PairType]
+
+    // optimisation to reduce backtracking for `PairElemType`s
+    object BaseArrayType extends ParserBridgePos2[IdType & PairElemType, Int, PairElemType] {
+        def apply(ty: IdType & PairElemType, arity: Int)(pos: Position): PairElemType = arity match {
+            case 0 => ty
+            case _ => ArrayType(ty, arity)(pos)
+        }
+    }
+
+    // optimisation to reduce backtracking for `IdType`s
+    object BaseArraPairType extends ParserBridgePos2[IdType, Int, IdType] {
+        def apply(ty: IdType, arity: Int)(pos: Position): IdType = arity match {
+            case 0 => ty
+            case _ => ArrayType(ty, arity)(pos)
+        }
+    }
 }

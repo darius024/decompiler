@@ -6,7 +6,7 @@ import wacc.semantics.scoping.semanticTypes.*
   * Each node has a specific type associated with it,
   * which is used to store type information.
   */
-sealed abstract class TyExpr(val ty: SemType)
+sealed abstract class TyExpr(var ty: SemType)
 object TyExpr {
     case class Or(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
     case class And(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
@@ -40,13 +40,13 @@ object TyExpr {
 
     /** Typed l-values. */
     enum LVal(ty: SemType) extends TyExpr(ty) {
-        case Id(value: String, kTy: KType) extends LVal(kTy)
-        case ArrayElem(lVal: LVal, idx: List[TyExpr], kTy: SemType) extends LVal(kTy)
-        case PairFst(lval: LVal, kTy: SemType) extends LVal(kTy)
-        case PairSnd(lval: LVal, kTy: SemType) extends LVal(kTy)
+        case Id(value: String, semTy: SemType) extends LVal(semTy)
+        case ArrayElem(lVal: LVal, idx: List[TyExpr], semTy: SemType) extends LVal(semTy)
+        case PairFst(lval: LVal, semTy: SemType) extends LVal(semTy)
+        case PairSnd(lval: LVal, semTy: SemType) extends LVal(semTy)
     }
 
-    case class ArrayLit(exprs: List[TyExpr], kTy: SemType) extends TyExpr(kTy)
+    case class ArrayLit(exprs: List[TyExpr], semTy: SemType) extends TyExpr(semTy)
     case class NewPair(fst: TyExpr, snd: TyExpr, fstTy: SemType, sndTy: SemType) extends TyExpr(KType.Pair(fstTy, sndTy))
     case class Call(func: LVal.Id, args: List[TyExpr], argTys: List[SemType]) extends TyExpr(KType.Func(func.ty, argTys))
 }

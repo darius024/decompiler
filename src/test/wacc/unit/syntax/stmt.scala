@@ -11,9 +11,11 @@ import prog.*
 import stmts.*
 import types.*
 
+/** Helper function to parse a statement. */
 private def parseProg(s: String): Either[String, Program] = parser.parse(s"begin $s end").toEither
 
-class StmtParser extends AnyFlatSpec {
+/** Tests the parsing of statements. */
+class StmtParserTests extends AnyFlatSpec {
     "Skip statement" should "parse successfully" in {
         inside(parseProg("skip; skip")) {
             case Right(Program(Nil, List(Skip, Skip))) => succeed
@@ -27,7 +29,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse array types" in {
         inside(parseProg("int[] arr = [1, 2, 3]")) {
             case Right(Program(Nil, List(
@@ -36,7 +37,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse multi-dimensional arrays" in {
         inside(parseProg("int[][] arr = [a, b]")) {
             case Right(Program(Nil, List(
@@ -45,7 +45,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }    
-
     they should "parse pair types" in {
         inside(parseStmt("pair(int, bool) p = newpair(1, true)")) {
             case Right(Program(Nil, List(
@@ -54,7 +53,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse pairs with expressions" in {
         inside(parseStmt("pair(int, bool) p = newpair(1 + 2, true)")) {
             case Right(Program(Nil, List(
@@ -63,7 +61,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse pairs with variables" in {
         inside(parseStmt("pair(int, bool) p = newpair(x, true)")) {
             case Right(Program(Nil, List(
@@ -72,7 +69,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse pairs with expressions and variables" in {
         inside(parseStmt("pair(int, bool) p = newpair(x + 1, true)")) {
             case Right(Program(Nil, List(
@@ -81,7 +77,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse erased pairs with expressions" in {
         inside(parseStmt("pair(int, pair) p = newpair(1, 0)")) {
             case Right(Program(Nil, List(
@@ -97,7 +92,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse array assignments" in {
         inside(parseStmt("arr[1] = 42")) {
             case Right(Program(Nil, List(
@@ -105,7 +99,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse pair assignments" in {
         inside(parseStmt("fst p = 42")) {
             case Right(Program(Nil, List(
@@ -121,7 +114,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse print" in {
         inside(parseStmt("print 42")) {
             case Right(Program(Nil, List(
@@ -129,7 +121,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse println" in {
         inside(parseStmt("println \"hello\"")) {
             case Right(Program(Nil, List(
@@ -147,7 +138,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse while loops" in {
         inside(parseStmt("while true do x = x + 1 done")) {
             case Right(Program(Nil, List(
@@ -165,7 +155,6 @@ class StmtParser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse multiple statements" in {
         inside(parseStmt("x = 1; y = 2")) {
             case Right(Program(Nil, List(

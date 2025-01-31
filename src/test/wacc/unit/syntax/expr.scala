@@ -10,11 +10,15 @@ import exprs.*
 import prog.*
 import stmts.*
 
+/** Helper function to parse a program. */
 private def parseProg(s: String): Either[String, Program] = parser.parse(s"begin $s end").toEither
+/** Helper function to parse an expression. */
 private def parseExpr(s: String): Either[String, Program] = parseProg(s"return $s")
+/** Helper function to parse a statement. */
 private def parseStmt(s: String): Either[String, Program] = parseProg(s)
 
-class Parser extends AnyFlatSpec {
+/** Tests the parsing of expressions. */
+class ExprParserTests extends AnyFlatSpec {
     "Integer Literals" should "be able to parse numbers" in {
         inside(parseExpr("123")) {
             case Right(Program(Nil, List(
@@ -437,7 +441,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse array elements with single index" in {
         inside(parseStmt("arr[1] = 2")) {
             case Right(Program(Nil, List(
@@ -445,7 +448,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse array elements with multiple indices" in {
         inside(parseStmt("arr[1][2] = 7")) {
             case Right(Program(Nil, List(
@@ -453,7 +455,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse first pair elements" in {
         inside(parseStmt("fst p = 2")) {
             case Right(Program(Nil, List(
@@ -461,7 +462,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse second pair elements" in {
         inside(parseStmt("snd p = 3")) {
             case Right(Program(Nil, List(
@@ -469,7 +469,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse nested pair elements" in {
         inside(parseStmt("fst snd p = 2")) {
             case Right(Program(Nil, List(
@@ -477,7 +476,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse nested pair elements with array elements using fst" in {
         inside(parseStmt("fst arr[1] = 2")) {
             case Right(Program(Nil, List(
@@ -485,7 +483,6 @@ class Parser extends AnyFlatSpec {
             ))) => succeed
         }
     }
-
     they should "parse nested pair elements with array elements using snd" in {
         inside(parseStmt("snd arr[1] = 2")) {
             case Right(Program(Nil, List(

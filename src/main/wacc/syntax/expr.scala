@@ -147,7 +147,7 @@ object exprs {
     object Fst extends ParserBridgePos1[LValue, Fst]
     object Snd extends ParserBridgePos1[LValue, Snd]
 
-    // optimisation reduce backtracking for ArrayElem and Ident
+    // optimisation to reduce backtracking for Ident and ArrayElem
     object IdOrArrayElem extends ParserBridgePos2[Id, List[Expr], Atom & LValue] {
         def apply(id: Id, indices: List[Expr])(pos: Position): Atom & LValue = indices match {
             case Nil => id

@@ -1,19 +1,5 @@
 {
     "valid": [],
     "syntaxErr": [],
-    "semanticErr": [
-        "multiple",
-        "array",
-        "pairs",
-        "read",
-        "if",
-        "IO",
-        "scope",
-        "function",
-        "print",
-        "variables",
-        "expressions",
-        "exit",
-        "while"
-    ]
+    "semanticErr": []
 }

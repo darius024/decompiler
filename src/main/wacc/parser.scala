@@ -2,8 +2,9 @@ package wacc
 import parsley.{Parsley, Result}
 import parsley.Parsley.{atomic, many, notFollowedBy}
 import parsley.character.digit
-import parsley.combinator.countSome
+import parsley.combinator.countMany
 import parsley.expr.{precedence, SOps, InfixL, InfixR, InfixN, Prefix, Atoms}
+import parsley.errors.combinator.*
 
 import lexer.*
 import implicits.implicitSymbol
@@ -14,138 +15,106 @@ import prog.*
 import stmts.*
 import types.*
 
-
+/** Formulates the grammar rules the parser should follow. */
 object parser {
-    // ========== Top Level Parser ==========
+    /** Top-level parser. */
     def parse(input: String): Result[String, Program] = parser.parse(input)
     private val parser = fully(program)
     
-    // ========== Atomic Expressions ==========
-    // <atom> ::= 'null' | 'true' | 'false' | <int-lit> | <char-lit> | <str-lit>
-    //          | <ident> '[' <expr> ']' | '(' <expr> ')'
-    private lazy val atom: Parsley[Atom] = 
-        (
-        "null".as(PairLit)
-        | BoolLit("true".as(true) | "false".as(false)) 
-        | IntLit(integer | "-" ~> integer)
-        | CharLit(character)
-        | StrLit(string)
-        | idOrArrayElem
-        | ParensExpr(parens(expr))
-        )
-    private lazy val idOrArrayElem: Parsley[Atom] = 
+    /** Expressios. */
+    private lazy val idOrArrayElem: Parsley[Atom & LValue] = 
         IdOrArrayElem(Id(identifier), many(brackets(expr)))
+    
+    private lazy val atom: Parsley[Atom] = 
+        ( IntLit(integer).label("integer")
+        | BoolLit("true".as(true) | "false".as(false)) 
+        | CharLit(character).label("character")
+        | StrLit(string).label("string")
+        | PairLit.from("null").label("null")
+        | idOrArrayElem.label("identifier or array element")
+        | ParensExpr(parens(expr)).label("parenthesized expression")
+        )
 
-    private lazy val literals = Atoms(atom)
+    // operator precedence hierarchy
+    private lazy val expr: Parsley[Expr] = precedence {
+        SOps(InfixR)(Or       from "||") +:
+        SOps(InfixR)(And      from "&&") +:
+        SOps(InfixN)(Equal    from "==",  NotEqual     from "!=") +:
+        SOps(InfixN)(Greater  from ">",   GreaterEqual from ">=",
+                     Less     from "<",   LessEqual    from "<=") +:
+        SOps(InfixL)(Add      from "+",   Sub          from "-") +:
+        SOps(InfixL)(Mul      from "*",
+                     Div      from "/",   Mod          from "%") +:
+        SOps(Prefix)(Neg      from atomic("-" <~ notFollowedBy(digit)),
+                     Not      from "!",   Len          from "len",
+                     Ord      from "ord", Chr          from "chr") +:
+        Atoms(atom)
+    }.label("expression")
 
-    // ========== Expression Parser ==========
-    // Implements operator precedence using Parsley's precedence combinator
-    // Higher precedence operators appear lower in the list
-    private lazy val expr: Parsley[Expr] = precedence 
-        {
-        SOps(InfixR)(Or from "||") +:
-        SOps(InfixR)(And from "&&") +:
-        SOps(InfixN)(Equal from "==" , NotEqual from "!=") +:
-        SOps(InfixN)(Greater from ">", GreaterEqual from ">=",
-                        Less from "<", LessEqual from "<=") +:
-        SOps(InfixL)(Add from "+", Sub from "-") +:
-        SOps(InfixL)(Mul from "*", Div from "/", Mod from "%") +:
-        SOps(Prefix)((Neg from atomic("-" <~ notFollowedBy(digit))), // Not sure what else to include
-                     Not from "!", Len from "len", 
-                     Ord from "ord",Chr from "chr") +:
-        literals
-        }
+    private lazy val pairElem: Parsley[PairElem] = 
+        ( Fst("fst" ~> lvalue) 
+        | Snd("snd" ~> lvalue)
+        )
+    
+    private lazy val lvalue: Parsley[LValue] = 
+        ( idOrArrayElem
+        | pairElem
+        )
 
-    // ========== Statements ==========
-    // <stmt> ::= 'return' <expr>
+    private lazy val rvalue: Parsley[RValue] =
+        ( expr
+        | ArrayLit(brackets(commaSep(expr)))
+        | NewPair ("newpair" ~> "(" ~> expr, "," ~> expr <~ ")")
+        | pairElem
+        | Call    ("call"    ~> Id(identifier), parens(commaSep(expr)))
+        )
 
+    /** Types. */
+    private lazy val baseType: Parsley[IdType & PairElemType] =
+        ( IntType.from   ("int")
+        | BoolType.from  ("bool")
+        | CharType.from  ("char")
+        | StringType.from("string")
+        )
+    private lazy val pairElemType: Parsley[PairElemType] =
+        ( BaseArrayType(baseType, countMany("[" <~> "]"))
+        | Pair.from("pair")
+        )
+    private lazy val pairType: Parsley[IdType] =
+        PairType("pair" ~> "(" ~> pairElemType, "," ~> pairElemType <~ ")")
+
+    private lazy val ty: Parsley[IdType] =
+        BaseArraPairType(baseType | pairType, countMany("[" <~> "]"))
+    
+    private lazy val idType: Parsley[TypeId] =
+        (ty <~> Id(identifier))
+
+    /** Statements. */
     private lazy val simpleStmt: Parsley[Stmt] = 
-        (
-        "skip".as(Skip)
+        ( Skip.from  ("skip")
         | Declaration(idType, "=" ~> rvalue)
-        | Assignment(lvalue, "=" ~> rvalue)
-        | Read("read" ~> lvalue)
-        | Print("print" ~> expr)
-        | Println("println" ~> expr)
-        | Free("free" ~> expr)
-        | Return("return" ~> expr)
-        | Exit("exit" ~> expr)
+        | Assignment (lvalue, "=" ~> rvalue)
+        | Read       ("read"      ~> lvalue)
+        | Print      ("print"     ~> expr)
+        | Println    ("println"   ~> expr)
+        | Free       ("free"      ~> expr)
+        | Return     ("return"    ~> expr)
+        | Exit       ("exit"      ~> expr)
         )
         
     private lazy val compoundStmt: Parsley[Stmt] = 
-        (
-        If("if" ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
-        | While("while" ~> expr, "do" ~> stmts <~ "done")
-        | Block("begin" ~> stmts <~ "end")
+        ( If   ("if"    ~> expr, "then" ~> stmts, "else".explain("else branch required") ~> stmts <~ "fi")
+        | While("while" ~> expr, "do"   ~> stmts                  <~ "done")
+        | Block("begin"                 ~> stmts                  <~ "end")
         )
         
-    private lazy val stmt: Parsley[Stmt] = simpleStmt <|> compoundStmt
-    private lazy val stmts: Parsley[List[Stmt]] = semiSep1(stmt)
+    private lazy val stmts: Parsley[List[Stmt]] =
+        semiSep1(simpleStmt | compoundStmt).label("statements")
 
-    // ========== Program ==========
-    // <program> ::= <begin> <func>* <stmt> <end>
-    private lazy val program: Parsley[Program] = 
-        Program("begin" ~> many(func), stmts <~ "end")
+    /** Functions and programs. */
+    private lazy val function: Parsley[Function] =
+        Function(atomic(idType <~ "("), commaSep(idType) <~ ")", "is" ~> stmts <~ "end")
 
-    // ========== Funcs ============
-    // <func>  ::= <type> <ident> '(' <param-list>? ')' 'is' <stmt>* 'end'
-    private lazy val func: Parsley[Function] = 
-        Function(atomic(idType <~ "("), commaSep(idType) <~ ")", "is" ~> stmts <~ "end")    
-
-    // ========== L-Values ==========
-    // <lvalue> ::= <ident> | <array-elem> | <pair-elem>
-    private lazy val lvalue: Parsley[LValue] = 
-        (
-        Fst("fst" ~> lvalue) 
-        | Snd("snd" ~> lvalue)
-        | IdOrArrayElem(Id(identifier), many(brackets(expr)))
-        )
-
-    // ========== R-Values ==========
-    // <rvalue> ::= expr | <array-lit> | <newpair> | <pair-elem> | <call>
-    private lazy val rvalue: Parsley[RValue] = (
-        ArrayLit(brackets(commaSep(expr)))
-        // TODO: Use between and pair brackets, although it's not necessary
-        | NewPair("newpair" ~> "(" ~> expr, "," ~> expr <~ ")")
-        | (Fst("fst" ~> lvalue) | Snd("snd" ~> lvalue))
-        | Call("call" ~> Id(identifier), parens(commaSep(expr)))
-        | expr
-    )
-
-    // ========== Type System ==========
-    // All types including pairs
-
-    // Array and base types
-    private val arrayAndBasetypes: Parsley[IdType & PairElemType] = {
-        // Base types: int, bool, char, string
-        lazy val baseType: Parsley[IdType & PairElemType] = 
-            (
-            "int".as(IntType)
-            | "bool".as(BoolType)
-            | "char".as(CharType)
-            | "string".as(StringType)
-            )
-
-        // Array types: <type>[]
-        lazy val arrayType: Parsley[IdType & PairElemType] = 
-            ArrayType(  
-                     baseType | PairType("pair" ~>"(" ~> pairElemType, "," ~> pairElemType <~ ")"), 
-                     countSome("[" <~> "]")
-                     )
-
-         atomic(arrayType) | baseType
-    }
-
-    // Pair element types
-    private lazy val pairElemType: Parsley[PairElemType] =
-        "pair".as(Pair) | arrayAndBasetypes
-
-    // All types besides erased pair type
-    private lazy val types: Parsley[IdType] =
-        arrayAndBasetypes | PairType("pair" ~>"(" ~> pairElemType, "," ~> pairElemType <~ ")")
-
-    // Type-identifier pairs for declarations
-    private lazy val idType: Parsley[TypeId] = 
-        (types <~> Id(identifier))
-    
+    private lazy val program: Parsley[Program] =
+        Program("begin" ~> many(function), stmts <~ "end")
 }

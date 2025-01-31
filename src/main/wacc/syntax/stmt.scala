@@ -50,7 +50,7 @@ object stmts {
     object Free extends ParserBridgePos1[Expr, Free]
     object Return extends ParserBridgePos1[Expr, Return]
     object Exit extends ParserBridgePos1[Expr, Exit]
-    object Print extends ParserBridgePos1[Expr, Print]
+    object Print extends ParserBridgePos1[Expr, Print] 
     object Println extends ParserBridgePos1[Expr, Println]
     object If extends ParserBridgePos3[Expr, List[Stmt], List[Stmt], If]
     object While extends ParserBridgePos2[Expr, List[Stmt], While]

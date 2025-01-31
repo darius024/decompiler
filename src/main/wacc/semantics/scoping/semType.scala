@@ -28,7 +28,7 @@ object semanticTypes {
         case StringType => KType.Str
         case at @ ArrayType(idType, idx) => idx match {
             case 1 => KType.Array(convertType(idType))
-            case _ => convertType(ArrayType(idType, idx - 1)(at.pos))
+            case _ => KType.Array(convertType(ArrayType(idType, idx - 1)(at.pos)))
         }
         case PairType(fst, snd) => KType.Pair(convertType(fst), convertType(snd))
         case Pair => KType.Pair(?, ?)

@@ -2,6 +2,7 @@ package wacc.semantics.scoping
 
 import scala.collection.mutable
 
+import wacc.semantics.errors.*
 import semanticTypes.*
 import wacc.syntax.*
 import bridges.*
@@ -11,12 +12,12 @@ import stmts.*
 import types.*
 
 /** Renamed types to store identifier information. */
-type IdInfo = (KType, Position)
+type IdInfo      = (KType, Position)
 type RenamedInfo = (String, IdInfo)
-type FuncInfo = (KType, List[IdInfo], Position)
+type FuncInfo    = (KType, List[IdInfo], Position)
 
 /** Semantic errors that can occur during scope checking. */
-enum SemanticError {
+enum ScopeError extends SemanticError {
     case VariableNotInScope(id: String)(val pos: Position)
     case VariableAlreadyDeclared(id: String)(val pos: Position)
     case FunctionNotDefined(id: String)(val pos: Position)
@@ -32,13 +33,14 @@ enum SemanticError {
   */
 class ScopeCheckerContext[C](val funcTypes: mutable.Map[String, FuncInfo],
                              val varTypes: mutable.Map[String, IdInfo],
-                             errs: mutable.Builder[SemanticError, C]) {
+                             errs: mutable.Builder[ScopeError, C]) {
     def funcs: Map[String, FuncInfo] = funcTypes.toMap
     def vars: Map[String, IdInfo] = varTypes.toMap
     def errors: C = errs.result()
 
     // insert a function to the function map
     def addFunc(id: Id, retType: KType, params: List[IdInfo], pos: Position) =
+        // id.value = convertName(id, "main")
         funcTypes += id.value -> (retType, params, pos)
     
     // insert a renamed variable to the global variable map
@@ -48,7 +50,7 @@ class ScopeCheckerContext[C](val funcTypes: mutable.Map[String, FuncInfo],
         varTypes += id.value -> (kType, pos)
 
     // add an error to the list of errors
-    def error(err: SemanticError) = {
+    def error(err: ScopeError) = {
         errs += err
         None
     }
@@ -60,9 +62,9 @@ class ScopeCheckerContext[C](val funcTypes: mutable.Map[String, FuncInfo],
   * not duplicated within the same scope. It also checks that the
   * main body does not contain a return statement.
 */
-def scopeCheck(prog: Program): (List[SemanticError], Map[String, FuncInfo], Map[String, IdInfo]) = {
+def scopeCheck(prog: Program): (List[ScopeError], Map[String, FuncInfo], Map[String, IdInfo]) = {
     // initialise the context with empty maps
-    given ctx: ScopeCheckerContext[List[SemanticError]] =
+    given ctx: ScopeCheckerContext[List[ScopeError]] =
         ScopeCheckerContext(mutable.Map.empty[String, FuncInfo],
                             mutable.Map.empty[String, IdInfo],
                             List.newBuilder)
@@ -70,8 +72,10 @@ def scopeCheck(prog: Program): (List[SemanticError], Map[String, FuncInfo], Map[
     val Program(funcs, stmts) = prog
 
     // add all functions to the context and check their scopes
-    (funcs zip funcs.map(addFunc)).foreach { (func, scope) =>
+    // adding the function beforehand allows for mutual recursion
+    (funcs zip funcs.map(addFunction)).foreach { (func, scope) =>
         given funcScope: String = func.typeId._2.value
+        // perform renaming on the function body
         rename(func.stmts, scope)
     }
 
@@ -83,22 +87,32 @@ def scopeCheck(prog: Program): (List[SemanticError], Map[String, FuncInfo], Map[
 }
 
 /** Adds a function to the context and returns a map of its parameters. */
-def addFunc(func: Function)(using ctx: ScopeCheckerContext[?]): Map[String, RenamedInfo] = {
+def addFunction(func: Function)(using ctx: ScopeCheckerContext[?]): Map[String, RenamedInfo] = {
     val Function((retTy, funcName), params, stmts) = func
     given funcScope: String = funcName.value
 
+    // check for parameter name duplication
+    val paramNames = params.map(_._2)
+    if (paramNames.distinct.length != paramNames.length) {
+        ctx.error(ScopeError.VariableAlreadyDeclared(funcName.value)(funcName.pos))
+    }
+
     // rename all parameters and add them to the context
-    val ps: Map[String, RenamedInfo] = params.map { (idType, id) =>
+    val ps: List[(String, RenamedInfo)] = params.map { (idType, id) =>
         val kType = convertType(idType)
         val actualId = id.value
         ctx.addVar(id, kType, id.pos)
 
         actualId -> (id.value, (kType, id.pos))
-    }.toMap
+    }
 
     // add the function defintion to the context
-    ctx.addFunc(funcName, convertType(retTy), ps.values.map(_._2).toList, func.pos)
-    ps
+    if (ctx.funcs.contains(funcName.value)) {
+        ctx.error(ScopeError.VariableAlreadyDeclared(funcName.value)(funcName.pos))
+    } else {
+        ctx.addFunc(funcName, convertType(retTy), ps.map(_._2._2), func.pos)
+    }
+    ps.toMap
 }
 
 /** Renames and checks all variables in a list of statements. */
@@ -120,7 +134,7 @@ def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: muta
     case Declaration((ty, id), rv) =>
         // check if the variable is already declared in the current scope
         if (currentScope.contains(id.value)) {
-            ctx.error(SemanticError.VariableAlreadyDeclared(id.value)(id.pos))
+            ctx.error(ScopeError.VariableAlreadyDeclared(id.value)(id.pos))
         } else {
             rename(rv, parentScope, currentScope)
 
@@ -138,7 +152,7 @@ def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: muta
     case r@Return(expr)     =>
         // check if the return statement is in the main body
         if (funcScope == "main") {
-            ctx.error(SemanticError.ReturnMainBody(r.pos))
+            ctx.error(ScopeError.ReturnMainBody(r.pos))
         } else {
             rename(expr, parentScope, currentScope)
         }
@@ -148,13 +162,13 @@ def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: muta
     
     case If(cond, thenStmts, elseStmts) =>
         rename(cond, parentScope, currentScope)
-        rename(thenStmts, parentScope.toMap)
-        rename(elseStmts, parentScope.toMap)
+        rename(thenStmts, parentScope.toMap ++ currentScope.toMap)
+        rename(elseStmts, parentScope.toMap ++ currentScope.toMap)
     case While(cond, doStmts) =>
         rename(cond, parentScope, currentScope)
-        rename(doStmts, parentScope.toMap)
+        rename(doStmts, parentScope.toMap ++ currentScope.toMap)
     case Block(stmts) =>
-        rename(stmts, parentScope.toMap)
+        rename(stmts, parentScope.toMap ++ currentScope.toMap)
 }
 
 /** Renames and checks all variables in a value. */
@@ -173,7 +187,7 @@ def rename(rvalue: LValue | RValue, parentScope: Map[String, RenamedInfo], curre
         if (ctx.funcs.contains(func.value)) {
             args.map(arg => rename(arg, parentScope, currentScope))
         } else {
-            ctx.error(SemanticError.FunctionNotDefined(func.value)(func.pos))
+            ctx.error(ScopeError.FunctionNotDefined(func.value)(func.pos))
         }
 }
 
@@ -189,7 +203,7 @@ def renameExpr(expr: Expr, parentScope: Map[String, RenamedInfo], currentScope: 
             if (parentScope.contains(value)) {
                 id.value = parentScope(value)._1
             } else {
-                ctx.error(SemanticError.VariableNotInScope(id.value)(id.pos))
+                ctx.error(ScopeError.VariableNotInScope(id.value)(id.pos))
             }
         }
     case ArrayElem(id, indices) =>
