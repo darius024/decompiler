@@ -25,6 +25,6 @@ def compile(program: String): (String, Int) =
 
 object exitCodes {
     val SuccessfulCompilation = 0
-    val SyntaxError = 100
-    val SemanticError = 200
+    val SyntaxError           = 100
+    val SemanticError         = 200
 }

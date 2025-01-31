@@ -19,19 +19,20 @@ object lexer {
         SymbolDesc.plain.copy(
             // reserved keywords
             hardKeywords = Set(
-                "int", "bool", "char", "string", "pair",  
+                "int", "bool", "char", "string", "pair",
                 "begin", "end", "is", "skip", "return", "exit",
                 "read", "free", "print", "println",
                 "if", "then", "else", "fi", "while", "do", "done",
                 "newpair", "fst", "snd", "call",
-                "true", "false", "null", 
+                "true", "false", "null",
+                "len", "ord", "chr",
             ),
             // operators
             hardOperators = Set(
-                "+", "-", "*", "/", "%", 
-                "==", "!=", "<", "<=", ">", ">=", 
-                "&&", "||", 
-                "!", "len", "ord", "chr",
+                "+", "-", "*", "/", "%",
+                "==", "!=", "<", "<=", ">", ">=",
+                "&&", "||",
+                "!",
             ),        
         ),
 

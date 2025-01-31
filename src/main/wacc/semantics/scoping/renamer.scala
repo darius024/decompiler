@@ -12,9 +12,9 @@ import stmts.*
 import types.*
 
 /** Renamed types to store identifier information. */
-type IdInfo = (KType, Position)
+type IdInfo      = (KType, Position)
 type RenamedInfo = (String, IdInfo)
-type FuncInfo = (KType, List[IdInfo], Position)
+type FuncInfo    = (KType, List[IdInfo], Position)
 
 /** Semantic errors that can occur during scope checking. */
 enum ScopeError extends SemanticError {
@@ -71,8 +71,10 @@ def scopeCheck(prog: Program): (List[ScopeError], Map[String, FuncInfo], Map[Str
     val Program(funcs, stmts) = prog
 
     // add all functions to the context and check their scopes
+    // adding the function beforehand allows for mutual recursion
     (funcs zip funcs.map(addFunc)).foreach { (func, scope) =>
         given funcScope: String = func.typeId._2.value
+        // perform renaming on the function body
         rename(func.stmts, scope)
     }
 
@@ -89,17 +91,17 @@ def addFunc(func: Function)(using ctx: ScopeCheckerContext[?]): Map[String, Rena
     given funcScope: String = funcName.value
 
     // rename all parameters and add them to the context
-    val ps: Map[String, RenamedInfo] = params.map { (idType, id) =>
+    val ps: List[(String, RenamedInfo)] = params.map { (idType, id) =>
         val kType = convertType(idType)
         val actualId = id.value
         ctx.addVar(id, kType, id.pos)
 
         actualId -> (id.value, (kType, id.pos))
-    }.toMap
+    }
 
     // add the function defintion to the context
-    ctx.addFunc(funcName, convertType(retTy), ps.values.map(_._2).toList, func.pos)
-    ps
+    ctx.addFunc(funcName, convertType(retTy), ps.map(_._2._2), func.pos)
+    ps.toMap
 }
 
 /** Renames and checks all variables in a list of statements. */
@@ -149,13 +151,13 @@ def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: muta
     
     case If(cond, thenStmts, elseStmts) =>
         rename(cond, parentScope, currentScope)
-        rename(thenStmts, parentScope.toMap)
-        rename(elseStmts, parentScope.toMap)
+        rename(thenStmts, parentScope.toMap ++ currentScope.toMap)
+        rename(elseStmts, parentScope.toMap ++ currentScope.toMap)
     case While(cond, doStmts) =>
         rename(cond, parentScope, currentScope)
-        rename(doStmts, parentScope.toMap)
+        rename(doStmts, parentScope.toMap ++ currentScope.toMap)
     case Block(stmts) =>
-        rename(stmts, parentScope.toMap)
+        rename(stmts, parentScope.toMap ++ currentScope.toMap)
 }
 
 /** Renames and checks all variables in a value. */
