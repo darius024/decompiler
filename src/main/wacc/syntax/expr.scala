@@ -132,15 +132,31 @@ object exprs {
     object Ord extends ParserBridgePos1[ExprUnary, ExprUnary]
     object Chr extends ParserBridgePos1[ExprUnary, ExprUnary]
 
-    object IntLit extends ParserBridgePos1[Int, IntLit]
-    object BoolLit extends ParserBridgePos1[Boolean, BoolLit]
-    object CharLit extends ParserBridgePos1[Char, CharLit]
-    object StrLit extends ParserBridgePos1[String, StrLit]
-    object Id extends ParserBridgePos1[String, Id]
-    object ArrayElem extends ParserBridgePos2[Id, List[Expr], ArrayElem]
-    object ParensExpr extends ParserBridgePos1[Expr, ParensExpr]
+    object IntLit extends ParserBridgePos1[Int, IntLit] {
+        override def labels: List[String] = List("integer literal")
+    }
+    object BoolLit extends ParserBridgePos1[Boolean, BoolLit] {
+        override def labels: List[String] = List("boolean literal")
+    }
+    object CharLit extends ParserBridgePos1[Char, CharLit] {
+        override def labels: List[String] = List("character literal")
+    }
+    object StrLit extends ParserBridgePos1[String, StrLit] {
+        override def labels: List[String] = List("string literal")
+    }
+    object Id extends ParserBridgePos1[String, Id] {
+        override def labels: List[String] = List("identifier")
+    }
+    object ArrayElem extends ParserBridgePos2[Id, List[Expr], ArrayElem] {
+        override def labels: List[String] = List("array element")
+    }
+    object ParensExpr extends ParserBridgePos1[Expr, ParensExpr] {
+        override def labels: List[String] = List("parenthesised expression")
+    }
 
-    object ArrayLit extends ParserBridgePos1[List[Expr], ArrayLit]
+    object ArrayLit extends ParserBridgePos1[List[Expr], ArrayLit] {
+        override def labels: List[String] = List("array literal")
+    }
     object NewPair extends ParserBridgePos2[Expr, Expr, NewPair]
     object Call extends ParserBridgePos2[Id, List[Expr], Call]
 

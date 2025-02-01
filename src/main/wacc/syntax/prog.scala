@@ -21,7 +21,7 @@ object prog {
     
     object Program extends ParserBridgePos2[List[Function], List[Stmt], Program]
     object Function extends ParserBridgePos3[TypeId, List[TypeId], List[Stmt], Function] {
-        // helper function to determine if a function ends with a return statement, exit statement or a terminating if statement
+        // helper function to determine if the function has a returning block
         def endsWithReturnOrExit(stmts: List[Stmt]): Boolean = stmts.lastOption match {
             case Some(Return(_)) | Some(Exit(_))   => true
             case Some(If(_, thenStmts, elseStmts)) => endsWithReturnOrExit(thenStmts) && endsWithReturnOrExit(elseStmts)
@@ -30,13 +30,13 @@ object prog {
         }
 
         // override the apply method to reject non-returning function bodies
-        override def apply(x: Parsley[TypeId], y: => Parsley[List[TypeId]], z: => Parsley[List[Stmt]]): Parsley[Function] = super.apply(x, y, z).guardAgainst {
+        override def apply(typeId: Parsley[TypeId],
+                           params: => Parsley[List[TypeId]],
+                           stmts: => Parsley[List[Stmt]]): Parsley[Function] = super.apply(typeId, params, stmts).guardAgainst {
             case Function(_, _, stmts) if !endsWithReturnOrExit(stmts) =>
-                Seq("Function does not end with a return statement, exit statement or a terminating if statement")
+                Seq(s"functions must have a return on all exit paths")
         }
 
-        override def labels = List("Function")
-
-        override def reason = Some("function body must end with a return statement, exit statement or a terminating if statement") 
+        override def labels: List[String] = List("function")
     }
 }

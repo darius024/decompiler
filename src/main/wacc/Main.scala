@@ -1,6 +1,6 @@
 package wacc
 
-import os.*
+import java.io.File
 import parsley.{Success, Failure}
 
 import wacc.semantics.checkSemantics
@@ -8,7 +8,7 @@ import wacc.semantics.checkSemantics
 def main(args: Array[String]): Unit = {
     args.headOption match {
         case Some(program) => {
-            val (errs, exitCode) = compile(os.read(os.Path(program, os.pwd)))
+            val (errs, exitCode) = compile(new File(program))
             println(errs)
             System.exit(exitCode)
         }
@@ -16,8 +16,8 @@ def main(args: Array[String]): Unit = {
     }
 }
 
-def compile(program: String): (String, Int) =
-    parser.parse(program) match {
+def compile(program: File): (String, Int) =
+    parser.parseFile(program) match {
         case Success(progAst) => checkSemantics(progAst) match {
             case Right(_)   => ("succeed", exitCodes.SuccessfulCompilation)
             case Left(errs) => (s"$errs", exitCodes.SemanticError)
