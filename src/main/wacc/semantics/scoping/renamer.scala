@@ -62,7 +62,7 @@ class ScopeCheckerContext[C](val funcTypes: mutable.Map[String, FuncInfo],
   * It verifies that all variables are declared before use and are
   * not duplicated within the same scope. It also checks that the
   * main body does not contain a return statement.
-*/
+  */
 def scopeCheck(prog: Program): (List[ScopeError], Map[String, FuncInfo], Map[String, IdInfo]) = {
     // initialise the context with empty maps
     given ctx: ScopeCheckerContext[List[ScopeError]] =
@@ -134,6 +134,7 @@ def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: muta
           (using funcScope: String)
           (using ctx: ScopeCheckerContext[?]): Unit = stmt match {
     case Skip =>
+
     case Declaration((ty, id), rv) =>
         // check if the variable is already declared in the current scope
         if (currentScope.contains(id.value)) {
@@ -147,29 +148,38 @@ def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: muta
             ctx.addVar(id, kType, id.pos)
             currentScope += actualId -> (id.value, (kType, id.pos))
         }
+    
     case Assignment(lv, rv) =>
         rename(lv, parentScope, currentScope)
         rename(rv, parentScope, currentScope)
+    
     case Read(lv)           => rename(lv, parentScope, currentScope)
+
     case Free(expr)         => rename(expr, parentScope, currentScope)
-    case r@Return(expr)     =>
+
+    case r @ Return(expr)   =>
         // check if the return statement is in the main body
         if (funcScope == "main") {
             ctx.error(ScopeError.ReturnMainBody(r.pos))
         } else {
             rename(expr, parentScope, currentScope)
         }
+
     case Exit(expr)         => rename(expr, parentScope, currentScope)
+
     case Print(expr)        => rename(expr, parentScope, currentScope)
+
     case Println(expr)      => rename(expr, parentScope, currentScope)
-    
+
     case If(cond, thenStmts, elseStmts) =>
         rename(cond, parentScope, currentScope)
         rename(thenStmts, parentScope.toMap ++ currentScope.toMap)
         rename(elseStmts, parentScope.toMap ++ currentScope.toMap)
+    
     case While(cond, doStmts) =>
         rename(cond, parentScope, currentScope)
         rename(doStmts, parentScope.toMap ++ currentScope.toMap)
+    
     case Block(stmts) =>
         rename(stmts, parentScope.toMap ++ currentScope.toMap)
 }
@@ -198,7 +208,7 @@ def rename(rvalue: LValue | RValue, parentScope: Map[String, RenamedInfo], curre
 def renameExpr(expr: Expr, parentScope: Map[String, RenamedInfo], currentScope: mutable.Map[String, RenamedInfo])
               (using funcScope: String)
               (using ctx: ScopeCheckerContext[?]): Unit = expr match {
-    case id@Id(value) =>
+    case id @ Id(value) =>
         // check if the variable is in the current or parent scope
         if (currentScope.contains(value)) {
             id.value = currentScope(value)._1
