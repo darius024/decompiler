@@ -16,10 +16,9 @@ import Constraint.*
 
 /** Syntactic errors that can occur during type checking. */
 enum TypeError extends SemanticError {
-    case TypeMismatch(unexpected: SemType, expected: SemType)(val pos: Position)
+    case TypeMismatch(unexpected: SemType, expected: List[SemType])(val pos: Position)
     case TypeCannotBeInfered(val pos: Position)
     case NumberArgumentsMismatch(expected: Int, got: Int)(val pos: Position)
-    case TypeUnknown(val pos: Position)
 }
 
 /** Type constraints that can be imposed on types. */
@@ -29,8 +28,7 @@ enum Constraint {
 }
 object Constraint {
     val Unconstrained = Is(?)
-    def IsArray(semTy: SemType) = Is(KType.Array(semTy))
-    def IsPair(semTy1: SemType, semTy2: SemType) = Is(KType.Pair(semTy1, semTy2))
+    def IsPair = Is(KType.Pair(?, ?))
 }
 
 /** Type information received from the scope-checking phase. */
@@ -45,11 +43,14 @@ class TypeCheckerContext[C](tyInfo: TypeInfo, errs: mutable.Builder[TypeError, C
     def errors: C = errs.result()
 
     // get the type of the identifier
-    def typeOf(id: String): SemType = tyInfo.vars.get(id).map(_._1).getOrElse(?)
+    def typeOf(id: String): SemType =
+        tyInfo.vars.get(id).map(_._1).getOrElse(?)
     // get the return type of the function
-    def returnTypeOf(funcName: String): SemType = tyInfo.funcs.get(funcName).map(_._1).getOrElse(?)
+    def returnTypeOf(funcName: String): SemType =
+        tyInfo.funcs.get(funcName).map(_._1).getOrElse(?)
     // get the signature of the function
-    def signatureOf(funcName: String): List[SemType] = tyInfo.funcs.get(funcName).map(_._2.map(_._1)).getOrElse(Nil)
+    def signatureOf(funcName: String): List[SemType] =
+        tyInfo.funcs.get(funcName).map(_._2.map(_._1)).getOrElse(Nil)
 
     // add an error to the context
     def error(err: TypeError) = {
@@ -104,9 +105,10 @@ def check(stmt: Stmt, retTy: Option[SemType])
     case a @ Assignment(lvalue, rvalue) =>
         val (lvTy, lvTyped) = checkLValue(lvalue, Unconstrained)
         val (rvTy, rvTyped) = checkRValue(rvalue, Is(weakenType(lvTy)))
+
         // check that both sides have the same type
         val ty = mostSpecific(lvTy, rvTy, a.pos)
-        // if one of the sides misses a type, impose it to the other side's type
+        // if one of the sides misses a type, impose the other side's type
         if (lvTyped.ty == ?) lvTyped.ty = ty
         if (rvTyped.ty == ?) rvTyped.ty = ty
 
@@ -159,7 +161,7 @@ def check(stmt: Stmt, retTy: Option[SemType])
 /** Checks the type soundness of an expression.
   * 
   * Imposes specific constraints on the types of the operations.
-*/
+  */
 def checkExpr(expr: Expr, cons: Constraint)
              (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = expr match {
     case Or(x, y)           => checkBinExpr(x, y, KType.Bool, cons)(TyExpr.Or.apply)
@@ -201,21 +203,22 @@ def checkRValue(rvalue: RValue, cons: Constraint)
     case e: Expr => checkExpr(e, cons)
         
     case ArrayLit(exprs) =>
-        // the constraint should be an array of some type
+        // instead of finding out the type of the array literal, impose the type within the constraint
         cons match {
-            case Is(KType.Array(kTy)) =>
-                val exprsTyped = exprs.map { expr => checkExpr(expr, Is(kTy))._2 }
-                val arrayType = exprs match {
-                    case Nil => KType.Array(?)
-                    case ty :: tys => KType.Array(kTy)
-                }
+            case Is(KType.Array(elemTy)) =>
+                // impose the inner array type to all elements of the array literal 
+                val exprsTyped = exprs.map { expr => checkExpr(expr, Is(elemTy))._2 }
+                val arrayType = KType.Array(elemTy)
                 (arrayType.satisfies(cons), TyExpr.ArrayLit(exprsTyped, arrayType))
             case _ =>
-                val (exprsTy, exprsTyped) = exprs.map { expr => checkExpr(expr, Unconstrained) }.unzip
-                (Some(KType.Array(?)), TyExpr.ArrayLit(exprsTyped, KType.Array(?)))
+                // there is a type mismatch between the constraint and the array literal
+                val exprsTyped = exprs.map { expr => checkExpr(expr, Unconstrained)._2 }
+                // need the constraint to be an array type
+                (KType.Array(?).satisfies(cons), TyExpr.ArrayLit(exprsTyped, KType.Array(?)))
         }
     
     case NewPair(fst, snd) =>
+        // get the types of both sides of the pair
         val (fstTy, fstTyped) = checkExpr(fst, Unconstrained)
         val (sndTy, sndTyped) = checkExpr(snd, Unconstrained)
         val firstTy = fstTy.getOrElse(?)
@@ -225,6 +228,7 @@ def checkRValue(rvalue: RValue, cons: Constraint)
     case pairElem: PairElem => checkPairElem(pairElem, cons)
     
     case Call(id, args) =>
+        // retrieve the return type and the signature of the function
         val retTy = ctx.returnTypeOf(id.value)
         val argsTy = ctx.signatureOf(id.value)
         
@@ -233,11 +237,14 @@ def checkRValue(rvalue: RValue, cons: Constraint)
             ctx.error(TypeError.NumberArgumentsMismatch(argsTy.length, args.length)(id.pos))
         }
 
+        // transform the arguments into typed expressions
         val (argTys, argsTyped) = args.zip(argsTy).map { (arg, argTy) =>
+            // verify that the the argument types match the definition
             val (exprTy, exprTyped) = checkExpr(arg, Is(argTy))
             (exprTy.getOrElse(?), exprTyped)
         }.unzip
 
+        // the return type must satisfy the constraint
         (retTy.satisfies(cons), TyExpr.Call(TyExpr.LVal.Id(id.value, retTy), argsTyped, argTys))
 }
 
@@ -245,49 +252,59 @@ def checkRValue(rvalue: RValue, cons: Constraint)
 def checkLValue(lvalue: LValue, cons: Constraint)
                (using ctx: TypeCheckerContext[?]): (Option[SemType], TyExpr.LVal) = lvalue match {
     case Id(value) =>
+        // retrieve the type of the identifier
         val kTy = ctx.typeOf(value)
         (kTy.satisfies(cons), TyExpr.LVal.Id(value, kTy))
     
     case ArrayElem(id, idx) =>
-        val (kTy, idTyped) = checkLValue(id, Is(KType.Array(?)))
+        // get the type of the array
+        val (baseTy, idTyped) = checkLValue(id, Unconstrained)
         
-        kTy match {
-            case Some(KType.Array(ty)) => {
-                val (idxTy, idxTyped) = idx.map { idx =>
-                    val (exprTy, exprTyped) = checkExpr(idx, Is(KType.Int))
-                    (exprTy.getOrElse(?), exprTyped)
-                }.unzip
-                val finalTy = (1 until idx.length).foldLeft(ty) { (acc, _) =>
-                    acc match {
-                        case KType.Array(innerTy) => innerTy
-                        case _ => ctx.error(TypeError.TypeMismatch(acc, KType.Array(?))((0, 0)))
-                                  ?
+        // check that all indices are integers
+        val (idxTy, idxTyped) = idx.map { idx =>
+            val (exprTy, exprTyped) = checkExpr(idx, Is(KType.Int))
+            (exprTy.getOrElse(?), exprTyped)
+        }.unzip
+
+        // calculate the resulting type by unwrapping the array type
+        val resultTy = baseTy match {
+            case Some(arrayTy) =>
+                var currentTy = arrayTy
+                for (_ <- idx.indices) {
+                    currentTy match {
+                        case KType.Array(elemTy) => currentTy = elemTy
+                        case semTy => semTy.satisfies(Is(KType.Array(?)))
                     }
                 }
-                (finalTy.satisfies(cons), TyExpr.LVal.ArrayElem(idTyped, idxTyped, finalTy))
-            }
-            case _ =>
-                (kTy.getOrElse(?).satisfies(IsArray(?)), TyExpr.LVal.ArrayElem(idTyped, idx.map(checkExpr(_, Unconstrained)._2), ?))
+                Some(currentTy)
+            case None => None
         }
+
+        // the unwrapped type must satisfy the constraint
+        (resultTy.getOrElse(?).satisfies(cons), TyExpr.LVal.ArrayElem(idTyped, idxTyped, resultTy.getOrElse(?)))
     
     case pairElem: PairElem => checkPairElem(pairElem, cons)
 }
 
-/** Checks the type soundness of a pair element. */
+/** Checks the type soundness of a pair element.
+  * 
+  * Extracts the type of the pair element and imposes the constraint on it.
+  * If the pair element is not a pair, it asserts that it must have a pair type.
+  */
 def checkPairElem(pairElem: PairElem, cons: Constraint)
                  (using TypeCheckerContext[?]): (Option[SemType], TyExpr.LVal) = pairElem match {
     case Fst(lval) =>
-        val (fstTy, fstTyped) = checkLValue(lval, IsPair(?, ?))
+        val (fstTy, fstTyped) = checkLValue(lval, IsPair)
         fstTy match {
             case Some(KType.Pair(fst, _)) => (fst.satisfies(cons), TyExpr.LVal.PairFst(fstTyped, fst))
-            case _ => (fstTy.getOrElse(?).satisfies(IsPair(?, ?)), TyExpr.LVal.PairFst(fstTyped, ?))
+            case _ => (fstTy.getOrElse(?).satisfies(IsPair), TyExpr.LVal.PairFst(fstTyped, ?))
         }
     
     case Snd(lval) =>
-        val (sndTy, sndTyped) = checkLValue(lval, IsPair(?, ?))
+        val (sndTy, sndTyped) = checkLValue(lval, IsPair)
         sndTy match {
             case Some(KType.Pair(_, snd)) => (snd.satisfies(cons), TyExpr.LVal.PairSnd(sndTyped, snd))
-            case _ => (sndTy.getOrElse(?).satisfies(IsPair(?, ?)), TyExpr.LVal.PairSnd(sndTyped, ?))
+            case _ => (sndTy.getOrElse(?).satisfies(IsPair), TyExpr.LVal.PairSnd(sndTyped, ?))
         }
 }
 
@@ -297,9 +314,11 @@ def checkBinExpr(x: Expr, y: Expr, semType: SemType, cons: Constraint)
                 (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
     val (lhsTy, xTyped) = checkExpr(x, Is(semType))
     val (rhsTy, yTyped) = checkExpr(y, lhsTy.fold(Is(semType))(Is(_)))
-    // TODO: add position information
-    val ty = mostSpecific(lhsTy, rhsTy, (0, 0))
+
     // if one of the sides misses a type, impose it to the other side's type
+    // this is useful for the type out of a pair extraction in unknown
+    // TODO: add proper position for the error
+    val ty = mostSpecific(lhsTy, rhsTy, (0, 0))
     if (xTyped.ty == ?) xTyped.ty = ty
     if (yTyped.ty == ?) yTyped.ty = ty
 
@@ -313,8 +332,15 @@ def checkIntChar(x: Expr, y: Expr, cons: Constraint)
                 (build: (TyExpr, TyExpr) => TyExpr)
                 (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
     val (lhsTy, xTyped) = checkExpr(x, IsEither(KType.Int, KType.Char))
-    val (_, yTyped) = checkExpr(y, lhsTy.fold(IsEither(KType.Int, KType.Char))(Is(_)))
+    val (rhsTy, yTyped) = checkExpr(y, lhsTy.fold(IsEither(KType.Int, KType.Char))(Is(_)))
     val exprTyped = build(xTyped, yTyped)
+
+    // if one of the sides misses a type, impose it to the other side's type
+    // this is useful for the type out of a pair extraction in unknown
+    // TODO: add proper position for the error
+    val ty = mostSpecific(lhsTy, rhsTy, (0, 0))
+    if (xTyped.ty == ?) xTyped.ty = ty
+    if (yTyped.ty == ?) yTyped.ty = ty
 
     (exprTyped.ty.satisfies(cons), exprTyped)
 }
@@ -333,48 +359,54 @@ def checkUnary(x: Expr, argTy: SemType, cons: Constraint)
 extension (ty: SemType) def satisfies(cons: Constraint)
                                      (using ctx: TypeCheckerContext[?]): Option[SemType] = (ty, cons) match {
     case (?, Is(refTy)) => Some(refTy)
-    case (?, _) => Some(?)
-    case (ty, Is(?)) => Some(ty)
+    case (?, _)         => Some(?)
+    case (ty, Is(?))    => Some(ty)
 
+    // allow string to be coerced to array of characters
     case (KType.Array(KType.Char), Is(KType.Str)) => Some(KType.Array(KType.Char))
-    case (KType.Str, Is(KType.Array(KType.Char))) => Some(KType.Array(KType.Char))
+    case (KType.Str, Is(KType.Array(KType.Char))) => Some(KType.Str)
+
     // do not allow array covariance
     case (KType.Array(kTy), Is(KType.Array(refTy))) => kTy match {
-        case KType.Array(KType.Char) => ctx.error(TypeError.TypeMismatch(kTy, refTy)((0, 0)))
+        case KType.Array(KType.Char) => ctx.error(TypeError.TypeMismatch(kTy, List(refTy))((0, 0)))
         case _ => Some(KType.Array(kTy.satisfies(Is(refTy)).getOrElse(?)))
     }
 
     // do not allow pair covariance
-    case (KType.Pair(KType.Array(KType.Char), kTy2), Is(KType.Pair(KType.Str, refTy2))) =>
-        ctx.error(TypeError.TypeMismatch(KType.Pair(KType.Array(KType.Char), kTy2), KType.Pair(KType.Str, refTy2))((0, 0)))
-    case (KType.Pair(kTy1, KType.Array(KType.Char)), Is(KType.Pair(refTy1, KType.Str))) =>
-        ctx.error(TypeError.TypeMismatch(KType.Pair(kTy1, KType.Array(KType.Char)), KType.Pair(refTy1, KType.Str))((0, 0)))
-    
     case (KType.Pair(kTy1, kTy2), Is(KType.Pair(refTy1, refTy2))) =>
+        if kTy1 == KType.Array(KType.Char) && refTy1 == KType.Str
+        || kTy2 == KType.Array(KType.Char) && refTy2 == KType.Str then {
+            // TODO: add proper position for the error
+            ctx.error(TypeError.TypeMismatch(KType.Pair(kTy1, kTy2), List(KType.Pair(refTy1, refTy2)))((0, 0)))
+        }
         val fstTy = kTy1.satisfies(Is(refTy1))
         val sndTy = kTy2.satisfies(Is(refTy2))
         Some(KType.Pair(kTy1, kTy2))
 
-    case (kTy, Is(refTy)) =>
-        if kTy == refTy then Some(kTy)
-        else ctx.error(TypeError.TypeMismatch(kTy, refTy)((0, 0)))
-
-    case (KType.Array(kTy), IsEither(KType.Array(?), KType.Pair(?, ?))) => Some(KType.Array(kTy))
-    case (KType.Pair(kTy1, kTy2), IsEither(KType.Array(?), KType.Pair(?, ?))) => Some(KType.Pair(kTy1, kTy2))
-
+    // handle the memory-allocated structures
+    case (kTy @ KType.Array(_), IsEither(KType.Array(?), KType.Pair(?, ?))) => Some(kTy)
+    case (kTy @ KType.Pair(_, _), IsEither(KType.Array(?), KType.Pair(?, ?))) => Some(kTy)
     case (semTy, IsEither(ty1, ty2)) =>
         if semTy == ty1 || semTy == ty2 then Some(semTy)
-        else ctx.error(TypeError.TypeMismatch(semTy, ty1)((0, 0)))
+        // TODO: add proper position for the error
+        else ctx.error(TypeError.TypeMismatch(semTy, List(ty1, ty2))((0, 0)))
 
+    case (kTy, Is(refTy)) =>
+        if kTy == refTy then Some(kTy)
+        // TODO: add proper position for the error
+        else ctx.error(TypeError.TypeMismatch(kTy, List(refTy))((0, 0)))
+    
     case _ => None
 }
 
+/** Weakens the type of a string to an array of characters. */
 def weakenType(semTy: Option[SemType]): SemType = semTy match {
     case Some(KType.Str) => KType.Array(KType.Char)
     case Some(semType)   => semType
     case None            => ?
 }
 
+/** Checks if a type is known. Types must be known. */
 def assertKnownType(semTy: Option[SemType], pos: Position)
                    (using ctx: TypeCheckerContext[?]): SemType = semTy match {
     case Some(?)        => ctx.error(TypeError.TypeCannotBeInfered(pos))
@@ -386,7 +418,7 @@ def assertKnownType(semTy: Option[SemType], pos: Position)
 /** Returns the most specific type between two types. 
   * 
   * At least one of the types must be known.
-*/
+  */
 def mostSpecific(ty1: Option[SemType], ty2: Option[SemType], pos: Position)
                 (using ctx: TypeCheckerContext[?]): SemType = (ty1, ty2) match {
     case (Some(?), Some(?)) =>

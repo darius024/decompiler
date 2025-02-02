@@ -1,5 +1,6 @@
 package wacc.integration
 
+import java.io.File
 import os.{Generator, Path}
 
 /** Utility functions for integration tests. */
@@ -12,8 +13,8 @@ object utils {
     def isDisabled(testSet: String, category: String): Boolean =
         disables(testSet).arr.exists(_.str == category)
 
-    /** Compiles program at @tparam p, returning error message and exit code. */
-    def compileTest(p: Path): (String, Int) = wacc.compile(os.read(p))
+    /** Compiles program at path `p`, returning error message and exit code. */
+    def compileTest(p: Path): (String, Int) = wacc.compile(new File(p.toString))
 
     /** Lists the categories of tests in a directory. */
     def listCategories(p: Path): Generator[String] =

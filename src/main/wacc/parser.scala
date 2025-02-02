@@ -1,10 +1,13 @@
 package wacc
-import parsley.{Parsley, Result}
+
+import java.io.File
+import parsley.{Parsley, Result, Failure}
 import parsley.Parsley.{atomic, many, notFollowedBy}
 import parsley.character.digit
 import parsley.combinator.countMany
 import parsley.expr.{precedence, SOps, InfixL, InfixR, InfixN, Prefix, Atoms}
 import parsley.errors.combinator.*
+import scala.util.{Success => TSuccess, Failure => TFailure}
 
 import lexer.*
 import implicits.implicitSymbol
@@ -18,6 +21,10 @@ import types.*
 /** Formulates the grammar rules the parser should follow. */
 object parser {
     /** Top-level parser. */
+    def parseFile(input: File): Result[String, Program] = parser.parseFile(input) match {
+        case TSuccess(status) => status
+        case TFailure(_)      => Failure("file does not exist")
+    }
     def parse(input: String): Result[String, Program] = parser.parse(input)
     private val parser = fully(program)
     
@@ -26,13 +33,13 @@ object parser {
         IdOrArrayElem(Id(identifier), many(brackets(expr)))
     
     private lazy val atom: Parsley[Atom] = 
-        ( IntLit(integer).label("integer")
+        ( IntLit(integer)
         | BoolLit("true".as(true) | "false".as(false)) 
-        | CharLit(character).label("character")
-        | StrLit(string).label("string")
-        | PairLit.from("null").label("null")
-        | idOrArrayElem.label("identifier or array element")
-        | ParensExpr(parens(expr)).label("parenthesized expression")
+        | CharLit(character)
+        | StrLit(string)
+        | PairLit.from("null")
+        | idOrArrayElem
+        | ParensExpr(parens(expr))
         )
 
     // operator precedence hierarchy
@@ -50,6 +57,9 @@ object parser {
                      Ord      from "ord", Chr          from "chr") +:
         Atoms(atom)
     }.label("expression")
+     .explain("expressions may start with literals; " +
+              "identifiers; unary operators; " +
+              "null; or parentheses")
 
     private lazy val pairElem: Parsley[PairElem] = 
         ( Fst("fst" ~> lvalue) 
@@ -103,7 +113,7 @@ object parser {
         )
         
     private lazy val compoundStmt: Parsley[Stmt] = 
-        ( If   ("if"    ~> expr, "then" ~> stmts, "else".explain("else branch required") ~> stmts <~ "fi")
+        ( If   ("if"    ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
         | While("while" ~> expr, "do"   ~> stmts                  <~ "done")
         | Block("begin"                 ~> stmts                  <~ "end")
         )
