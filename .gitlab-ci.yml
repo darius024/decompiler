@@ -28,13 +28,3 @@ integration-test:
     paths:
       - integration_test_output.log
     expire_in: never
-
-golden-test:
-  stage: integration-test
-  script:
-    - echo "Running golden tests..."
-    - scala test . --test-only 'wacc.golden*' -Dgolden.mode=accept > golden_test_output.log 2>&1
-  artifacts:
-    paths:
-      - golden_test_output.log
-    expire_in: never

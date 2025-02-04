@@ -36,7 +36,7 @@ object parser {
     
     private lazy val atom: Parsley[Atom] = 
         ( IntLit(integer)
-        | BoolLit("true".as(true) | "false".as(false)) 
+        | BoolLit(boolean) 
         | CharLit(character)
         | StrLit(string)
         | PairLit.from("null")

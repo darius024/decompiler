@@ -3,13 +3,12 @@ package wacc.error
 import wacc.syntax.*
 import ErrorLines.*
 
-enum ErrorLines {
-    case VanillaError(unexpected: Option[SyntaxErrorItem], expected: Set[SyntaxErrorItem], reasons: Set[String], line: Seq[String])
-    case SpecialisedError(msgs: Set[String], line: Seq[String])
-    case StringError(unexpected: Seq[String], expected: Seq[String], reasons: Seq[String], line: Seq[String])
-}
-
 trait ErrorItem
+
+enum ErrorLines {
+    case VanillaError(unexpected: Option[ErrorItem], expected: Set[ErrorItem], reasons: Set[String], line: Seq[String])
+    case SpecialisedError(msgs: Set[String], line: Seq[String])
+}
 
 object errors {
     sealed trait WaccError(pos: bridges.Position, source: String, lines: ErrorLines) {
@@ -31,18 +30,6 @@ object errors {
                 case SpecialisedError(msgs, line) =>
                     sb.append(s"\n  ${msgs.mkString(", ")}")
                     sb.append(s"\n  ${line.mkString("\n  ")}")
-
-                case StringError(unexpected, expected, reasons, line) =>
-                    if (unexpected.nonEmpty) {
-                        sb.append(s"\n  unexpected: ${unexpected.mkString(", ")}")
-                    }
-                    if (expected.nonEmpty) {
-                        sb.append(s"\n  expected: ${expected.mkString(", ")}")
-                    }
-                    if (reasons.nonEmpty) {
-                        sb.append(s"\n  reasons: ${reasons.mkString(", ")}")
-                    }
-                    sb.append(s"\n  ${line.mkString("\n  ")}")
             }
 
             sb.toString()
@@ -63,6 +50,8 @@ object errors {
 
 object WaccErrorBuilder {
     final val ErrorLineStart = "|"
+    final val numLinesBefore = 1
+    final val numLinesAfter = 1
 
     def lineInfo(line: String, linesBefore: Seq[String], linesAfter: Seq[String], lineNum: Int, errorPointsAt: Int, errorWidth: Int): Seq[String] = {
         Seq.concat(

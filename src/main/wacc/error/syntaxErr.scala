@@ -1,7 +1,7 @@
 package wacc.error
 
 import parsley.errors.ErrorBuilder
-import parsley.errors.tokenextractors.TillNextWhitespace
+import parsley.errors.tokenextractors.LexToken
 
 import wacc.syntax.*
 import errors.*
@@ -9,13 +9,13 @@ import ErrorLines.*
 
 sealed trait SyntaxErrorItem extends ErrorItem
 case class SyntaxRaw(item: String) extends SyntaxErrorItem {
-    override def toString(): String = s"\"$item\""
+    override def toString: String = s"\"$item\""
 }
 case class SyntaxNamed(item: String) extends SyntaxErrorItem {
-    override def toString(): String = item
+    override def toString: String = item
 }
 case object SyntaxEndOfInput extends SyntaxErrorItem {
-    override def toString(): String = "end of input"
+    override def toString: String = "end of input"
 }
 
 abstract class SyntaxErrorBuilder extends ErrorBuilder[SyntaxError] {
@@ -54,10 +54,10 @@ abstract class SyntaxErrorBuilder extends ErrorBuilder[SyntaxError] {
     override def lineInfo(line: String, linesBefore: Seq[String], linesAfter: Seq[String], lineNum: Int, errorPointsAt: Int, errorWidth: Int): LineInfo =
         WaccErrorBuilder.lineInfo(line, linesBefore, linesAfter, lineNum, errorPointsAt, errorWidth)
 
-    override val numLinesBefore: Int = 1
-    override val numLinesAfter: Int = 1
+    override val numLinesBefore: Int = WaccErrorBuilder.numLinesBefore
+    override val numLinesAfter: Int = WaccErrorBuilder.numLinesAfter
 
-    type Item = SyntaxErrorItem
+    type Item = ErrorItem
     type Raw = SyntaxRaw
     type Named = SyntaxNamed
     type EndOfInput = SyntaxEndOfInput.type
@@ -67,7 +67,9 @@ abstract class SyntaxErrorBuilder extends ErrorBuilder[SyntaxError] {
 }
 
 object syntaxErrors {
-    implicit val errorBuilder: ErrorBuilder[SyntaxError] = new SyntaxErrorBuilder with TillNextWhitespace {
-        override def trimToParserDemand: Boolean = true
+    import wacc.lexer.*
+    
+    implicit val errorBuilder: ErrorBuilder[SyntaxError] = new SyntaxErrorBuilder with LexToken {
+        def tokens = tokensList
     }
 }

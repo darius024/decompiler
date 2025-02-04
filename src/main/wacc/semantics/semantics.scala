@@ -43,7 +43,7 @@ def augmentError(err: PartialSemanticError, program: File): SemanticError = {
         val nextLine = if (row < lines.length - 1) Seq(lines(row + 1)) else Nil
         lineInfo(lines(row), previousLine, nextLine, row, col, 1)
     }
-    val errorLines = ErrorLines.StringError(err.unexpected, err.expected, err.reasons, line)
+    val errorLines = ErrorLines.VanillaError(err.unexpected, err.expected, err.reasons, line)
 
     return SemanticError(err.pos, program.getName(), errorLines, err.errorType)
 }

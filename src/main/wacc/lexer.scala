@@ -126,17 +126,27 @@ object lexer {
 
     // basic token type parsers
     val identifier = lexer.lexeme.names.identifier
-    val integer = lexer.lexeme.integer.decimal32   
+    val integer = lexer.lexeme.integer.decimal32
     val character = lexer.lexeme.character.ascii
     val string = lexer.lexeme.string.ascii
+    val boolean = lexer.lexeme.symbol("true").as(true)
+                | lexer.lexeme.symbol("false").as(false)
 
     // higher-order parsers
-    def brackets[A](p: => Parsley[A]): Parsley[A] = lexer.lexeme.brackets(p)      
-    def parens[A](p: => Parsley[A]): Parsley[A] = lexer.lexeme.parens(p)         
-    def commaSep[A](p: Parsley[A]): Parsley[List[A]] = lexer.lexeme.commaSep(p)  
-    def semiSep1[A](p: Parsley[A]): Parsley[List[A]] = lexer.lexeme.semiSep1(p)  
+    def brackets[A](p: => Parsley[A]): Parsley[A] = lexer.lexeme.brackets(p)
+    def parens[A](p: => Parsley[A]): Parsley[A] = lexer.lexeme.parens(p)
+    def commaSep[A](p: Parsley[A]): Parsley[List[A]] = lexer.lexeme.commaSep(p)
+    def semiSep1[A](p: Parsley[A]): Parsley[List[A]] = lexer.lexeme.semiSep1(p)
 
     // symbols and whitespace parsers
-    val implicits = lexer.lexeme.symbol.implicits  
-    def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)  
+    val implicits = lexer.lexeme.symbol.implicits
+    def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
+
+    // error handling
+    def tokensList = Seq(
+        lexer.nonlexeme.names.identifier.map(v => s"identifier $v"),
+        lexer.nonlexeme.integer.decimal.map(n => s"integer $n"),
+    ) ++ desc.symbolDesc.hardKeywords.map { k =>
+        lexer.nonlexeme.symbol(k).as(s"keyword $k")
+    }
 }
