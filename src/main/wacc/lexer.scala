@@ -52,7 +52,8 @@ object lexer {
                 "f" -> 0x000c,  // form feed
                 "r" -> 0x000d,  // carriage return
             )),
-            graphicCharacter = Basic(c => !Set('\"', '\'', '\\', '\n').contains(c))
+            graphicCharacter = Basic(c => c >= ' '.toInt
+                                       && !Set('\"', '\'', '\\').contains(c))
         ),
 
         SpaceDesc.plain.copy(

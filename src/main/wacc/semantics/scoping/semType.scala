@@ -18,6 +18,18 @@ object semanticTypes {
         case Array(ty: SemType)
         case Pair(fst: SemType, snd: SemType)
         case Func(retTy: SemType, argsTy: List[SemType])
+
+        override def toString: String = this match {
+            case Int          => "int"
+            case Bool         => "bool"
+            case Char         => "char"
+            case Str          => "string"
+            case Array(ty)    => s"${ty.toString}[]"
+            case Pair(fst, snd) => s"pair(${fst.toString}, ${snd.toString})"
+            case Func(retTy, argsTy) => 
+                val argsStr = argsTy.map(_.toString).mkString(", ")
+                s"${retTy.toString}($argsStr)"
+        }
     }
 
     /** Converts a syntactic type to a semantic type. */

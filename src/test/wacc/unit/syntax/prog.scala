@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.Inside.*
 
+import wacc.error.errors.*
 import wacc.parser
 import wacc.syntax.*
 import exprs.*
@@ -12,7 +13,7 @@ import stmts.*
 import types.*
 
 /** Helper function to parse a program. */
-private def parseFunc(tid: String, params: String, body: String, stmts: String): Either[String, Program] 
+private def parseFunc(tid: String, params: String, body: String, stmts: String): Either[WaccError, Program] 
     = parser.parse(s"begin $tid ($params) is $body end $stmts end").toEither
 
 /** Tests the parsing of functions and complete programs. */

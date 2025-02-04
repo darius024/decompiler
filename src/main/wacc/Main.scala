@@ -3,7 +3,7 @@ package wacc
 import java.io.File
 import parsley.{Success, Failure}
 
-import wacc.semantics.checkSemantics
+import wacc.semantics.semanticAnalysis
 
 def main(args: Array[String]): Unit = {
     args.headOption match {
@@ -18,11 +18,11 @@ def main(args: Array[String]): Unit = {
 
 def compile(program: File): (String, Int) =
     parser.parseFile(program) match {
-        case Success(progAst) => checkSemantics(progAst) match {
+        case Success(progAst) => semanticAnalysis(progAst, program) match {
             case Right(_)   => ("succeed", exitCodes.SuccessfulCompilation)
-            case Left(errs) => (s"$errs", exitCodes.SemanticError)
+            case Left(errs) => (s"${errs.mkString("\n")}", exitCodes.SemanticError)
         }
-        case Failure(msg)     => (msg, exitCodes.SyntaxError)
+        case Failure(msg)     => (s"$msg", exitCodes.SyntaxError)
     }
 
 object exitCodes {

@@ -3,7 +3,7 @@ package wacc.semantics.scoping
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 
-import wacc.semantics.scoping.*
+import wacc.error.*
 import semanticTypes.*
 import wacc.syntax.*
 import bridges.*
@@ -34,7 +34,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val (errs, funcs, vars) = scopeCheck(prog)
 
-        errs should contain (ScopeError.VariableAlreadyDeclared("x")(pos))
+        errs should contain (VariableAlreadyDeclared("x")(pos))
     }
 
     it should "detect usage of an undeclared variable" in {
@@ -43,7 +43,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val (errs, funcs, vars) = scopeCheck(prog)
 
-        errs should contain (ScopeError.VariableNotInScope("y")(pos))
+        errs should contain (VariableNotInScope("y")(pos))
     }
 
     it should "add a function to the scope correctly" in {
@@ -67,16 +67,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val (errs, funcs, vars) = scopeCheck(prog)
 
-        errs should contain (ScopeError.FunctionAlreadyDeclared("f")(pos))
-    }
-
-    it should "detect return statement in main function" in {
-        val prog = Program(Nil, List(
-            Return(IntLit(0)(pos))(pos),
-        ))(pos)
-        val (errs, funcs, vars) = scopeCheck(prog)
-
-        errs should contain (ScopeError.ReturnMainBody(pos))
+        errs should contain (FunctionAlreadyDeclared("f")(pos))
     }
 
     it should "detect parameter redeclaration in function definitions" in {
@@ -91,7 +82,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val (errs, funcs, vars) = scopeCheck(prog)
 
-        errs should contain (ScopeError.VariableAlreadyDeclared("x")(pos))
+        errs should contain (VariableAlreadyDeclared("x")(pos))
     }
 
     it should "detect not defined functions" in {
@@ -100,7 +91,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val (errs, funcs, vars) = scopeCheck(prog)
 
-        errs should contain (ScopeError.FunctionNotDefined("f")(pos))
+        errs should contain (FunctionNotDefined("f")(pos))
     }
 
     it should "allow for variables to be shadowed" in {
@@ -139,7 +130,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val (errs, funcs, vars) = scopeCheck(prog)
 
-        errs should contain (ScopeError.VariableNotInScope("y")(pos))
+        errs should contain (VariableNotInScope("y")(pos))
     }
 
     it should "allow for mutual recursion" in {

@@ -12,6 +12,8 @@ import scala.util.{Success => TSuccess, Failure => TFailure}
 import lexer.*
 import implicits.implicitSymbol
 
+import wacc.error.syntaxErrors.*
+import wacc.error.errors.*
 import syntax.*
 import exprs.*
 import prog.*
@@ -21,11 +23,11 @@ import types.*
 /** Formulates the grammar rules the parser should follow. */
 object parser {
     /** Top-level parser. */
-    def parseFile(input: File): Result[String, Program] = parser.parseFile(input) match {
+    def parseFile(input: File): Result[WaccError, Program] = parser.parseFile[WaccError](input) match {
         case TSuccess(status) => status
-        case TFailure(_)      => Failure("file does not exist")
+        case TFailure(_)      => Failure(FileNotFound)
     }
-    def parse(input: String): Result[String, Program] = parser.parse(input)
+    def parse(input: String): Result[WaccError, Program] = parser.parse[WaccError](input)
     private val parser = fully(program)
     
     /** Expressios. */

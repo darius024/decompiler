@@ -3,7 +3,7 @@ package wacc.semantics.typing
 import cats.data.NonEmptyList
 import scala.collection.mutable
 
-import wacc.semantics.errors.*
+import wacc.error.*
 import wacc.semantics.scoping.*
 import semanticTypes.*
 import wacc.syntax.*
@@ -13,13 +13,6 @@ import stmts.*
 import prog.*
 
 import Constraint.*
-
-/** Syntactic errors that can occur during type checking. */
-enum TypeError extends SemanticError {
-    case TypeMismatch(unexpected: SemType, expected: List[SemType])(val pos: Position)
-    case TypeCannotBeInfered(val pos: Position)
-    case NumberArgumentsMismatch(expected: Int, got: Int)(val pos: Position)
-}
 
 /** Type constraints that can be imposed on types. */
 enum Constraint {
@@ -94,7 +87,7 @@ def check(func: Function)
   * Uses the type parameter to verify the return values of statements.
   */
 def check(stmt: Stmt, retTy: Option[SemType])
-         (using TypeCheckerContext[?]): Option[TyStmt] = stmt match {
+         (using ctx: TypeCheckerContext[?]): Option[TyStmt] = stmt match {
     case Skip => None
 
     case Declaration((_, id), rvalue) =>
@@ -121,12 +114,10 @@ def check(stmt: Stmt, retTy: Option[SemType])
 
     case p @ Print(expr) =>
         val (exprTy, exprTyped) = checkExpr(expr, Unconstrained)
-        assertKnownType(exprTy, p.pos)
         Some(TyStmt.Print(exprTyped))
 
     case p @ Println(expr) =>
         val (exprTy, exprTyped) = checkExpr(expr, Unconstrained)
-        assertKnownType(exprTy, p.pos)
         Some(TyStmt.Println(exprTyped))
 
     case Free(expr) =>
@@ -134,9 +125,12 @@ def check(stmt: Stmt, retTy: Option[SemType])
         Some(TyStmt.Print(exprTyped))
 
     case r @ Return(expr) =>
-        val (exprTy, exprTyped) = checkExpr(expr, Is(retTy.getOrElse(?)))
-        assertKnownType(exprTy, r.pos)
-        Some(TyStmt.Return(exprTyped))
+        retTy match {
+            case None => ctx.error(ReturnInMainBody(r.pos))
+            case Some(returnTy) =>
+                val (exprTy, exprTyped) = checkExpr(expr, Is(returnTy))
+                Some(TyStmt.Return(exprTyped))
+        }
 
     case Exit(expr) =>
         val (_, exprTyped) = checkExpr(expr, Is(KType.Int))
@@ -234,7 +228,7 @@ def checkRValue(rvalue: RValue, cons: Constraint)
         
         // check if the number of arguments match
         if (argsTy.length != args.length) {
-            ctx.error(TypeError.NumberArgumentsMismatch(argsTy.length, args.length)(id.pos))
+            ctx.error(NumberArgumentsMismatch(args.length, argsTy.length)(id.pos))
         }
 
         // transform the arguments into typed expressions
@@ -368,7 +362,7 @@ extension (ty: SemType) def satisfies(cons: Constraint)
 
     // do not allow array covariance
     case (KType.Array(kTy), Is(KType.Array(refTy))) => kTy match {
-        case KType.Array(KType.Char) => ctx.error(TypeError.TypeMismatch(kTy, List(refTy))((0, 0)))
+        case KType.Array(KType.Char) => ctx.error(TypeMismatch(kTy, Set(refTy))((0, 0)))
         case _ => Some(KType.Array(kTy.satisfies(Is(refTy)).getOrElse(?)))
     }
 
@@ -377,7 +371,7 @@ extension (ty: SemType) def satisfies(cons: Constraint)
         if kTy1 == KType.Array(KType.Char) && refTy1 == KType.Str
         || kTy2 == KType.Array(KType.Char) && refTy2 == KType.Str then {
             // TODO: add proper position for the error
-            ctx.error(TypeError.TypeMismatch(KType.Pair(kTy1, kTy2), List(KType.Pair(refTy1, refTy2)))((0, 0)))
+            ctx.error(TypeMismatch(KType.Pair(kTy1, kTy2), Set(KType.Pair(refTy1, refTy2)))((0, 0)))
         }
         val fstTy = kTy1.satisfies(Is(refTy1))
         val sndTy = kTy2.satisfies(Is(refTy2))
@@ -389,12 +383,12 @@ extension (ty: SemType) def satisfies(cons: Constraint)
     case (semTy, IsEither(ty1, ty2)) =>
         if semTy == ty1 || semTy == ty2 then Some(semTy)
         // TODO: add proper position for the error
-        else ctx.error(TypeError.TypeMismatch(semTy, List(ty1, ty2))((0, 0)))
+        else ctx.error(TypeMismatch(semTy, Set(ty1, ty2))((0, 0)))
 
     case (kTy, Is(refTy)) =>
         if kTy == refTy then Some(kTy)
         // TODO: add proper position for the error
-        else ctx.error(TypeError.TypeMismatch(kTy, List(refTy))((0, 0)))
+        else ctx.error(TypeMismatch(kTy, Set(refTy))((0, 0)))
     
     case _ => None
 }
@@ -409,7 +403,7 @@ def weakenType(semTy: Option[SemType]): SemType = semTy match {
 /** Checks if a type is known. Types must be known. */
 def assertKnownType(semTy: Option[SemType], pos: Position)
                    (using ctx: TypeCheckerContext[?]): SemType = semTy match {
-    case Some(?)        => ctx.error(TypeError.TypeCannotBeInfered(pos))
+    case Some(?)        => ctx.error(TypeCannotBeInfered(pos))
                            ?
     case Some(semType)  => semType
     case None           => ?
@@ -422,7 +416,7 @@ def assertKnownType(semTy: Option[SemType], pos: Position)
 def mostSpecific(ty1: Option[SemType], ty2: Option[SemType], pos: Position)
                 (using ctx: TypeCheckerContext[?]): SemType = (ty1, ty2) match {
     case (Some(?), Some(?)) =>
-        ctx.error(TypeError.TypeCannotBeInfered(pos))
+        ctx.error(TypeCannotBeInfered(pos))
         ?
     case (Some(?), Some(t)) => t
     case (Some(t), _)       => t
