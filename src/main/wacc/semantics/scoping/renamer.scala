@@ -2,7 +2,7 @@ package wacc.semantics.scoping
 
 import scala.collection.mutable
 
-import wacc.semantics.errors.*
+import wacc.error.*
 import semanticTypes.*
 import wacc.syntax.*
 import bridges.*
@@ -15,15 +15,6 @@ import types.*
 type IdInfo      = (KType, Position)
 type RenamedInfo = (String, IdInfo)
 type FuncInfo    = (KType, List[IdInfo], Position)
-
-/** Semantic errors that can occur during scope checking. */
-enum ScopeError extends SemanticError {
-    case VariableNotInScope(id: String)(val pos: Position)
-    case VariableAlreadyDeclared(id: String)(val pos: Position)
-    case FunctionAlreadyDeclared(id: String)(val pos: Position)
-    case FunctionNotDefined(id: String)(val pos: Position)
-    case ReturnMainBody(val pos: Position)
-}
 
 /** Context for the scope checker.
   * 
@@ -96,7 +87,7 @@ def addFunction(func: Function)(using ctx: ScopeCheckerContext[?]): Map[String, 
     val paramNames = params.map(_._2)
     paramNames.foreach { id =>
         if (paramNames.count(_.value == id.value) > 1) {
-            ctx.error(ScopeError.VariableAlreadyDeclared(id.value)(id.pos))
+            ctx.error(VariableAlreadyDeclared(id.value)(id.pos))
         }
     }
 
@@ -111,7 +102,7 @@ def addFunction(func: Function)(using ctx: ScopeCheckerContext[?]): Map[String, 
 
     // add the function defintion to the context
     if (ctx.funcs.contains(funcName.value)) {
-        ctx.error(ScopeError.FunctionAlreadyDeclared(funcName.value)(funcName.pos))
+        ctx.error(FunctionAlreadyDeclared(funcName.value)(funcName.pos))
     } else {
         ctx.addFunc(funcName, convertType(retTy), ps.map(_._2._2), func.pos)
     }
@@ -138,7 +129,7 @@ def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: muta
     case Declaration((ty, id), rv) =>
         // check if the variable is already declared in the current scope
         if (currentScope.contains(id.value)) {
-            ctx.error(ScopeError.VariableAlreadyDeclared(id.value)(id.pos))
+            ctx.error(VariableAlreadyDeclared(id.value)(id.pos))
         } else {
             rename(rv, parentScope, currentScope)
 
@@ -158,12 +149,7 @@ def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: muta
     case Free(expr)         => rename(expr, parentScope, currentScope)
 
     case r @ Return(expr)   =>
-        // check if the return statement is in the main body
-        if (funcScope == "main") {
-            ctx.error(ScopeError.ReturnMainBody(r.pos))
-        } else {
-            rename(expr, parentScope, currentScope)
-        }
+        rename(expr, parentScope, currentScope)
 
     case Exit(expr)         => rename(expr, parentScope, currentScope)
 
@@ -200,7 +186,7 @@ def rename(rvalue: LValue | RValue, parentScope: Map[String, RenamedInfo], curre
         if (ctx.funcs.contains(func.value)) {
             args.map(arg => rename(arg, parentScope, currentScope))
         } else {
-            ctx.error(ScopeError.FunctionNotDefined(func.value)(func.pos))
+            ctx.error(FunctionNotDefined(func.value)(func.pos))
         }
 }
 
@@ -216,7 +202,7 @@ def renameExpr(expr: Expr, parentScope: Map[String, RenamedInfo], currentScope: 
             if (parentScope.contains(value)) {
                 id.value = parentScope(value)._1
             } else {
-                ctx.error(ScopeError.VariableNotInScope(id.value)(id.pos))
+                ctx.error(VariableNotInScope(id.value)(id.pos))
             }
         }
     case ArrayElem(id, indices) =>

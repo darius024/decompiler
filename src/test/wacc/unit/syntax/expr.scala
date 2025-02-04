@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.Inside.*
 
+import wacc.error.errors.*
 import wacc.parser
 import wacc.syntax.*
 import exprs.*
@@ -11,11 +12,11 @@ import prog.*
 import stmts.*
 
 /** Helper function to parse a program. */
-private def parseProg(s: String): Either[String, Program] = parser.parse(s"begin $s end").toEither
+private def parseProg(s: String): Either[WaccError, Program] = parser.parse(s"begin $s end").toEither
 /** Helper function to parse an expression. */
-private def parseExpr(s: String): Either[String, Program] = parseProg(s"return $s")
+private def parseExpr(s: String): Either[WaccError, Program] = parseProg(s"return $s")
 /** Helper function to parse a statement. */
-private def parseStmt(s: String): Either[String, Program] = parseProg(s)
+private def parseStmt(s: String): Either[WaccError, Program] = parseProg(s)
 
 /** Tests the parsing of expressions. */
 class ExprParserTests extends AnyFlatSpec {

@@ -7,6 +7,7 @@
 //> using dep org.typelevel::cats-core:2.13.0
 //> using test.dep org.scalatest::scalatest::3.2.19
 //> using test.dep com.lihaoyi::upickle:4.1.0
+//> using test.dep com.github.j-mie6::golden-scalatest::0.1.0-M1
 
 // these are all sensible defaults to catch annoying issues
 //> using options -deprecation -unchecked -feature

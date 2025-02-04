@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.Inside.*
 
+import wacc.error.errors.*
 import wacc.parser
 import wacc.syntax.*
 import exprs.*
@@ -12,7 +13,7 @@ import stmts.*
 import types.*
 
 /** Helper function to parse a type. */
-private def parseType(s: String): Either[String, Program] = parser.parse(s"begin $s x = 0 end").toEither
+private def parseType(s: String): Either[WaccError, Program] = parser.parse(s"begin $s x = 0 end").toEither
 
 /** Tests the parsing of types. */
 class TypeParserTests extends AnyFlatSpec {
