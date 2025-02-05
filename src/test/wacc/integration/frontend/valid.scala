@@ -3,8 +3,8 @@ package wacc.integration
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.must.Matchers.*
 
-import wacc.exitCodes
 import utils.*
+import wacc.ExitCode
 
 /** Tests compiler frontend on valid programs. */
 class ValidProgramTest extends AnyWordSpec {
@@ -22,7 +22,7 @@ class ValidProgramTest extends AnyWordSpec {
                     // run
                     val (msg, code) = compileTest(test)
                     withClue(s"$msg\n") {
-                        code mustBe exitCodes.SuccessfulCompilation
+                        code mustBe ExitCode.Success
                     }
                 }
             }
