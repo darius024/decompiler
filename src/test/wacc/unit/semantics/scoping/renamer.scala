@@ -17,7 +17,7 @@ import types.*
 /** Tests the scope checker and renamer of variables. */
 class ScopeCheckerTest extends AnyFlatSpec {
 
-    private val pos: Position = (0, 0)
+    private val pos: Position = NoPosition
 
     "Scope checker" should "add a variable to the scope correctly" in {
         val prog = Program(Nil, List(

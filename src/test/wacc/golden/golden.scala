@@ -8,15 +8,15 @@ import org.scalatest.matchers.should.Matchers.*
 /** Tests the error messages of the WACC compiler on invalid WACC programs. */
 class GoldenTests extends AnyFreeSpec with GoldenMatchers {
     
-    private val path = os.pwd / "src" / "test" / "wacc" / "examples"
-    private val goldenPath = path / "golden"
+    private val path = os.pwd / "src" / "test" / "wacc"
+    private val goldenPath = path / "golden" / "examples"
 
     // create subdirectories for error types if they do not exist
     os.makeDir.all(goldenPath / "syntaxErr")
     os.makeDir.all(goldenPath / "semanticErr")
 
     "Syntax errors:" - {
-        val syntaxErrPath = path / "invalid" / "syntaxErr"
+        val syntaxErrPath = path / "examples" / "invalid" / "syntaxErr"
         val syntaxErrFiles = os.walk.stream(syntaxErrPath).filter(os.isFile)
 
         syntaxErrFiles.foreach { file =>
@@ -24,7 +24,9 @@ class GoldenTests extends AnyFreeSpec with GoldenMatchers {
                 val output = compileTest(file)
                 val goldenFile = goldenPath / "syntaxErr" / s"${file.last}.golden"
 
-                os.write(goldenFile, output)
+                if (!os.exists(goldenFile)) {
+                    os.write(goldenFile, output)
+                }
 
                 output should matchGolden(goldenFile.toString)
             }
@@ -32,7 +34,7 @@ class GoldenTests extends AnyFreeSpec with GoldenMatchers {
     }
 
     "Semantic errors:" - {
-        val semanticErrPath = path / "invalid" / "semanticErr"
+        val semanticErrPath = path / "examples" / "invalid" / "semanticErr"
         val semanticErrFiles = os.walk.stream(semanticErrPath).filter(os.isFile)
 
         semanticErrFiles.foreach { file =>
@@ -41,8 +43,9 @@ class GoldenTests extends AnyFreeSpec with GoldenMatchers {
                 val output = compileTest(file)
                 val goldenFile = goldenPath / "semanticErr" / s"${file.last}.golden"
                 
-                os.write(goldenFile, output)
-                
+                if (!os.exists(goldenFile)) {
+                    os.write(goldenFile, output)
+                }
 
                 output should matchGolden(goldenFile.toString)
             }

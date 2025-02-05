@@ -10,7 +10,7 @@ import bridges.*
   */
 object exprs {
     /** Expression trait. */
-    sealed trait Expr extends RValue
+    sealed trait Expr extends RValue { val pos: Position }
     
     /** <expr> :: <and-expr> '||' <expr>
       *         | <and-expr>
@@ -76,7 +76,7 @@ object exprs {
     case class BoolLit(value: Boolean)(val pos: Position) extends Atom
     case class CharLit(value: Char)(val pos: Position) extends Atom
     case class StrLit(value: String)(val pos: Position) extends Atom
-    case object PairLit extends Atom with ParserBridge0[Atom]
+    case object PairLit extends Atom with ParserBridge0[Atom] { val pos = NoPosition }
     case class Id(var value: String)(val pos: Position) extends Atom with LValue
     case class ArrayElem(id: Id, indices: List[Expr])(val pos: Position) extends Atom with LValue
     case class ParensExpr(expr: Expr)(val pos: Position) extends Atom
@@ -88,7 +88,7 @@ object exprs {
       *            | <pair-elem>
       *            | 'call' <ident> '(' <arg-list>? ')'
       */
-    sealed trait RValue
+    sealed trait RValue { val pos: Position }
     case class ArrayLit(exprs: List[Expr])(val pos: Position) extends RValue
     case class NewPair(fst: Expr, snd: Expr)(val pos: Position) extends RValue
     case class Call(func: Id, args: List[Expr])(val pos: Position) extends RValue
@@ -97,7 +97,7 @@ object exprs {
       *            | <array-elem>
       *            | <pair-elem> 
       */
-    sealed trait LValue
+    sealed trait LValue { val pos: Position }
     
     /** <pair-elem> ::= 'fst' <lvalue>
       *               | 'snd' <lvalue>

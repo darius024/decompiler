@@ -11,6 +11,7 @@ import parsley.position.pos
 object bridges {
     /** Alias for (line, col) */
     type Position = (Int, Int)
+    final val NoPosition = (0, 0)
 
     /** Parser bridge for () => @tparam A */
     trait ParserSingletonBridgePos[+A] extends ErrorBridge {

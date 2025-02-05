@@ -17,7 +17,7 @@ import types.*
 /** Tests the type checker for programs not well-typed. */
 class TypeCheckerTests extends AnyFlatSpec {
 
-    private val pos: Position = (0, 0)
+    private val pos: Position = NoPosition
 
     "Type checker" should "detect type mismatches in declarations" in {
         val prog = Program(Nil, List(
@@ -250,7 +250,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(checkSemantics(prog)) {
             case Left(errs) =>
-                errs should contain (TypeMismatch(KType.Pair(KType.Array(KType.Char), KType.Int), Set(KType.Pair(KType.Str, KType.Int)))(pos))
+                errs should contain (TypeMismatch(KType.Array(KType.Char), Set(KType.Str))(pos))
         }
     }
 

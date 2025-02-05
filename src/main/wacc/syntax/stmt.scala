@@ -11,7 +11,7 @@ object stmts {
     type TypeId = (IdType, Id)
 
     /** Statement node. */
-    sealed trait Stmt
+    sealed trait Stmt { val pos: Position }
 
     /** <stmt> ::= 'skip'
       *          | <type> <ident> '=' <rvalue>
@@ -29,7 +29,7 @@ object stmts {
       *  <stmts> ::= <stmt> (';' <stmt>)*
       */
 
-    case object Skip extends Stmt with ParserBridge0[Stmt]
+    case object Skip extends Stmt with ParserBridge0[Stmt] { val pos = NoPosition }
     case class Declaration(typeId: TypeId, rvalue: RValue)(val pos: Position) extends Stmt
     case class Assignment(lvalue: LValue, rvalue: RValue)(val pos: Position) extends Stmt
     case class Read(lvalue: LValue)(val pos: Position) extends Stmt

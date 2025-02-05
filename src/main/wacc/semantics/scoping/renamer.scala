@@ -21,7 +21,6 @@ type FuncInfo    = (KType, List[IdInfo], Position)
   * It contains information about the signature of all functions
   * that are in scope and a global map of all renamed variables
   * with their type and position information.
-  * A list of scope errors is generated.
   */
 class ScopeCheckerContext[C](val funcTypes: mutable.Map[String, FuncInfo],
                              val varTypes: mutable.Map[String, IdInfo],
@@ -32,7 +31,6 @@ class ScopeCheckerContext[C](val funcTypes: mutable.Map[String, FuncInfo],
 
     // insert a function to the function map
     def addFunc(id: Id, retType: KType, params: List[IdInfo], pos: Position) =
-        // id.value = convertName(id, "main")
         funcTypes += id.value -> (retType, params, pos)
     
     // insert a renamed variable to the global variable map
@@ -64,7 +62,7 @@ def scopeCheck(prog: Program): (List[ScopeError], Map[String, FuncInfo], Map[Str
     val Program(funcs, stmts) = prog
 
     // add all functions to the context and check their scopes
-    // adding the function beforehand allows for mutual recursion
+    // adding the functions beforehand allows for mutual recursion
     (funcs zip funcs.map(addFunction)).foreach { (func, scope) =>
         given funcScope: String = func.typeId._2.value
         // perform renaming on the function body
@@ -73,51 +71,38 @@ def scopeCheck(prog: Program): (List[ScopeError], Map[String, FuncInfo], Map[Str
 
     // check the scope of the main body
     given funcScope: String = "main"
-    rename(stmts, Map.empty[String, RenamedInfo])
+    rename(stmts, Map.empty)
 
     (ctx.errors, ctx.funcs, ctx.vars)
 }
 
 /** Adds a function to the context and returns a map of its parameters. */
-def addFunction(func: Function)(using ctx: ScopeCheckerContext[?]): Map[String, RenamedInfo] = {
+def addFunction(func: Function)
+               (using ctx: ScopeCheckerContext[?]): Map[String, RenamedInfo] = {
     val Function((retTy, funcName), params, stmts) = func
     given funcScope: String = funcName.value
 
-    // check for parameter name duplication
-    val paramNames = params.map(_._2)
-    paramNames.foreach { id =>
-        if (paramNames.count(_.value == id.value) > 1) {
-            ctx.error(VariableAlreadyDeclared(id.value)(id.pos))
-        }
-    }
-
     // rename all parameters and add them to the context
-    val ps: List[(String, RenamedInfo)] = params.map { (idType, id) =>
-        val kType = convertType(idType)
-        val actualId = id.value
-        ctx.addVar(id, kType, id.pos)
-
-        actualId -> (id.value, (kType, id.pos))
-    }
+    // need to keep track of the parameters in order
+    val paramScope = mutable.LinkedHashMap.empty[String, RenamedInfo]
+    params.foreach(checkIdInScope(_, _, paramScope))
 
     // add the function defintion to the context
     if (ctx.funcs.contains(funcName.value)) {
         ctx.error(FunctionAlreadyDeclared(funcName.value)(funcName.pos))
     } else {
-        ctx.addFunc(funcName, convertType(retTy), ps.map(_._2._2), func.pos)
+        ctx.addFunc(funcName, convertType(retTy), paramScope.toList.map(_._2._2), func.pos)
     }
-    ps.toMap
+    paramScope.toMap
 }
 
 /** Renames and checks all variables in a list of statements. */
 def rename(stmts: List[Stmt], parentScope: Map[String, RenamedInfo])
           (using funcScope: String)
           (using ScopeCheckerContext[?]): Unit = {
-    val currentScope: mutable.Map[String, RenamedInfo] = mutable.Map.empty[String, RenamedInfo]
+    val currentScope = mutable.Map.empty[String, RenamedInfo]
 
-    stmts.foreach { stmt =>
-        rename(stmt, parentScope, currentScope)
-    }
+    stmts.foreach(rename(_, parentScope, currentScope))
 }
 
 /** Renames and checks all variables in a statement. */
@@ -127,34 +112,18 @@ def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: muta
     case Skip =>
 
     case Declaration((ty, id), rv) =>
-        // check if the variable is already declared in the current scope
-        if (currentScope.contains(id.value)) {
-            ctx.error(VariableAlreadyDeclared(id.value)(id.pos))
-        } else {
-            rename(rv, parentScope, currentScope)
-
-            // add the new variable to the current scope and the global map
-            val actualId = id.value
-            val kType = convertType(ty)
-            ctx.addVar(id, kType, id.pos)
-            currentScope += actualId -> (id.value, (kType, id.pos))
-        }
+        checkIdInScope(ty, id, currentScope)
+        rename(rv, parentScope, currentScope)
     
     case Assignment(lv, rv) =>
         rename(lv, parentScope, currentScope)
         rename(rv, parentScope, currentScope)
     
     case Read(lv)           => rename(lv, parentScope, currentScope)
-
     case Free(expr)         => rename(expr, parentScope, currentScope)
-
-    case r @ Return(expr)   =>
-        rename(expr, parentScope, currentScope)
-
+    case Return(expr)       => rename(expr, parentScope, currentScope)
     case Exit(expr)         => rename(expr, parentScope, currentScope)
-
     case Print(expr)        => rename(expr, parentScope, currentScope)
-
     case Println(expr)      => rename(expr, parentScope, currentScope)
 
     case If(cond, thenStmts, elseStmts) =>
@@ -165,7 +134,7 @@ def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: muta
     case While(cond, doStmts) =>
         rename(cond, parentScope, currentScope)
         rename(doStmts, parentScope.toMap ++ currentScope.toMap)
-    
+
     case Block(stmts) =>
         rename(stmts, parentScope.toMap ++ currentScope.toMap)
 }
@@ -175,16 +144,20 @@ def rename(rvalue: LValue | RValue, parentScope: Map[String, RenamedInfo], curre
           (using funcScope: String)
           (using ctx: ScopeCheckerContext[?]): Unit = rvalue match {
     case e: Expr => renameExpr(e, parentScope, currentScope)
+
     case pairElem: PairElem => pairElem match {
         case Fst(lval) => rename(lval, parentScope, currentScope)
         case Snd(lval) => rename(lval, parentScope, currentScope)
     }
-    case ArrayLit(exprs) => exprs.map(expr => rename(expr, parentScope, currentScope))
+
+    case ArrayLit(exprs) => exprs.map(rename(_, parentScope, currentScope))
+
     case NewPair(fst, snd) => renameBinExpr(fst, snd, parentScope, currentScope)
+
     case Call(func, args) =>
         // check if the function is defined in the main scope
         if (ctx.funcs.contains(func.value)) {
-            args.map(arg => rename(arg, parentScope, currentScope))
+            args.foreach(rename(_, parentScope, currentScope))
         } else {
             ctx.error(FunctionNotDefined(func.value)(func.pos))
         }
@@ -205,11 +178,10 @@ def renameExpr(expr: Expr, parentScope: Map[String, RenamedInfo], currentScope: 
                 ctx.error(VariableNotInScope(id.value)(id.pos))
             }
         }
+    
     case ArrayElem(id, indices) =>
         renameExpr(id, parentScope, currentScope)
-        indices.foreach { index =>
-            renameExpr(index, parentScope, currentScope)
-        }
+        indices.foreach(renameExpr(_, parentScope, currentScope))
     
     case Or(lhs, rhs)           => renameBinExpr(lhs, rhs, parentScope, currentScope)
     case And(lhs, rhs)          => renameBinExpr(lhs, rhs, parentScope, currentScope)
@@ -240,6 +212,21 @@ def renameBinExpr(lhs: Expr, rhs: Expr, parentScope: Map[String, RenamedInfo], c
                  (using ScopeCheckerContext[?]): Unit = {
     renameExpr(lhs, parentScope, currentScope)
     renameExpr(rhs, parentScope, currentScope)
+}
+
+/** Checks if an identifier is in the current scope. */
+def checkIdInScope(ty: IdType, id: Id, scope: mutable.Map[String, RenamedInfo])
+                  (using funcScope: String)
+                  (using ctx: ScopeCheckerContext[?]): Unit = {
+    if (scope.contains(id.value)) {
+        ctx.error(VariableAlreadyDeclared(id.value)(id.pos))
+    } else {
+        // add the new variable to the current scope and the global map
+        val actualId = id.value
+        val kType = convertType(ty)
+        ctx.addVar(id, kType, id.pos)
+        scope += actualId -> (id.value, (kType, id.pos))
+    }
 }
 
 /** Converts a syntactic type to a semantic type. */

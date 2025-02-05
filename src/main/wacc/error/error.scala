@@ -53,7 +53,7 @@ object errors {
         override val errorType: String = errTy
     }
     /** Error that occurs during the file reading phase. */
-    case object FileNotFound extends WaccError((0, 0), "", ErrorLines.VanillaError(None, Set.empty, Set.empty, Seq.empty)) {
+    case object FileNotFound extends WaccError(bridges.NoPosition, "", ErrorLines.VanillaError(None, Set.empty, Set.empty, Seq.empty)) {
         override val errorType: String = "File Not Found"
     }
 }
