@@ -1,4 +1,4 @@
-package wacc.unit.semantics.typing
+package wacc.unit
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
@@ -6,8 +6,7 @@ import org.scalatest.Inside.*
 
 import wacc.error.*
 import wacc.semantics.*
-import scoping.*
-import semanticTypes.*
+import scoping.semanticTypes.*
 import wacc.syntax.*
 import bridges.*
 import exprs.*
@@ -304,6 +303,17 @@ class TypeCheckerTests extends AnyFlatSpec {
         inside(checkSemantics(prog)) {
             case Left(errs) =>
                 errs should contain (NumberArgumentsMismatch(0, 1)(pos))
+        }
+    }
+
+    it should "detect return statements in the main body" in {
+        val prog = Program(Nil, List(
+            Return(IntLit(0)(pos))(pos),
+        ))(pos)
+        
+        inside(checkSemantics(prog)) {
+            case Left(errs) =>
+                errs should contain (ReturnInMainBody(pos))
         }
     }
 }

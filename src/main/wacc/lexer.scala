@@ -142,7 +142,7 @@ object lexer {
     val implicits = lexer.lexeme.symbol.implicits
     def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
 
-    // error handling
+    // information for the error builder
     def tokensList = Seq(
         lexer.nonlexeme.names.identifier.map(v => s"identifier $v"),
         lexer.nonlexeme.integer.decimal.map(n => s"integer $n"),

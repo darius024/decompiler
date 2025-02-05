@@ -1,9 +1,11 @@
-package wacc.semantics.scoping
+package wacc.unit
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 
 import wacc.error.*
+import wacc.semantics.*
+import scoping.*
 import semanticTypes.*
 import wacc.syntax.*
 import bridges.*
