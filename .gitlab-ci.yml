@@ -7,13 +7,13 @@ compile:
   stage: compile
   script:
     - echo "Compiling the project..."
-    - scala compile .
+    - scala compile . --server=false --jvm system
 
 unit-test:
   stage: unit-test
   script:
     - echo "Running unit tests..."
-    - scala test . --test-only 'wacc.unit*' > unit_test_output.log 2>&1
+    - scala test . --test-only 'wacc.unit*' --server=false --jvm system > unit_test_output.log 2>&1
   artifacts:
     paths:
       - unit_test_output.log
@@ -23,7 +23,7 @@ integration-test:
   stage: integration-test
   script:
     - echo "Running integration tests..."
-    - scala test . --test-only 'wacc.integration*' > integration_test_output.log 2>&1
+    - scala test . --test-only 'wacc.integration*' --server=false --jvm system > integration_test_output.log 2>&1
   artifacts:
     paths:
       - integration_test_output.log

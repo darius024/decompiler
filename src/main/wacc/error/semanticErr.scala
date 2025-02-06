@@ -2,28 +2,11 @@ package wacc.error
 
 import wacc.semantics.scoping.semanticTypes.*
 import wacc.syntax.bridges.Position
-import ErrorLines.*
 
-sealed trait SemanticErrorItem extends ErrorItem
-case class SemanticVar(item: String) extends SemanticErrorItem {
-    override def toString: String = s"variable ${item}"
-}
-case class SemanticFunc(item: String) extends SemanticErrorItem {
-    override def toString: String = s"function call ${item}"
-}
-case class SemanticType(item: SemType) extends SemanticErrorItem {
-    override def toString: String = s"type $item"
-}
-case class SemanticRedecl(item: ErrorItem) extends SemanticErrorItem {
-    override def toString: String = s"redeclaration of ${item}"
-}
-case class SemanticNumArg(num: Int) extends SemanticErrorItem {
-    override def toString: String = s"$num number of arguments"
-}
-case object SemanticReturnMain extends SemanticErrorItem {
-    override def toString: String = "return statement in the main body"
-}
-
+/** Semantic error that holds partial information about the error.
+  * 
+  * It deals with generating the error header, and not with the line information.
+  */
 sealed trait PartialSemanticError {
     val errorType: String
     val pos: Position
@@ -36,7 +19,6 @@ sealed trait PartialSemanticError {
 sealed trait ScopeError extends PartialSemanticError {
     override val errorType: String = "Scope Error"
 }
-
 case class VariableNotInScope(name: String)(val pos: Position) extends ScopeError {
     override val unexpected = Some(SemanticVar(name))
     override val reasons = Set("variable has not been declared in this scope")
@@ -58,7 +40,6 @@ case class FunctionAlreadyDeclared(funcName: String)(val pos: Position) extends 
 sealed trait TypeError extends PartialSemanticError {
     override val errorType: String = "Type Error"
 }
-
 case class TypeMismatch(unexpectedTy: SemType, expectedTy: Set[SemType])(val pos: Position) extends TypeError {
     override val unexpected = Some(SemanticType(unexpectedTy))
     override val expected = expectedTy.map(SemanticType(_))

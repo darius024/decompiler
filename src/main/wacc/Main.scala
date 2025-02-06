@@ -1,32 +1,42 @@
 package wacc
 
-import java.io.File
 import parsley.{Success, Failure}
+import java.io.File
 
-import wacc.semantics.semanticAnalysis
-
-def main(args: Array[String]): Unit = {
-    args.headOption match {
-        case Some(program) => {
-            val (errs, exitCode) = compile(new File(program))
-            println(errs)
-            System.exit(exitCode)
-        }
-        case None => println("please enter a program")
+// entry point
+def main(args: Array[String]): Unit = args.headOption match {
+    case Some(path) => {
+        val (errs, code) = compile(new File(path))
+        println(errs)
+        code.enforce()
     }
+    case None => println("No program has been entered.")
 }
 
-def compile(program: File): (String, Int) =
-    parser.parseFile(program) match {
-        case Success(progAst) => semanticAnalysis(progAst, program) match {
-            case Right(_)   => ("succeed", exitCodes.SuccessfulCompilation)
-            case Left(errs) => (s"${errs.mkString("\n")}", exitCodes.SemanticError)
-        }
-        case Failure(msg)     => (s"$msg", exitCodes.SyntaxError)
+// compilation pipeline
+def compile(file: File): (String, ExitCode) = {
+    // parse and check syntax
+    var ast = parser.parse(file) match {
+        case Success(ast) => ast
+        case Failure(msg) => return (s"$msg", ExitCode.SyntaxErr)
     }
 
-object exitCodes {
-    val SuccessfulCompilation = 0
-    val SyntaxError           = 100
-    val SemanticError         = 200
+    // check semantics
+    ast = semantics.check(ast) match {
+        case Right(ast) => ast
+        case Left(errs) => return (s"${semantics.format(errs, file)}", ExitCode.SemanticErr)
+    }
+
+    // TODO further stages (perhaps optimising AST?)
+
+    return ("Code compiled successfully", ExitCode.Success)
+}
+
+/** Using an enum of fixed values to prevent invalid codes being used. */
+enum ExitCode(val value: Int) {
+    case Success extends ExitCode(0)
+    case SyntaxErr extends ExitCode(100)
+    case SemanticErr extends ExitCode(200)
+
+    def enforce(): Unit = System.exit(value)
 }

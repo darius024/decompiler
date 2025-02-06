@@ -1,6 +1,8 @@
 package wacc.syntax
 
+import cats.data.NonEmptyList
 import parsley.generic.*
+
 import bridges.*
 import exprs.*
 import types.*
@@ -10,8 +12,8 @@ object stmts {
     /** Alias to bundle parameter and type. */
     type TypeId = (IdType, Id)
 
-    /** Statement node. */
-    sealed trait Stmt
+    /** Alias for non-empty block of statements. */
+    type StmtList = NonEmptyList[Stmt]
 
     /** <stmt> ::= 'skip'
       *          | <type> <ident> '=' <rvalue>
@@ -28,8 +30,8 @@ object stmts {
       * 
       *  <stmts> ::= <stmt> (';' <stmt>)*
       */
-
-    case object Skip extends Stmt with ParserBridge0[Stmt]
+    sealed trait Stmt { val pos: Position }
+    case object Skip extends Stmt with ParserBridge0[Stmt] { val pos = NoPosition }
     case class Declaration(typeId: TypeId, rvalue: RValue)(val pos: Position) extends Stmt
     case class Assignment(lvalue: LValue, rvalue: RValue)(val pos: Position) extends Stmt
     case class Read(lvalue: LValue)(val pos: Position) extends Stmt
@@ -38,9 +40,9 @@ object stmts {
     case class Free(expr: Expr)(val pos: Position) extends Stmt
     case class Return(expr: Expr)(val pos: Position) extends Stmt
     case class Exit(expr: Expr)(val pos: Position) extends Stmt
-    case class If(cond: Expr, thenStmts: List[Stmt], elseStmts: List[Stmt])(val pos: Position) extends Stmt
-    case class While(cond: Expr, doStmts: List[Stmt])(val pos: Position) extends Stmt
-    case class Block(stmts: List[Stmt])(val pos: Position) extends Stmt
+    case class If(cond: Expr, thenStmts: StmtList, elseStmts: StmtList)(val pos: Position) extends Stmt
+    case class While(cond: Expr, doStmts: StmtList)(val pos: Position) extends Stmt
+    case class Block(stmts: StmtList)(val pos: Position) extends Stmt
 
     // companion objects
 
@@ -52,7 +54,7 @@ object stmts {
     object Exit extends ParserBridgePos1[Expr, Exit]
     object Print extends ParserBridgePos1[Expr, Print] 
     object Println extends ParserBridgePos1[Expr, Println]
-    object If extends ParserBridgePos3[Expr, List[Stmt], List[Stmt], If]
-    object While extends ParserBridgePos2[Expr, List[Stmt], While]
-    object Block extends ParserBridgePos1[List[Stmt], Block]
+    object If extends ParserBridgePos3[Expr, StmtList, StmtList, If]
+    object While extends ParserBridgePos2[Expr, StmtList, While]
+    object Block extends ParserBridgePos1[StmtList, Block]
 }

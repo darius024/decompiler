@@ -3,8 +3,8 @@ package wacc.integration
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.must.Matchers.*
 
-import wacc.exitCodes
 import utils.*
+import wacc.ExitCode
 
 /** Tests compiler frontend on invalid semantic programs. */
 class InvalidSemanticTest extends AnyWordSpec {
@@ -22,7 +22,7 @@ class InvalidSemanticTest extends AnyWordSpec {
                     // run
                     val (msg, code) = compileTest(test)
                     withClue(s"$msg\n") {
-                        code mustBe exitCodes.SemanticError
+                        code mustBe ExitCode.SemanticErr
                     }
                 }
             }

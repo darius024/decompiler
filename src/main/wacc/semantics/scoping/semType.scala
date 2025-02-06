@@ -7,7 +7,9 @@ object semanticTypes {
     sealed trait SemType
 
     /** Represents an unknown type. */
-    case object ? extends SemType
+    case object ? extends SemType {
+        override def toString: String = "any"
+    }
 
     /** Represents a known type. */
     enum KType extends SemType {

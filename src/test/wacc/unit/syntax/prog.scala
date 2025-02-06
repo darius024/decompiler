@@ -1,5 +1,6 @@
 package wacc.unit
 
+import cats.data.NonEmptyList
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.Inside.*
@@ -13,16 +14,16 @@ import stmts.*
 import types.*
 
 /** Helper function to parse a program. */
-private def parseFunc(tid: String, params: String, body: String, stmts: String): Either[WaccError, Program] 
-    = parser.parse(s"begin $tid ($params) is $body end $stmts end").toEither
+private def parseFunc(tid: String, params: String, body: String, stmts: String): Either[WaccError, Program] =
+    parser.parse(s"begin $tid ($params) is $body end $stmts end").toEither
 
 /** Tests the parsing of functions and complete programs. */
 class ProgramParserTests extends AnyFlatSpec {
     "Program" should "parse a function" in {
         inside(parseFunc("int f","", "return 0", "skip")) {
             case Right(Program(
-                List(Function((IntType, Id("f")), Nil, List(Return(IntLit(0))))),
-                List(Skip)
+                List(Function((IntType, Id("f")), Nil, NonEmptyList(Return(IntLit(0)), _))),
+                NonEmptyList(Skip, _)
                 )) => succeed
         }
     }
@@ -32,9 +33,9 @@ class ProgramParserTests extends AnyFlatSpec {
                 List(Function(
                     (IntType, Id("add")),
                     List((IntType, Id("x")), (IntType, Id("y"))),
-                    List(Return(Add(Id("x"), Id("y"))))
+                    NonEmptyList(Return(Add(Id("x"), Id("y"))), _)
                 )),
-                List(Skip)
+                NonEmptyList(Skip, _)
             )) => succeed
         }
     }
@@ -47,10 +48,10 @@ class ProgramParserTests extends AnyFlatSpec {
         ) {
             case Right(Program(
                 List(
-                    Function((IntType, Id("f")), Nil, List(Return(IntLit(1)))),
-                    Function((BoolType, Id("g")), Nil, List(Return(BoolLit(true))))
+                    Function((IntType, Id("f")), Nil, NonEmptyList(Return(IntLit(1)), _)),
+                    Function((BoolType, Id("g")), Nil, NonEmptyList(Return(BoolLit(true)), _))
                 ),
-                List(Skip)
+                NonEmptyList(Skip, _)
             )) => succeed
         }
     }
@@ -67,12 +68,12 @@ class ProgramParserTests extends AnyFlatSpec {
         ) {
             case Right(Program(
                 List(Function((IntType, Id("f")), Nil,
-                    (List(
+                    (NonEmptyList(
                         Declaration((IntType, Id("x")), IntLit(1)),
-                        Return(Id("x"))
+                        Return(Id("x")) :: _
                     ))
                 )),
-                List(Skip)
+                NonEmptyList(Skip, _)
             )) => succeed
         }
     }
@@ -90,13 +91,13 @@ class ProgramParserTests extends AnyFlatSpec {
         ) {
             case Right(Program(
                 List(Function((IntType, Id("f")), Nil,
-                    (List(
+                    (NonEmptyList(
                         Declaration((IntType, Id("x")), IntLit(1)),
-                        Declaration((IntType, Id("y")), IntLit(2)),
-                        Return(Add(Id("x"), Id("y")))
+                        Declaration((IntType, Id("y")), IntLit(2)) ::
+                        Return(Add(Id("x"), Id("y"))) :: _
                     ))
                 )),
-                List(Skip)
+                NonEmptyList(Skip, _)
             )) => succeed
         }
     }
@@ -118,19 +119,19 @@ class ProgramParserTests extends AnyFlatSpec {
             case Right(Program(
                 List(
                     Function((IntType, Id("f")), Nil,
-                        (List(
+                        (NonEmptyList(
                             Declaration((IntType, Id("x")), IntLit(1)),
-                            Return(Id("x"))
+                            Return(Id("x")) :: _
                         ))
                     ),
                     Function((BoolType, Id("g")), Nil,
-                        (List(
+                        (NonEmptyList(
                             Declaration((BoolType, Id("y")), BoolLit(true)),
-                            Return(Id("y"))
+                            Return(Id("y")) :: _
                         ))
                     )
                 ),
-                List(Skip)
+                NonEmptyList(Skip, _)
             )) => succeed
         }
     }
@@ -150,17 +151,17 @@ class ProgramParserTests extends AnyFlatSpec {
             case Right(Program(
                 List(
                     Function((IntType, Id("f")), List((IntType, Id("x"))),
-                        (List(
-                            Return(Id("x"))
+                        (NonEmptyList(
+                            Return(Id("x")), _
                         ))
                     ),
                     Function((BoolType, Id("g")), List((BoolType, Id("y"))),
-                        (List(
-                            Return(Id("y"))
+                        (NonEmptyList(
+                            Return(Id("y")), _
                         ))
                     )
                 ),
-                List(Skip)
+                NonEmptyList(Skip, _)
             )) => succeed
         }
     }
@@ -180,17 +181,17 @@ class ProgramParserTests extends AnyFlatSpec {
             case Right(Program(
                 List(
                     Function((IntType, Id("f")), List((IntType, Id("x"))),
-                        (List(
-                            Return(Add(Id("x"), IntLit(1)))
+                        (NonEmptyList(
+                            Return(Add(Id("x"), IntLit(1))), _
                         ))
                     ),
                     Function((BoolType, Id("g")), List((BoolType, Id("y"))),
-                        (List(
-                            Return(Not(Id("y")))
+                        (NonEmptyList(
+                            Return(Not(Id("y"))), _
                         ))
                     )
                 ),
-                List(Skip)
+                NonEmptyList(Skip, _)
             )) => succeed
         }
     }

@@ -5,19 +5,12 @@ import parsley.errors.tokenextractors.LexToken
 
 import wacc.syntax.*
 import errors.*
-import ErrorLines.*
 
-sealed trait SyntaxErrorItem extends ErrorItem
-case class SyntaxRaw(item: String) extends SyntaxErrorItem {
-    override def toString: String = s"\"$item\""
-}
-case class SyntaxNamed(item: String) extends SyntaxErrorItem {
-    override def toString: String = item
-}
-case object SyntaxEndOfInput extends SyntaxErrorItem {
-    override def toString: String = "end of input"
-}
-
+/** Error builder for syntax errors.
+  *
+  * Overrides the default error builder to use custom data structures.
+  * These are shared with the semantic error builder.
+  */
 abstract class SyntaxErrorBuilder extends ErrorBuilder[SyntaxError] {
     override def build(pos: Position, source: Source, lines: ErrorInfoLines): SyntaxError =
         SyntaxError(pos, source, lines)
@@ -30,10 +23,10 @@ abstract class SyntaxErrorBuilder extends ErrorBuilder[SyntaxError] {
 
     type ErrorInfoLines = ErrorLines
     override def vanillaError(unexpected: UnexpectedLine, expected: ExpectedLine, reasons: Messages, line: LineInfo): ErrorInfoLines =
-        VanillaError(unexpected, expected, reasons, line)
+        ErrorLines.VanillaError(unexpected, expected, reasons, line)
     
     override def specializedError(msgs: Messages, line: LineInfo): ErrorInfoLines =
-        SpecialisedError(msgs, line)
+        ErrorLines.SpecialisedError(msgs, line)
 
     type ExpectedItems = Set[Item]
     override def combineExpectedItems(alts: Set[Item]): ExpectedItems = alts
@@ -54,8 +47,8 @@ abstract class SyntaxErrorBuilder extends ErrorBuilder[SyntaxError] {
     override def lineInfo(line: String, linesBefore: Seq[String], linesAfter: Seq[String], lineNum: Int, errorPointsAt: Int, errorWidth: Int): LineInfo =
         WaccErrorBuilder.lineInfo(line, linesBefore, linesAfter, lineNum, errorPointsAt, errorWidth)
 
-    override val numLinesBefore: Int = WaccErrorBuilder.numLinesBefore
-    override val numLinesAfter: Int = WaccErrorBuilder.numLinesAfter
+    override val numLinesBefore: Int = WaccErrorBuilder.NumLinesBefore
+    override val numLinesAfter: Int = WaccErrorBuilder.NumLinesAfter
 
     type Item = ErrorItem
     type Raw = SyntaxRaw
@@ -66,9 +59,11 @@ abstract class SyntaxErrorBuilder extends ErrorBuilder[SyntaxError] {
     override val endOfInput: EndOfInput = SyntaxEndOfInput
 }
 
+/** Contains the implicit definition of the error builder. */
 object syntaxErrors {
     import wacc.lexer.*
     
+    // provide better messages by using token information from the lexer
     implicit val errorBuilder: ErrorBuilder[SyntaxError] = new SyntaxErrorBuilder with LexToken {
         def tokens = tokensList
     }
