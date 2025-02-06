@@ -24,7 +24,6 @@ object bridges {
     trait ParserBridgePos1[-A, +B] extends ParserSingletonBridgePos[A => B] {
         def apply(x: A)(pos: Position): B
         def apply(x: Parsley[A]): Parsley[B] = error(ap1(pos.map(con), x))
-
         override final def con(pos: Position): A => B = this.apply(_)(pos)
     }
 
@@ -32,7 +31,6 @@ object bridges {
     trait ParserBridgePos2[-A, -B, +C] extends ParserSingletonBridgePos[(A, B) => C] {
         def apply(x: A, y: B)(pos: Position): C
         def apply(x: Parsley[A], y: =>Parsley[B]): Parsley[C] = error(ap2(pos.map(con), x, y))
-
         override final def con(pos: Position): (A, B) => C = this.apply(_, _)(pos)
     }
 
@@ -40,7 +38,6 @@ object bridges {
     trait ParserBridgePos3[-A, -B, -C, +D] extends ParserSingletonBridgePos[(A, B, C) => D] {
         def apply(x: A, y: B, z: C)(pos: Position): D
         def apply(x: Parsley[A], y: =>Parsley[B], z: =>Parsley[C]): Parsley[D] = error(ap3(pos.map(con), x, y, z))
-
         override final def con(pos: Position): (A, B, C) => D = this.apply(_, _, _)(pos)
     }
 }

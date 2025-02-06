@@ -10,14 +10,8 @@ import wacc.error.{ErrorLines, PartialSemanticError, WaccErrorBuilder}
 import wacc.error.errors.*
 import wacc.syntax.prog.Program
 
-/** Perform complete semantic analysis on the program. */
-def semanticAnalysis(prog: Program, program: File): Either[List[SemanticError], Program] = checkSemantics(prog) match {
-    case Left(errs) => Left(errs.map(augmentError(_, program)))
-    case Right(_)   => Right(prog)
-}
-
 /** Perform partial semantic analysis on the program, only returning errors. */
-def checkSemantics(prog: Program): Either[List[PartialSemanticError], Program] = {
+def check(prog: Program): Either[List[PartialSemanticError], Program] = {
     // perform scope checking
     val (scopeErrs, funcs, vars) = scopeCheck(prog)
     

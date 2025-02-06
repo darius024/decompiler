@@ -1,7 +1,6 @@
 package wacc
 
 import parsley.{Success, Failure}
-import wacc.semantics.checkSemantics
 import java.io.File
 
 // entry point
@@ -23,7 +22,7 @@ def compile(file: File): (String, ExitCode) = {
     }
 
     // check semantics
-    ast = checkSemantics(ast) match {
+    ast = semantics.check(ast) match {
         case Right(ast) => ast
         case Left(errs) => return (s"$errs", ExitCode.SemanticErr)
     }

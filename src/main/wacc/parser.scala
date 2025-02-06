@@ -141,7 +141,7 @@ object parser {
     private lazy val program: Parsley[Program] =
         Program("begin" ~> many(function), stmts <~ "end")
 
-    /** Top-level parser. */
+    /** Top-level parser */
     private val parser = fully(program)
 
     def parse(f: File): Result[WaccError, Program] = parser.parseFile[WaccError](f) match {

@@ -10,9 +10,6 @@ object stmts {
     /** Alias to bundle parameter and type. */
     type TypeId = (IdType, Id)
 
-    /** Statement node. */
-    sealed trait Stmt { val pos: Position }
-
     /** <stmt> ::= 'skip'
       *          | <type> <ident> '=' <rvalue>
       *          | <lvalue> '=' <rvalue>
@@ -28,7 +25,7 @@ object stmts {
       * 
       *  <stmts> ::= <stmt> (';' <stmt>)*
       */
-
+    sealed trait Stmt { val pos: Position }
     case object Skip extends Stmt with ParserBridge0[Stmt] { val pos = NoPosition }
     case class Declaration(typeId: TypeId, rvalue: RValue)(val pos: Position) extends Stmt
     case class Assignment(lvalue: LValue, rvalue: RValue)(val pos: Position) extends Stmt

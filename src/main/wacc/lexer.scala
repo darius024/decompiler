@@ -99,6 +99,7 @@ object lexer {
                     label  = "done"
                 )),
             List("end" -> Label("end")),
+            // TODO required?
             // List("end" -> LabelAndReason(
             //         reason = "unclosed scope, function, or main body", 
             //         label  = "end"
