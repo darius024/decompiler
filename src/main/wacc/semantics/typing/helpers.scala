@@ -10,11 +10,8 @@ import Constraint.*
 /** Checks if a type satisfies a constraint. */
 extension (ty: SemType) def satisfies(cons: Constraint, pos: Position)
                                      (using ctx: TypeCheckerContext[?]): Option[SemType] = (ty, cons) match {
-
     // allow for string and char[] type coercion
     case (KType.Array(KType.Char), Constraint.Is(KType.Str)) => Some(KType.Array(KType.Char))
-    case (KType.Str, Constraint.Is(KType.Array(KType.Char))) => Some(KType.Str)
-
     case _ => satisfiesInvariant(ty, cons, pos)
 }
 
@@ -50,13 +47,6 @@ def satisfiesInvariant(ty: SemType, cons: Constraint, pos: Position)
         else ctx.error(TypeMismatch(kTy, Set(refTy))(pos))
     
     case _ => None
-}
-
-/** Weakens the type of a string to an array of characters. */
-def weakenType(semTy: Option[SemType]): SemType = semTy match {
-    case Some(KType.Str) => KType.Array(KType.Char)
-    case Some(semType)   => semType
-    case None            => ?
 }
 
 /** Checks if a type Constraint.Is known. Types must be known. */

@@ -11,6 +11,7 @@ import prog.*
 import stmts.*
 import types.*
 
+
 /** Renamed types to store identifier information. */
 type IdInfo      = (KType, Position)
 type RenamedInfo = (String, IdInfo)
@@ -188,9 +189,9 @@ def renameExpr(expr: Expr, parentScope: Map[String, RenamedInfo], currentScope: 
     case Equal(lhs, rhs)        => renameBinExpr(lhs, rhs, parentScope, currentScope)
     case NotEqual(lhs, rhs)     => renameBinExpr(lhs, rhs, parentScope, currentScope)
     case Greater(lhs, rhs)      => renameBinExpr(lhs, rhs, parentScope, currentScope)
-    case GreaterEq(lhs, rhs) => renameBinExpr(lhs, rhs, parentScope, currentScope)
+    case GreaterEq(lhs, rhs)    => renameBinExpr(lhs, rhs, parentScope, currentScope)
     case Less(lhs, rhs)         => renameBinExpr(lhs, rhs, parentScope, currentScope)
-    case LessEq(lhs, rhs)    => renameBinExpr(lhs, rhs, parentScope, currentScope)
+    case LessEq(lhs, rhs)       => renameBinExpr(lhs, rhs, parentScope, currentScope)
     case Add(lhs, rhs)          => renameBinExpr(lhs, rhs, parentScope, currentScope)
     case Sub(lhs, rhs)          => renameBinExpr(lhs, rhs, parentScope, currentScope)
     case Mul(lhs, rhs)          => renameBinExpr(lhs, rhs, parentScope, currentScope)
@@ -231,4 +232,4 @@ def checkIdInScope(ty: IdType, id: Id, scope: mutable.Map[String, RenamedInfo])
 
 /** Converts a syntactic name to a uniquely identified name. */
 def convertName(id: Id, funcScope: String): String =
-    s"${id.value}_${funcScope}_${id.pos._1}_${id.pos._2}"
+    s"${id.value}/${funcScope}/${id.pos._1}/${id.pos._2}"

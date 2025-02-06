@@ -26,7 +26,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val (errs, funcs, vars) = scopeCheck(prog)
 
-        vars shouldBe Map("x_main_0_0" -> (KType.Int, pos))
+        vars shouldBe Map("x/main/0/0" -> (KType.Int, pos))
         errs shouldBe empty
     }
 
@@ -108,8 +108,8 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val (errs, funcs, vars) = scopeCheck(prog)
 
-        vars should contain ("x_main_0_0" -> (KType.Int, pos))
-        vars should contain ("x_main_0_1" -> (KType.Int, (0, 1)))
+        vars should contain ("x/main/0/0" -> (KType.Int, pos))
+        vars should contain ("x/main/0/1" -> (KType.Int, (0, 1)))
         errs shouldBe empty
     }
 

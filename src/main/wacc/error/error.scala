@@ -20,7 +20,7 @@ object errors {
             val sb = new StringBuilder
             val whitespace = s"\n${" " * WaccErrorBuilder.Indent}"
 
-            sb.append(s"$errorType in $source at row ${pos._1}, column ${pos._2}):")
+            sb.append(s"$errorType in $source at row ${pos._1}, column ${pos._2}:")
             lines match {
                 case ErrorLines.VanillaError(unexpected, expected, reasons, line) =>
                     val formattedUnexpected = unexpected.getOrElse("end of file")
@@ -30,8 +30,12 @@ object errors {
                         else if (sortedExpected.length == 1) sortedExpected.head
                         else sortedExpected.init.mkString(", ") + " or " + sortedExpected.last
 
-                    sb.append(s"${whitespace}unexpected: $formattedUnexpected")
-                    sb.append(s"${whitespace}expected: $formattedExpected")
+                    if (unexpected.nonEmpty) {
+                        sb.append(s"${whitespace}unexpected: $formattedUnexpected")
+                    }
+                    if (expected.nonEmpty) {
+                        sb.append(s"${whitespace}expected: $formattedExpected")
+                    }
                     sb.append(s"${whitespace}${reasons.mkString(s"${whitespace}")}")
                     sb.append(s"${whitespace}${line.mkString(s"${whitespace}")}")
                 
@@ -39,7 +43,7 @@ object errors {
                     sb.append(s"${whitespace}${msgs.mkString(", ")}")
                     sb.append(s"${whitespace}${line.mkString(s"${whitespace}")}")
             }
-
+            sb.append("\n")
             sb.toString()
         }
     }
@@ -54,7 +58,7 @@ object errors {
     }
     /** Error that occurs during the file reading phase. */
     case object IOError extends WaccError(bridges.NoPosition, "", ErrorLines.VanillaError(None, Set.empty, Set.empty, Seq.empty)) {
-        override val errorType: String = "IOException cause"
+        override val errorType: String = "IOException caused"
     }
 }
 
@@ -83,5 +87,5 @@ object WaccErrorBuilder {
 
     /** Adds caret information to the code segment. */
     def caretLine(caretAt: Int, caretWidth: Int, lineNum: Int): String =
-        s"${" " * (ErrorLineStart.length + caretAt + Indent + 2 + lineNum.toString.length)}${"^" * caretWidth}"
+        s"${" " * (ErrorLineStart.length + caretAt + Indent + lineNum.toString.length + 1)}${"^" * caretWidth}"
 }

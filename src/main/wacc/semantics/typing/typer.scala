@@ -14,9 +14,9 @@ import prog.*
 import Constraint.*
 
 /** Type constraints that can be imposed on types. */
-enum Constraint {
-    case Is(ty: SemType)
-    case IsEither(ty1: SemType, ty2: SemType)
+enum Constraint(val ty: SemType) {
+    case Is(typ: SemType) extends Constraint(typ)
+    case IsEither(ty1: SemType, ty2: SemType) extends Constraint(ty1)
 }
 object Constraint {
     val Unconstrained = Is(?)
@@ -91,12 +91,12 @@ def check(stmt: Stmt, retTy: Option[SemType])
 
     case Declaration((_, id), rvalue) =>
         val (idTy, typedId) = checkLValue(id, Unconstrained)
-        val (_, typedRv) = checkRValue(rvalue, Is(weakenType(idTy)))
+        val (_, typedRv) = checkRValue(rvalue, Is(idTy.getOrElse(?)))
         Some(TyStmt.Assignment(typedId, typedRv))
 
     case Assignment(lvalue, rvalue) =>
         val (lvTy, typedLv) = checkLValue(lvalue, Unconstrained)
-        val (rvTy, typedRv) = checkRValue(rvalue, Is(weakenType(lvTy)))
+        val (rvTy, typedRv) = checkRValue(rvalue, Is(lvTy.getOrElse(?)))
 
         // check that both sides have the same type
         unifyTypes(typedLv, typedRv, lvTy, rvTy, stmt.pos)
@@ -161,9 +161,9 @@ def checkExpr(expr: Expr, cons: Constraint)
     case NotEqual(lhs, rhs)     => checkBinExpr(lhs, rhs, ?, cons)(TyExpr.NotEqual.apply)
     
     case Greater(lhs, rhs)      => checkIntChar(lhs, rhs, cons)(TyExpr.Greater.apply)
-    case GreaterEq(lhs, rhs) => checkIntChar(lhs, rhs, cons)(TyExpr.GreaterEq.apply)
+    case GreaterEq(lhs, rhs)    => checkIntChar(lhs, rhs, cons)(TyExpr.GreaterEq.apply)
     case Less(lhs, rhs)         => checkIntChar(lhs, rhs, cons)(TyExpr.Less.apply)
-    case LessEq(lhs, rhs)    => checkIntChar(lhs, rhs, cons)(TyExpr.LessEq.apply)
+    case LessEq(lhs, rhs)       => checkIntChar(lhs, rhs, cons)(TyExpr.LessEq.apply)
     
     case Add(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons)(TyExpr.Add.apply)
     case Sub(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons)(TyExpr.Sub.apply)
@@ -196,12 +196,13 @@ def checkRValue(rvalue: RValue, cons: Constraint)
         // instead of finding out the type of the array literal, impose the type within the constraint
         val elemTy = cons match {
             case Is(KType.Array(elTy)) => elTy
-            case _ => KType.Int
+            case Is(KType.Str) => KType.Char
+            case _ => ?
         }
         // impose the inner array type to all elements of the array literal 
         // or impose no constraint if an array literal is not expected
         val typedExprs = exprs.map(checkExpr(_, Is(elemTy))._2)
-        (KType.Array(?).satisfies(cons, rvalue.pos), TyExpr.ArrayLit(typedExprs, KType.Array(elemTy)))
+        (KType.Array(elemTy).satisfies(cons, rvalue.pos), TyExpr.ArrayLit(typedExprs, KType.Array(elemTy)))
     
     case NewPair(fst, snd) =>
         // get the types of both sides of the pair
@@ -256,7 +257,7 @@ def checkLValue(lvalue: LValue, cons: Constraint)
         val resultTy = baseTy.collect { arrayTy =>
             idx.foldLeft(arrayTy) {
                 case (KType.Array(elemTy), _) => elemTy
-                case (semTy, _) => semTy.satisfies(Is(KType.Array(?)), lvalue.pos).getOrElse(?)
+                case (semTy, _) => semTy.satisfies(Is(KType.Array(cons.ty)), lvalue.pos).getOrElse(?)
             }
         }
 
