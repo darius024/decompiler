@@ -15,9 +15,9 @@ object TyExpr {
     case class NotEqual(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
 
     case class Greater(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
-    case class GreaterEqual(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
+    case class GreaterEq(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
     case class Less(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
-    case class LessEqual(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
+    case class LessEq(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
 
     case class Add(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Int)
     case class Sub(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Int)

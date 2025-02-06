@@ -17,7 +17,7 @@ def main(args: Array[String]): Unit = args.headOption match {
 // compilation pipeline
 def compile(file: File): (String, ExitCode) = {
     // parse and check syntax
-    var ast = parser.parseFile(file) match {
+    var ast = parser.parse(file) match {
         case Success(ast) => ast
         case Failure(msg) => return (s"$msg", ExitCode.SyntaxErr)
     }

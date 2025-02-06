@@ -161,9 +161,9 @@ def checkExpr(expr: Expr, cons: Constraint)
     case NotEqual(lhs, rhs)     => checkBinExpr(lhs, rhs, ?, cons)(TyExpr.NotEqual.apply)
     
     case Greater(lhs, rhs)      => checkIntChar(lhs, rhs, cons)(TyExpr.Greater.apply)
-    case GreaterEqual(lhs, rhs) => checkIntChar(lhs, rhs, cons)(TyExpr.GreaterEqual.apply)
+    case GreaterEq(lhs, rhs) => checkIntChar(lhs, rhs, cons)(TyExpr.GreaterEq.apply)
     case Less(lhs, rhs)         => checkIntChar(lhs, rhs, cons)(TyExpr.Less.apply)
-    case LessEqual(lhs, rhs)    => checkIntChar(lhs, rhs, cons)(TyExpr.LessEqual.apply)
+    case LessEq(lhs, rhs)    => checkIntChar(lhs, rhs, cons)(TyExpr.LessEq.apply)
     
     case Add(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons)(TyExpr.Add.apply)
     case Sub(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons)(TyExpr.Sub.apply)

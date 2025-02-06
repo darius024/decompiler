@@ -35,9 +35,9 @@ object exprs {
       */
     sealed trait ExprRel extends ExprEq
     case class Greater(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
-    case class GreaterEqual(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
+    case class GreaterEq(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
     case class Less(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
-    case class LessEqual(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
+    case class LessEq(lhs: ExprAdd, rhs: ExprAdd)(val pos: Position) extends ExprRel
 
     /** <add-expr> ::= <add-expr> ('+' | '-') <mul-expr>
       *              | <mul-expr>
@@ -115,9 +115,9 @@ object exprs {
     object NotEqual extends ParserBridgePos2[ExprRel, ExprRel, ExprEq]
 
     object Greater extends ParserBridgePos2[ExprAdd, ExprAdd, ExprRel]
-    object GreaterEqual extends ParserBridgePos2[ExprAdd, ExprAdd, ExprRel]
+    object GreaterEq extends ParserBridgePos2[ExprAdd, ExprAdd, ExprRel]
     object Less extends ParserBridgePos2[ExprAdd, ExprAdd, ExprRel]
-    object LessEqual extends ParserBridgePos2[ExprAdd, ExprAdd, ExprRel]
+    object LessEq extends ParserBridgePos2[ExprAdd, ExprAdd, ExprRel]
 
     object Add extends ParserBridgePos2[ExprAdd, ExprMul, ExprAdd]
     object Sub extends ParserBridgePos2[ExprAdd, ExprMul, ExprAdd]

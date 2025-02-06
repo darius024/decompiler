@@ -250,7 +250,7 @@ class ExprParserTests extends AnyFlatSpec {
     they should "be able to parse '>='" in {
         inside(parseExpr("1 >= 2")) {
             case Right(Program(Nil, List(
-                Return(GreaterEqual(IntLit(1), IntLit(2)))
+                Return(GreaterEq(IntLit(1), IntLit(2)))
             ))) => succeed
         }
     }
@@ -264,7 +264,7 @@ class ExprParserTests extends AnyFlatSpec {
     they should "be able to parse '<='" in {
         inside(parseExpr("1 <= 2")) {
             case Right(Program(Nil, List(
-                Return(LessEqual(IntLit(1), IntLit(2)))
+                Return(LessEq(IntLit(1), IntLit(2)))
             ))) => succeed
         }
     }
@@ -328,7 +328,7 @@ class ExprParserTests extends AnyFlatSpec {
         }
         inside(parseExpr("true == 2 >= 1")) {
             case Right(Program(Nil, List(
-                Return(Equal(BoolLit(true), GreaterEqual(IntLit(2), IntLit(1))))
+                Return(Equal(BoolLit(true), GreaterEq(IntLit(2), IntLit(1))))
             ))) => succeed
         }
         inside(parseExpr("true && false == true")) {
