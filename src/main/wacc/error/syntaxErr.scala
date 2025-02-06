@@ -6,21 +6,6 @@ import parsley.errors.tokenextractors.LexToken
 import wacc.syntax.*
 import errors.*
 
-/** Error structures that are retrieved from the parser. */
-sealed trait SyntaxErrorItem extends ErrorItem
-/** Unlabelled error item. */
-case class SyntaxRaw(item: String) extends SyntaxErrorItem {
-    override def toString: String = s"\"$item\""
-}
-/** Labelled error item. */
-case class SyntaxNamed(item: String) extends SyntaxErrorItem {
-    override def toString: String = item
-}
-/** End of input error item. */
-case object SyntaxEndOfInput extends SyntaxErrorItem {
-    override def toString: String = "end of input"
-}
-
 /** Error builder for syntax errors.
   *
   * Overrides the default error builder to use custom data structures.

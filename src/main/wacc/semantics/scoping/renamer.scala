@@ -97,12 +97,12 @@ def addFunction(func: Function)
 }
 
 /** Renames and checks all variables in a list of statements. */
-def rename(stmts: List[Stmt], parentScope: Map[String, RenamedInfo])
+def rename(stmts: StmtList, parentScope: Map[String, RenamedInfo])
           (using funcScope: String)
           (using ScopeCheckerContext[?]): Unit = {
     val currentScope = mutable.Map.empty[String, RenamedInfo]
 
-    stmts.foreach(rename(_, parentScope, currentScope))
+    stmts.toList.foreach(rename(_, parentScope, currentScope))
 }
 
 /** Renames and checks all variables in a statement. */
@@ -229,6 +229,6 @@ def checkIdInScope(ty: IdType, id: Id, scope: mutable.Map[String, RenamedInfo])
     }
 }
 
-/** Converts a syntactic type to a semantic type. */
+/** Converts a syntactic name to a uniquely identified name. */
 def convertName(id: Id, funcScope: String): String =
     s"${id.value}_${funcScope}_${id.pos._1}_${id.pos._2}"

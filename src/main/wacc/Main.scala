@@ -24,7 +24,7 @@ def compile(file: File): (String, ExitCode) = {
     // check semantics
     ast = semantics.check(ast) match {
         case Right(ast) => ast
-        case Left(errs) => return (s"$errs", ExitCode.SemanticErr)
+        case Left(errs) => return (s"${semantics.format(errs, file)}", ExitCode.SemanticErr)
     }
 
     // TODO further stages (perhaps optimising AST?)

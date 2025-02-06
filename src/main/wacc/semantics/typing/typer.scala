@@ -61,7 +61,7 @@ def typeCheck(prog: Program, tyInfo: TypeInfo): Either[NonEmptyList[TypeError], 
     
     val Program(funcs, stmts) = prog
     val typedFuncs = funcs.map(check)
-    val typedStmts = stmts.flatMap(check(_, None))
+    val typedStmts = stmts.toList.flatMap(check(_, None))
 
     ctx.errors match {
         case err :: errs => Left(NonEmptyList(err, errs))
@@ -76,7 +76,7 @@ def check(func: Function)
 
     val retTy = ctx.returnTypeOf(funcName.value)
     val typedParams = params.map { (_, id) => checkLValue(id, Unconstrained)._2 }
-    val typedStmts = stmts.flatMap(check(_, Some(retTy)))
+    val typedStmts = stmts.toList.flatMap(check(_, Some(retTy)))
 
     TyFunc(TyExpr.LVal.Id(funcName.value, retTy), typedParams, typedStmts)
 }
@@ -134,17 +134,17 @@ def check(stmt: Stmt, retTy: Option[SemType])
     
     case If(cond, thenStmts, elseStmts) =>
         val (_, condTyped) = checkExpr(cond, Is(KType.Bool))
-        val thenTyped = thenStmts.flatMap(check(_, retTy))
-        val elseTyped = elseStmts.flatMap(check(_, retTy))
+        val thenTyped = thenStmts.toList.flatMap(check(_, retTy))
+        val elseTyped = elseStmts.toList.flatMap(check(_, retTy))
         Some(TyStmt.If(condTyped, thenTyped, elseTyped))
 
     case While(cond, doStmts) =>
         val (_, condTyped) = checkExpr(cond, Is(KType.Bool))
-        val doTyped = doStmts.flatMap(check(_, retTy))
+        val doTyped = doStmts.toList.flatMap(check(_, retTy))
         Some(TyStmt.While(condTyped, doTyped))
 
     case Block(stmts) =>
-        val blockTyped = stmts.flatMap(check(_, retTy))
+        val blockTyped = stmts.toList.flatMap(check(_, retTy))
         Some(TyStmt.Block(blockTyped))
 }
 

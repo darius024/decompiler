@@ -24,9 +24,12 @@ def check(prog: Program): Either[List[PartialSemanticError], Program] = {
         }
     }
 }
+/** Format the error messages to contain the code segment. */
+def format(errs: List[PartialSemanticError], program: File): String =
+    errs.map(augmentError(_, program)).mkString("\n")
 
 /** Augment a partial semantic error with additional information. */
-def augmentError(err: PartialSemanticError, program: File): SemanticError = {
+private def augmentError(err: PartialSemanticError, program: File): SemanticError = {
     val (row, col) = err.pos
 
     val source = Source.fromFile(program)
@@ -35,7 +38,7 @@ def augmentError(err: PartialSemanticError, program: File): SemanticError = {
 
     // fetch the lines information
     val line = if (row < lines.length) {
-        val previousLines = (math.max(0, row - WaccErrorBuilder.NumLinesBefore) to row).map(lines)
+        val previousLines = (math.max(0, row - WaccErrorBuilder.NumLinesBefore) to row - 1).map(lines)
         val nextLines = (row + 1 to math.min(lines.length - 1, row + WaccErrorBuilder.NumLinesAfter + 1)).map(lines)
         WaccErrorBuilder.lineInfo(lines(row), previousLines, nextLines, row, col, 1)
     } else Nil

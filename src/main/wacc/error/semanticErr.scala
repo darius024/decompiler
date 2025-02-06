@@ -3,33 +3,6 @@ package wacc.error
 import wacc.semantics.scoping.semanticTypes.*
 import wacc.syntax.bridges.Position
 
-/** Error structures that are retrieved from the semantic checker. */
-sealed trait SemanticErrorItem extends ErrorItem
-/** Variable error item. */
-case class SemanticVar(item: String) extends SemanticErrorItem {
-    override def toString: String = s"variable ${item}"
-}
-/** Function error item. */
-case class SemanticFunc(item: String) extends SemanticErrorItem {
-    override def toString: String = s"function call ${item}"
-}
-/** Type error item. */
-case class SemanticType(item: SemType) extends SemanticErrorItem {
-    override def toString: String = s"type $item"
-}
-/** Redeclaration error item. */
-case class SemanticRedecl(item: ErrorItem) extends SemanticErrorItem {
-    override def toString: String = s"redeclaration of ${item}"
-}
-/** Number of arguments error item. */
-case class SemanticNumArg(num: Int) extends SemanticErrorItem {
-    override def toString: String = s"$num number of arguments"
-}
-/** Return statement in the main body error item. */
-case object SemanticReturnMain extends SemanticErrorItem {
-    override def toString: String = "return statement in the main body"
-}
-
 /** Semantic error that holds partial information about the error.
   * 
   * It deals with generating the error header, and not with the line information.

@@ -66,9 +66,9 @@ object lexer {
         override def labelSymbol = List(
             List("!", "+", "-", "len", "ord", "chr")
                 .map(_ -> Label("unary operator")),
-            List("*", "%", "/", "+", "-", ">", ">=", "<", "<=", "==", "!=", "&&", "||")
+            List("*", "%", "/", "+", ">", ">=", "<", "<=", "==", "!=", "&&", "||")
                 .map(_ -> Label("binary operator")),
-            List("read", "free", "return", "exit", "print", "println", "if", "while", "begin")
+            List("skip", "read", "free", "return", "exit", "print", "println", "if", "while", "begin")
                 .map(_ -> Label("statement")),
             List("int", "bool", "char", "string", "pair")
                 .map(_ -> Label("type")),
@@ -99,33 +99,36 @@ object lexer {
                     label  = "done"
                 )),
             List("end" -> Label("end")),
-            // TODO required?
-            // List("end" -> LabelAndReason(
-            //         reason = "unclosed scope, function, or main body", 
-            //         label  = "end"
-            //     )),
-            List("begin" -> LabelAndReason(
-                    reason = "new block required", 
-                    label  = "begin"
-                )),
             List(";" -> LabelAndReason( 
                     reason = "semicolon required to separate statements", 
                     label  = "semicolon"
                 )),
             List("=" -> Label("assignment")),
-            List("[" -> Label("array index")),          
+            List("[" -> Label("array index")),
+            List("(" -> Label("open paranthesis")),
         ).flatten.toMap
 
         override def labelEscapeEnd = LabelAndReason(
             reason = "valid escape sequences are \\0, \\n, \\t, \\b, \\f, \\r, \\\", \\\' or \\\\", 
             label  = "escape sequence"
         )
+
+        override def verifiedCharBadCharsUsedInLiteral = BadCharsReason(Map(
+            '\"'.toInt -> "double quotes must be escaped inside character literals",
+            '\''.toInt -> "single quotes must be escaped inside character literals",
+        ))
+
+        override def labelIntegerDecimalEnd = Label("end of integer")
+        override def labelCharAsciiEnd = Label("end of character literal")
+        override def labelStringAsciiEnd(mult: Boolean, row: Boolean) = Label("end of string literal")
+        
     }
 
     // lexer instance
     private val lexer = Lexer(desc, errConfig)
 
     // basic token type parsers
+    val digit = parsley.character.digit
     val identifier = lexer.lexeme.names.identifier
     val integer = lexer.lexeme.integer.decimal32
     val character = lexer.lexeme.character.ascii
@@ -146,7 +149,11 @@ object lexer {
     // information for the error builder
     def tokensList = Seq(
         lexer.nonlexeme.names.identifier.map(v => s"identifier $v"),
-        lexer.nonlexeme.integer.decimal.map(n => s"integer $n"),
+        lexer.nonlexeme.integer.decimal32.map(n => s"integer $n"),
+        lexer.nonlexeme.character.ascii.map(c => s"character '$c'"),
+        lexer.nonlexeme.string.ascii.map(s => s"string $s"),
+        lexer.nonlexeme.symbol(" ").map(_ => "whitespace"),
+        lexer.nonlexeme.symbol("\n").map(_ => "endline"),
     ) ++ desc.symbolDesc.hardKeywords.map { k =>
         lexer.nonlexeme.symbol(k).as(s"keyword $k")
     }

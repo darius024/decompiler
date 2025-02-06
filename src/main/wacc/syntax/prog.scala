@@ -1,40 +1,40 @@
 package wacc.syntax
 
+import parsley.Parsley
 import parsley.errors.combinator.*
 
 import bridges.*
 import stmts.*
-import parsley.Parsley
 
 /** Program structure AST nodes. */
 object prog {
     /** <program> ::= 'begin' <func>* <stmt>+ 'end' */
-    case class Program(funcs: List[Function], stmts: List[Stmt])(val pos: Position)
+    case class Program(funcs: List[Function], stmts: StmtList)(val pos: Position)
     
     /** <func> ::= <type> <ident> '(' <param-list>? ')' 'is' <stmt>* 'end'
       * <param-list> ::= <param> (',' <param>)*
       * <param> ::= <type> <ident>
       */
-    case class Function(typeId: TypeId, params: List[TypeId], stmts: List[Stmt])(val pos: Position)
+    case class Function(typeId: TypeId, params: List[TypeId], stmts: StmtList)(val pos: Position)
 
     // companion objects
     
-    object Program extends ParserBridgePos2[List[Function], List[Stmt], Program]
-    object Function extends ParserBridgePos3[TypeId, List[TypeId], List[Stmt], Function] {
+    object Program extends ParserBridgePos2[List[Function], StmtList, Program]
+    object Function extends ParserBridgePos3[TypeId, List[TypeId], StmtList, Function] {
         // helper function to determine if the function has a returning block
-        def endsWithReturnOrExit(stmts: List[Stmt]): Boolean = stmts.lastOption match {
-            case Some(Return(_)) | Some(Exit(_))   => true
-            case Some(If(_, thenStmts, elseStmts)) => endsWithReturnOrExit(thenStmts) && endsWithReturnOrExit(elseStmts)
-            case Some(Block(blockStmts))           => endsWithReturnOrExit(blockStmts)
-            case _                                 => false
+        def endsWithReturnOrExit(stmts: StmtList): Boolean = stmts.last match {
+            case Return(_) | Exit(_)         => true
+            case If(_, thenStmts, elseStmts) => endsWithReturnOrExit(thenStmts) && endsWithReturnOrExit(elseStmts)
+            case Block(blockStmts)           => endsWithReturnOrExit(blockStmts)
+            case _                           => false
         }
 
         // override the apply method to reject non-returning function bodies
         override def apply(typeId: Parsley[TypeId],
                            params: => Parsley[List[TypeId]],
-                           stmts: => Parsley[List[Stmt]]): Parsley[Function] = super.apply(typeId, params, stmts).guardAgainst {
-            case Function(_, _, stmts) if !endsWithReturnOrExit(stmts) =>
-                Seq(s"functions must have a return on all exit paths")
+                           stmts: => Parsley[StmtList]): Parsley[Function] = super.apply(typeId, params, stmts).guardAgainst {
+            case Function((_, name), _, stmts) if !endsWithReturnOrExit(stmts) =>
+                Seq(s"function `${name.value}` must have a return on all exit paths")
         }
 
         override def labels: List[String] = List("function")
