@@ -17,16 +17,20 @@ object semanticTypes {
         case Bool
         case Char
         case Str
-        case Array(ty: SemType)
+        case Array(ty: SemType, arity: Int)
         case Pair(fst: SemType, snd: SemType)
         case Func(retTy: SemType, argsTy: List[SemType])
 
         override def toString: String = this match {
-            case Int          => "int"
-            case Bool         => "bool"
-            case Char         => "char"
-            case Str          => "string"
-            case Array(ty)    => s"${ty.toString}[]"
+            case Int            => "int"
+            case Bool           => "bool"
+            case Char           => "char"
+            case Str            => "string"
+            case Array(ty, idx) => (ty, idx) match {
+                case (?, AnyDimension) => s"any-dimensional array"
+                case (?, _)            => s"$idx-dimensional array"
+                case (_, _)            => s"${ty.toString}${"[]" * idx}"
+            }
             case Pair(fst, snd) => s"pair(${fst.toString}, ${snd.toString})"
             case Func(retTy, argsTy) => 
                 val argsStr = argsTy.map(_.toString).mkString(", ")
@@ -36,15 +40,15 @@ object semanticTypes {
 
     /** Converts a syntactic type to a semantic type. */
     def convertType(ty: IdType | PairElemType): KType = ty match {
-        case IntType => KType.Int
-        case BoolType => KType.Bool
-        case CharType => KType.Char
-        case StringType => KType.Str
-        case at @ ArrayType(idType, idx) => idx match {
-            case 1 => KType.Array(convertType(idType))
-            case _ => KType.Array(convertType(ArrayType(idType, idx - 1)(at.pos)))
-        }
-        case PairType(fst, snd) => KType.Pair(convertType(fst), convertType(snd))
-        case Pair => KType.Pair(?, ?)
+        case IntType                => KType.Int
+        case BoolType               => KType.Bool
+        case CharType               => KType.Char
+        case StringType             => KType.Str
+        case ArrayType(idType, idx) => 
+            KType.Array(convertType(idType), idx)
+        case PairType(fst, snd)     => KType.Pair(convertType(fst), convertType(snd))
+        case Pair                   => KType.Pair(?, ?)
     }
+
+    final val AnyDimension = -1
 }

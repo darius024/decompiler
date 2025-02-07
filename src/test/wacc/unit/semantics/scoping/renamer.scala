@@ -24,10 +24,10 @@ class ScopeCheckerTest extends AnyFlatSpec {
         val prog = Program(Nil, NonEmptyList.of(
             Declaration((IntType, Id("x")(pos)), IntLit(0)(pos))(pos),
         ))(pos)
-        val (errs, funcs, vars) = scopeCheck(prog)
+        val typeInfo = scopeCheck(prog)
 
-        vars shouldBe Map("x/main/0/0" -> (KType.Int, pos))
-        errs shouldBe empty
+        typeInfo.vars shouldBe Map("x/main/0/0" -> (KType.Int, pos))
+        typeInfo.errs shouldBe empty
     }
 
     it should "detect variable redeclaration in the same scope" in {
@@ -35,18 +35,18 @@ class ScopeCheckerTest extends AnyFlatSpec {
             Declaration((IntType, Id("x")(pos)), IntLit(0)(pos))(pos),
             Declaration((IntType, Id("x")(pos)), IntLit(0)(pos))(pos),
         ))(pos)
-        val (errs, funcs, vars) = scopeCheck(prog)
+        val typeInfo = scopeCheck(prog)
 
-        errs should contain (VariableAlreadyDeclared("x")(pos))
+        typeInfo.errs should contain (VariableAlreadyDeclared("x")(pos))
     }
 
     it should "detect usage of an undeclared variable" in {
         val prog = Program(Nil, NonEmptyList.of(
             Declaration((IntType, Id("x")(pos)), Id("y")(pos))(pos),
         ))(pos)
-        val (errs, funcs, vars) = scopeCheck(prog)
+        val typeInfo = scopeCheck(prog)
 
-        errs should contain (VariableNotInScope("y")(pos))
+        typeInfo.errs should contain (VariableNotInScope("y")(pos))
 
         // NonEmptyList(head, tail)
     }
@@ -57,10 +57,10 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ), NonEmptyList.of(
             Declaration((IntType, Id("x")(pos)), IntLit(0)(pos))(pos),
         ))(pos)
-        val (errs, funcs, vars) = scopeCheck(prog)
+        val typeInfo = scopeCheck(prog)
 
-        funcs shouldBe Map("f" -> (KType.Int, Nil, pos))
-        errs shouldBe empty
+        typeInfo.funcs shouldBe Map("f" -> (KType.Int, Nil, pos))
+        typeInfo.errs shouldBe empty
     }
 
     it should "detect function redeclaration" in {
@@ -70,9 +70,9 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ), NonEmptyList.of(
             Skip,
         ))(pos)
-        val (errs, funcs, vars) = scopeCheck(prog)
+        val typeInfo = scopeCheck(prog)
 
-        errs should contain (FunctionAlreadyDeclared("f")(pos))
+        typeInfo.errs should contain (FunctionAlreadyDeclared("f")(pos))
     }
 
     it should "detect parameter redeclaration in function definitions" in {
@@ -85,18 +85,18 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ), NonEmptyList.of(
             Skip,
         ))(pos)
-        val (errs, funcs, vars) = scopeCheck(prog)
+        val typeInfo = scopeCheck(prog)
 
-        errs should contain (VariableAlreadyDeclared("x")(pos))
+        typeInfo.errs should contain (VariableAlreadyDeclared("x")(pos))
     }
 
     it should "detect not defined functions" in {
         val prog = Program(Nil, NonEmptyList.of(
             Declaration((IntType, Id("x")(pos)), Call(Id("f")(pos), Nil)(pos))(pos),
         ))(pos)
-        val (errs, funcs, vars) = scopeCheck(prog)
+        val typeInfo = scopeCheck(prog)
 
-        errs should contain (FunctionNotDefined("f")(pos))
+        typeInfo.errs should contain (FunctionNotDefined("f")(pos))
     }
 
     it should "allow for variables to be shadowed" in {
@@ -106,11 +106,11 @@ class ScopeCheckerTest extends AnyFlatSpec {
                 Declaration((IntType, Id("x")((0, 1))), IntLit(0)(pos))(pos),
             ))(pos),
         ))(pos)
-        val (errs, funcs, vars) = scopeCheck(prog)
+        val typeInfo = scopeCheck(prog)
 
-        vars should contain ("x/main/0/0" -> (KType.Int, pos))
-        vars should contain ("x/main/0/1" -> (KType.Int, (0, 1)))
-        errs shouldBe empty
+        typeInfo.vars should contain ("x/main/0/0" -> (KType.Int, pos))
+        typeInfo.vars should contain ("x/main/0/1" -> (KType.Int, (0, 1)))
+        typeInfo.errs shouldBe empty
     }
 
     it should "be able to call variables from the parent scope" in {
@@ -120,9 +120,9 @@ class ScopeCheckerTest extends AnyFlatSpec {
                 Declaration((IntType, Id("y")(pos)), Id("x")(pos))(pos),
             ))(pos),
         ))(pos)
-        val (errs, funcs, vars) = scopeCheck(prog)
+        val typeInfo = scopeCheck(prog)
 
-        errs shouldBe empty
+        typeInfo.errs shouldBe empty
     }
 
     it should "forget variables after the block ends" in {
@@ -133,9 +133,9 @@ class ScopeCheckerTest extends AnyFlatSpec {
             ))(pos),
             Declaration((IntType, Id("z")(pos)), Id("y")(pos))(pos),
         ))(pos)
-        val (errs, funcs, vars) = scopeCheck(prog)
+        val typeInfo = scopeCheck(prog)
 
-        errs should contain (VariableNotInScope("y")(pos))
+        typeInfo.errs should contain (VariableNotInScope("y")(pos))
     }
 
     it should "allow for mutual recursion" in {
@@ -151,8 +151,8 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ), NonEmptyList.of(
             Skip,
         ))(pos)
-        val (errs, funcs, vars) = scopeCheck(prog)
+        val typeInfo = scopeCheck(prog)
 
-        errs shouldBe empty
+        typeInfo.errs shouldBe empty
     }
 }

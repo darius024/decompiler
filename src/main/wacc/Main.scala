@@ -1,5 +1,6 @@
 package wacc
 
+import scala.annotation.unused
 import parsley.{Success, Failure}
 import java.io.File
 
@@ -15,21 +16,23 @@ def main(args: Array[String]): Unit = args.headOption match {
 
 // compilation pipeline
 def compile(file: File): (String, ExitCode) = {
-    // parse and check syntax
-    var ast = parser.parse(file) match {
+    // parsing and syntax analysis
+    val ast = parser.parse(file) match {
+        // on successful compilation, the AST is returned
         case Success(ast) => ast
+        // otherwise, there is a syntax error
         case Failure(msg) => return (s"$msg", ExitCode.SyntaxErr)
     }
 
-    // check semantics
-    ast = semantics.check(ast) match {
-        case Right(ast) => ast
+    // semantic analysis: scope and type checking
+    @unused val typedAst = semantics.check(ast) match {
+        // on successful analysis, the typed AST is returned
+        case Right(tyAst) => tyAst
+        // otherwise, there is a semantic error
         case Left(errs) => return (s"${semantics.format(errs, file)}", ExitCode.SemanticErr)
     }
 
-    // TODO further stages (perhaps optimising AST?)
-
-    return ("Code compiled successfully", ExitCode.Success)
+    return ("Code compiled successfully.", ExitCode.Success)
 }
 
 /** Using an enum of fixed values to prevent invalid codes being used. */
