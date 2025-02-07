@@ -16,7 +16,7 @@ object errors {
     sealed trait WaccError(pos: bridges.Position, source: String, lines: ErrorLines) {
         val errorType: String
 
-        override def toString(): String = {
+        override def toString: String = {
             val sb = new StringBuilder
             val whitespace = s"\n${" " * WaccErrorBuilder.Indent}"
 
@@ -29,7 +29,7 @@ object errors {
                         if (sortedExpected.isEmpty) "" 
                         else if (sortedExpected.length == 1) sortedExpected.head
                         else sortedExpected.init.mkString(", ") + " or " + sortedExpected.last
-
+                    
                     if (unexpected.nonEmpty) {
                         sb.append(s"${whitespace}unexpected: $formattedUnexpected")
                     }
@@ -87,5 +87,5 @@ object WaccErrorBuilder {
 
     /** Adds caret information to the code segment. */
     def caretLine(caretAt: Int, caretWidth: Int, lineNum: Int): String =
-        s"${" " * (ErrorLineStart.length + caretAt + Indent + lineNum.toString.length + 1)}${"^" * caretWidth}"
+        s"${" " * (ErrorLineStart.length + caretAt + Indent * 2 + lineNum.toString.length)}${"^" * caretWidth}"
 }

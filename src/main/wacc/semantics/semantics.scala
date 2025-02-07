@@ -24,7 +24,8 @@ def format(errs: NonEmptyList[PartialSemanticError], program: File): String =
 /** Augments a partial semantic error with additional information. */
 private def augmentError(err: PartialSemanticError, program: File): SemanticError = {
     val (row, col) = err.pos
-    val errorRow = row - 1
+    val errorRow = if (row >= 0) row - 1 else 0
+    val adjustedCol = if (col >= 0) col - 1 else 0
 
     val source = Source.fromFile(program)
     // ensure consistency in tab size (4 spaces)
@@ -35,7 +36,7 @@ private def augmentError(err: PartialSemanticError, program: File): SemanticErro
     val line = if (errorRow < lines.length) {
         val previousLines = (math.max(0, errorRow - WaccErrorBuilder.NumLinesBefore) to errorRow - 1).map(lines)
         val nextLines = (errorRow + 1 to math.min(lines.length - 1, errorRow + WaccErrorBuilder.NumLinesAfter)).map(lines)
-        WaccErrorBuilder.lineInfo(lines(errorRow), previousLines, nextLines, errorRow, col, 1)
+        WaccErrorBuilder.lineInfo(lines(errorRow), previousLines, nextLines, row, adjustedCol, 1)
     } else Nil
     val errorLines = ErrorLines.VanillaError(err.unexpected, err.expected, err.reasons, line)
 

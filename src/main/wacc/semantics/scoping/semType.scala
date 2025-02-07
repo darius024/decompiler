@@ -31,7 +31,10 @@ object semanticTypes {
                 case (?, _)            => s"$idx-dimensional array"
                 case (_, _)            => s"${ty.toString}${"[]" * idx}"
             }
-            case Pair(fst, snd) => s"pair(${fst.toString}, ${snd.toString})"
+            case Pair(fst, snd) => (fst, snd) match {
+                case (?, ?) => "pair"
+                case _      => s"pair(${fst.toString}, ${snd.toString})"
+            }
             case Func(retTy, argsTy) => 
                 val argsStr = argsTy.map(_.toString).mkString(", ")
                 s"${retTy.toString}($argsStr)"
@@ -44,11 +47,11 @@ object semanticTypes {
         case BoolType               => KType.Bool
         case CharType               => KType.Char
         case StringType             => KType.Str
-        case ArrayType(idType, idx) => 
-            KType.Array(convertType(idType), idx)
+        case ArrayType(idType, idx) => KType.Array(convertType(idType), idx)
         case PairType(fst, snd)     => KType.Pair(convertType(fst), convertType(snd))
         case Pair                   => KType.Pair(?, ?)
     }
 
+    /** Match any dimension. */
     final val AnyDimension = -1
 }

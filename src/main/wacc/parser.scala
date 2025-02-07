@@ -5,14 +5,13 @@ import parsley.{Parsley, Result, Failure}
 import parsley.Parsley.{atomic, many, notFollowedBy}
 import parsley.combinator.countMany
 import parsley.expr.{precedence, SOps, InfixL, InfixR, InfixN, Prefix, Atoms}
-import parsley.errors.combinator.*
-import parsley.errors.patterns.{PreventativeErrors, VerifiedErrors}
 import parsley.cats.combinator.*
 import scala.util.{Success => TrySuccess, Failure => TryFailure}
 
 import lexer.*
 import implicits.implicitSymbol
 
+import wacc.error.advancedErrors.*
 import wacc.error.syntaxErrors.*
 import wacc.error.errors.*
 import syntax.*
@@ -23,7 +22,6 @@ import types.*
 
 /** Formulates the grammar rules the parser should follow. */
 object parser {
-    import advancedErrors.*
     
     // expressions
     
@@ -37,7 +35,7 @@ object parser {
         | ParensExpr(parens(expr))
         )
 
-    // operator precedence hierarchy TODO try dynamically form like testsuite    
+    // operator precedence hierarchy   
     private lazy val expr: Parsley[Expr] = labelExpr(precedence {
         SOps(InfixR)(Or        from "||")  +:
         SOps(InfixR)(And       from "&&")  +:
@@ -135,7 +133,8 @@ object parser {
     private lazy val program: Parsley[Program] =
         Program(("begin" | _beforeMain) ~> many(function), (stmts | _emptyMain) <~ ("end" <~ _afterMain))
 
-    /** Top-level parser */
+    // top-level parsers
+    
     private val parser = fully(program)
 
     def parse(f: File): Result[WaccError, Program] = parser.parseFile[WaccError](f) match {
@@ -144,38 +143,4 @@ object parser {
     }
 
     def parse(input: String): Result[WaccError, Program] = parser.parse[WaccError](input)
-}
-
-object advancedErrors {
-    import parsley.Parsley.eof
-    import parsley.errors.VanillaGen
-    import parsley.quick.unit
-
-    lazy val _emptyMain = unit.verifiedExplain("missing main program body")
-    lazy val _beforeMain = unit.verifiedExplain("all program body and function declarations must be within `begin` and `end`")
-    lazy val _afterMain = eof
-        | ";".verifiedExplain("semi-colons cannot follow the `end` of the program")
-        | unit.verifiedExplain("all program body and function declarations must be within `begin` and `end`")
-
-    lazy val _pointers = "*".preventWith(
-        err = new VanillaGen[Unit] {
-            override def reason(x: Unit) = Some("pointers are not supported by WACC")
-            override def unexpected(x: Unit) = VanillaGen.NamedItem("pointer type")
-        },
-        labels = "identifier"
-    )
-
-    lazy val _func = "(".verifiedExplain("all functions must be declared at the top of the main block")
-    lazy val _func_type = unit.verifiedExplain("function declaration has missing type")
-    lazy val _func_expr = "(".preventativeExplain("function calls may not appear in expressions and must use `call`")
-    lazy val _nested = "(".preventativeExplain("pair types may not be nested in WACC")
-    lazy val _unclosed = unit.preventativeExplain("unclosed scope, function or main body")
-
-    /** Helpers to improve errors. */
-    def labelScope[A](p: Parsley[A]): Parsley[A] =
-        p.explain("empty scopes are not allowed")
-
-    def labelExpr[A](p: Parsley[A]): Parsley[A] =
-        p.label("expression")
-         .explain("expressions may start with: literals, identifier, unary operators, null, parantheses")
 }

@@ -130,7 +130,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Char))(pos))
+                errs.toList should contain (TypeMismatch(KType.Pair(KType.Int, KType.Bool), Set(KType.Pair(KType.Int, KType.Char)))(pos))
         }
     }
 
@@ -230,7 +230,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         }
     }
 
-    it should "not allow for array variance" in {
+    it should "not allow for array covariance" in {
         val prog = Program(Nil, NonEmptyList.of(
             Declaration((ArrayType(CharType, 1)(pos), Id("x")(pos)), ArrayLit(List(CharLit('a')(pos)))(pos))(pos),
             Declaration((ArrayType(CharType, 2)(pos), Id("y")(pos)), ArrayLit(List(Id("x")(pos)))(pos))(pos),
@@ -243,15 +243,15 @@ class TypeCheckerTests extends AnyFlatSpec {
         }
     }
 
-    it should "not allow for pair variance" in {
+    it should "not allow for pair covariance" in {
         val prog = Program(Nil, NonEmptyList.of(
-            Declaration((ArrayType(CharType, 1)(pos), Id("x")(pos)), ArrayLit(List(CharLit('a')(pos)))(pos))(pos),
-            Declaration((PairType(StringType, IntType)(pos), Id("y")(pos)), NewPair(Id("x")(pos), IntLit(0)(pos))(pos))(pos),
+            Declaration((PairType(ArrayType(CharType, 1)(pos), ArrayType(CharType, 1)(pos))(pos), Id("x")(pos)), PairLit)(pos),
+            Declaration((PairType(StringType, StringType)(pos), Id("y")(pos)), Id("x")(pos))(pos),
         ))(pos)
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Array(KType.Char, 1), Set(KType.Str))(pos))
+                errs.toList should contain (TypeMismatch(KType.Pair(KType.Array(KType.Char, 1), KType.Array(KType.Char, 1)), Set(KType.Pair(KType.Str, KType.Str)))(pos))
         }
     }
 

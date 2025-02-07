@@ -27,21 +27,20 @@ def satisfiesInvariant(ty: SemType, cons: Constraint, pos: Position)
     case (ty, Constraint.Is(?))    => Some(ty)
 
     // check array type by unwrapping the inner type
-    case (kTy @ KType.Array(_, AnyDimension), Constraint.Is(KType.Array(?, _))) => Some(kTy)
-    case (kTy @ KType.Array(_, AnyDimension), Constraint.Is(KType.Array(refTy, _))) if kTy == refTy => Some(kTy)
-    case (kTy @ KType.Array(_, kId), Constraint.Is(KType.Array(?, refId))) if kId >= refId => Some(kTy)
-    case (kTy @ KType.Array(ty, kId), Constraint.Is(KType.Array(refTy, refId))) if kId == refId =>
-        Some(KType.Array(satisfiesInvariant(ty, Constraint.Is(refTy), pos).getOrElse(?), kId))
+    case (KType.Array(ty, kId), Constraint.Is(KType.Array(refTy, refId)))
+        if kId >= refId && matchType(ty, refTy) => Some(KType.Array(moreSpecific(ty, refTy), kId))
 
     // check pair type by unwrapping the inner types
-    case (KType.Pair(kTy1, kTy2), Constraint.Is(KType.Pair(refTy1, refTy2))) =>
-        val fstTy = satisfiesInvariant(kTy1, Constraint.Is(refTy1), pos)
-        val sndTy = satisfiesInvariant(kTy2, Constraint.Is(refTy2), pos)
-        Some(KType.Pair(fstTy.getOrElse(?), sndTy.getOrElse(?)))
+    case (kTy @ KType.Pair(KType.Pair(ty1, ty2), ty3), Constraint.Is(KType.Pair(KType.Pair(?, ?), _))) => Some(kTy)
+    case (kTy @ KType.Pair(ty1, KType.Pair(ty2, ty3)), Constraint.Is(KType.Pair(_, KType.Pair(?, ?)))) => Some(kTy)
+    case (KType.Pair(kTy1, kTy2), Constraint.Is(KType.Pair(refTy1, refTy2)))
+        if matchType(kTy1, refTy1) && matchType(kTy2, refTy2) => Some(KType.Pair(moreSpecific(kTy1, refTy1), moreSpecific(kTy2, refTy2)))
 
     // check if the type constraint is either of the two types
-    case (kTy @ KType.Array(_, _), Constraint.IsEither(KType.Array(?, _), KType.Pair(?, ?))) => Some(kTy)
-    case (kTy @ KType.Pair(_, _), Constraint.IsEither(KType.Array(?, _), KType.Pair(?, ?))) => Some(kTy)
+    case (kTy @ KType.Array(ty, _), Constraint.IsEither(KType.Array(refTy, _), KType.Pair(?, ?)))
+        if matchType(ty, refTy) => Some(kTy)
+    case (kTy @ KType.Pair(ty1, ty2), Constraint.IsEither(KType.Array(_, _), KType.Pair(refTy1, refTy2)))
+        if matchType(ty1, refTy1) && matchType(ty2, refTy2) => Some(kTy)
     case (semTy, Constraint.IsEither(ty1, ty2)) =>
         if semTy == ty1 || semTy == ty2 then Some(semTy)
         else ctx.error(TypeMismatch(semTy, Set(ty1, ty2))(pos))
@@ -51,6 +50,16 @@ def satisfiesInvariant(ty: SemType, cons: Constraint, pos: Position)
         else ctx.error(TypeMismatch(kTy, Set(refTy))(pos))
     
     case _ => None
+}
+
+/** Checks if the two types match. */
+def matchType(ty: SemType, refTy: SemType): Boolean = (ty, refTy) match {
+    case (_, ?) => true
+    case (?, _) => true
+    case (KType.Array(ty1, AnyDimension), KType.Array(refTy1, _))  => matchType(ty1, refTy1)
+    case (KType.Array(ty1, idx), KType.Array(refTy1, refIdx)) if idx == refIdx => matchType(ty1, refTy1)
+    case (KType.Pair(ty1, ty2), KType.Pair(refTy1, refTy2)) => matchType(ty1, refTy1) && matchType(ty2, refTy2)
+    case (_, _) => false
 }
 
 /** Checks if a type Constraint.Is known. Types must be known. */
@@ -87,4 +96,13 @@ def unwrapArrayType(semType: Option[SemType], arity: Int): SemType = semType mat
     case Some(KType.Array(ty, idx)) if idx == arity => ty
     case Some(ty)                                   => ty
     case None                                       => ?
+}
+
+def moreSpecific(ty1: SemType, ty2: SemType): SemType = (ty1, ty2) match {
+    case (KType.Pair(kTy1, kTy2), KType.Pair(refTy1, refTy2)) => KType.Pair(moreSpecific(kTy1, refTy1), moreSpecific(kTy2, refTy2))
+    case (KType.Array(ty1, id), KType.Array(refTy1, _)) => KType.Array(moreSpecific(ty1, refTy1), id)
+
+    case (ty, ?) => ty
+    case (?, ty) => ty
+    case (ty, _) => ty
 }
