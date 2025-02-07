@@ -7,6 +7,7 @@ import wacc.error.*
 import wacc.semantics.scoping.*
 import semanticTypes.*
 import wacc.syntax.*
+import bridges.*
 import exprs.*
 import stmts.*
 import prog.*
@@ -24,14 +25,18 @@ object Constraint {
 }
 
 /** Type information received from the scope-checking phase. */
-class TypeInfo(val funcs: Map[String, FuncInfo], val vars: Map[String, IdInfo])
+class TypeInfo(
+    val funcs: Map[String, FuncInfo],
+    val vars: Map[String, IdInfo],
+    val errs: List[PartialSemanticError]
+)
 
 /** Context for the type checker.
   * 
   * It keeps track of the type information and errors.
   * For identifiers out of scope, it returns unknown types.
   */
-class TypeCheckerContext[C](tyInfo: TypeInfo, errs: mutable.Builder[TypeError, C]) {
+class TypeCheckerContext[C](tyInfo: TypeInfo, errs: mutable.Builder[PartialSemanticError, C]) {
     def errors: C = errs.result()
 
     // get the type of the identifier
@@ -45,7 +50,7 @@ class TypeCheckerContext[C](tyInfo: TypeInfo, errs: mutable.Builder[TypeError, C
         tyInfo.funcs.get(funcName).map(_._2.map(_._1)).getOrElse(Nil)
 
     // add an error to the context
-    def error(err: TypeError) = {
+    def error(err: PartialSemanticError) = {
         errs += err
         None
     }
@@ -55,9 +60,12 @@ class TypeCheckerContext[C](tyInfo: TypeInfo, errs: mutable.Builder[TypeError, C
   *
   * It verifies that all types match within statements.
   */
-def typeCheck(prog: Program, tyInfo: TypeInfo): Either[NonEmptyList[TypeError], TyProg] = {
+def typeCheck(prog: Program, tyInfo: TypeInfo): Either[NonEmptyList[PartialSemanticError], TyProg] = {
     // initialise the context
-    given ctx: TypeCheckerContext[List[TypeError]] = TypeCheckerContext(tyInfo, List.newBuilder)
+    given ctx: TypeCheckerContext[List[PartialSemanticError]] =
+        TypeCheckerContext(tyInfo, List.newBuilder)
+
+    tyInfo.errs.foreach(ctx.error)
     
     val Program(funcs, stmts) = prog
     val typedFuncs = funcs.map(check)
@@ -99,13 +107,13 @@ def check(stmt: Stmt, retTy: Option[SemType])
         val (rvTy, typedRv) = checkRValue(rvalue, Is(lvTy.getOrElse(?)))
 
         // check that both sides have the same type
-        unifyTypes(typedLv, typedRv, lvTy, rvTy, stmt.pos)
+        unifyTypes(typedLv, typedRv, lvTy, rvTy, rvalue.pos)
 
         Some(TyStmt.Assignment(typedLv, typedRv))
 
     case Read(lvalue) =>
         val (lvTy, typedLv) = checkLValue(lvalue, IsEither(KType.Int, KType.Char))
-        assertKnownType(lvTy, stmt.pos)
+        assertKnownType(lvTy, lvalue.pos)
         Some(TyStmt.Read(typedLv))
 
     case Print(expr) =>
@@ -117,12 +125,12 @@ def check(stmt: Stmt, retTy: Option[SemType])
         Some(TyStmt.Println(typedExpr))
 
     case Free(expr) =>
-        val (_, typedExpr) = checkExpr(expr, IsEither(KType.Array(?), KType.Pair(?, ?)))
+        val (_, typedExpr) = checkExpr(expr, IsEither(KType.Array(?, AnyDimension), KType.Pair(?, ?)))
         Some(TyStmt.Print(typedExpr))
 
     case Return(expr) =>
         retTy match {
-            case None => ctx.error(ReturnInMainBody(stmt.pos))
+            case None => ctx.error(ReturnInMainBody(expr.pos))
             case Some(returnTy) =>
                 val (_, typedExpr) = checkExpr(expr, Is(returnTy))
                 Some(TyStmt.Return(typedExpr))
@@ -154,28 +162,28 @@ def check(stmt: Stmt, retTy: Option[SemType])
   */
 def checkExpr(expr: Expr, cons: Constraint)
              (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = expr match {
-    case Or(lhs, rhs)           => checkBinExpr(lhs, rhs, KType.Bool, cons)(TyExpr.Or.apply)
-    case And(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Bool, cons)(TyExpr.And.apply)
+    case Or(lhs, rhs)           => checkBinExpr(lhs, rhs, KType.Bool, cons, expr.pos)(TyExpr.Or.apply)
+    case And(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Bool, cons, expr.pos)(TyExpr.And.apply)
     
-    case Equal(lhs, rhs)        => checkBinExpr(lhs, rhs, ?, cons)(TyExpr.Equal.apply)
-    case NotEqual(lhs, rhs)     => checkBinExpr(lhs, rhs, ?, cons)(TyExpr.NotEqual.apply)
+    case Equal(lhs, rhs)        => checkBinExpr(lhs, rhs, ?, cons, expr.pos)(TyExpr.Equal.apply)
+    case NotEqual(lhs, rhs)     => checkBinExpr(lhs, rhs, ?, cons, expr.pos)(TyExpr.NotEqual.apply)
     
-    case Greater(lhs, rhs)      => checkIntChar(lhs, rhs, cons)(TyExpr.Greater.apply)
-    case GreaterEq(lhs, rhs)    => checkIntChar(lhs, rhs, cons)(TyExpr.GreaterEq.apply)
-    case Less(lhs, rhs)         => checkIntChar(lhs, rhs, cons)(TyExpr.Less.apply)
-    case LessEq(lhs, rhs)       => checkIntChar(lhs, rhs, cons)(TyExpr.LessEq.apply)
+    case Greater(lhs, rhs)      => checkIntChar(lhs, rhs, cons, expr.pos)(TyExpr.Greater.apply)
+    case GreaterEq(lhs, rhs)    => checkIntChar(lhs, rhs, cons, expr.pos)(TyExpr.GreaterEq.apply)
+    case Less(lhs, rhs)         => checkIntChar(lhs, rhs, cons, expr.pos)(TyExpr.Less.apply)
+    case LessEq(lhs, rhs)       => checkIntChar(lhs, rhs, cons, expr.pos)(TyExpr.LessEq.apply)
     
-    case Add(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons)(TyExpr.Add.apply)
-    case Sub(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons)(TyExpr.Sub.apply)
-    case Mul(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons)(TyExpr.Mul.apply)
-    case Div(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons)(TyExpr.Div.apply)
-    case Mod(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons)(TyExpr.Mod.apply)
+    case Add(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons, expr.pos)(TyExpr.Add.apply)
+    case Sub(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons, expr.pos)(TyExpr.Sub.apply)
+    case Mul(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons, expr.pos)(TyExpr.Mul.apply)
+    case Div(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons, expr.pos)(TyExpr.Div.apply)
+    case Mod(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons, expr.pos)(TyExpr.Mod.apply)
     
-    case Not(expr)              => checkUnary(expr, KType.Bool, cons)(TyExpr.Not.apply)
-    case Neg(expr)              => checkUnary(expr, KType.Int, cons)(TyExpr.Neg.apply)
-    case Len(expr)              => checkUnary(expr, KType.Array(?), cons)(TyExpr.Len.apply)
-    case Ord(expr)              => checkUnary(expr, KType.Char, cons)(TyExpr.Ord.apply)
-    case Chr(expr)              => checkUnary(expr, KType.Int, cons)(TyExpr.Chr.apply)
+    case Not(exp)               => checkUnary(exp, KType.Bool, cons, expr.pos)(TyExpr.Not.apply)
+    case Neg(exp)               => checkUnary(exp, KType.Int, cons, expr.pos)(TyExpr.Neg.apply)
+    case Len(exp)               => checkUnary(exp, KType.Array(?, AnyDimension), cons, expr.pos)(TyExpr.Len.apply)
+    case Ord(exp)               => checkUnary(exp, KType.Char, cons, expr.pos)(TyExpr.Ord.apply)
+    case Chr(exp)               => checkUnary(exp, KType.Int, cons, expr.pos)(TyExpr.Chr.apply)
 
     case IntLit(value)          => (KType.Int.satisfies(cons, expr.pos), TyExpr.IntLit(value))
     case BoolLit(value)         => (KType.Bool.satisfies(cons, expr.pos), TyExpr.BoolLit(value))
@@ -193,17 +201,20 @@ def checkRValue(rvalue: RValue, cons: Constraint)
     case expr: Expr => checkExpr(expr, cons)
         
     case ArrayLit(exprs) =>
-        // instead of finding out the type of the array literal, impose the type within the constraint
+        // instead of finding out the type of the array literal, impose the type on the left as a constraint
         val elemTy = cons match {
-            case Is(KType.Array(elTy)) => elTy
-            case Is(KType.Str) => KType.Char
-            case _ => ?
+            case Is(KType.Array(elTy, 1))   => elTy 
+            case Is(KType.Array(elTy, idx)) => KType.Array(elTy, idx - 1)
+            case Is(KType.Str)              => KType.Char
+            case _                          => ?
         }
         // impose the inner array type to all elements of the array literal 
         // or impose no constraint if an array literal is not expected
         val typedExprs = exprs.map(checkExpr(_, Is(elemTy))._2)
-        (KType.Array(elemTy).satisfies(cons, rvalue.pos), TyExpr.ArrayLit(typedExprs, KType.Array(elemTy)))
-    
+
+        val outerTy = wrapArrayType(KType.Array(elemTy, 1))
+        (outerTy.satisfies(cons, rvalue.pos), TyExpr.ArrayLit(typedExprs, outerTy))
+
     case NewPair(fst, snd) =>
         // get the types of both sides of the pair
         val (fstTy, typedFst) = checkExpr(fst, Unconstrained)
@@ -245,7 +256,7 @@ def checkLValue(lvalue: LValue, cons: Constraint)
     
     case ArrayElem(id, idx) =>
         // get the type of the array
-        val (baseTy, typedId) = checkLValue(id, Unconstrained)
+        val (baseTy, typedId) = checkLValue(id, Is(wrapArrayType(KType.Array(cons.ty, idx.length))))
         
         // check that all indices are integers
         val (idxTy, typedIdx) = idx.map { idx =>
@@ -253,16 +264,11 @@ def checkLValue(lvalue: LValue, cons: Constraint)
             (exprTy.getOrElse(?), typedExpr)
         }.unzip
 
-        // calculate the resulting type by unwrapping the array type
-        val resultTy = baseTy.collect { arrayTy =>
-            idx.foldLeft(arrayTy) {
-                case (KType.Array(elemTy), _) => elemTy
-                case (semTy, _) => semTy.satisfies(Is(KType.Array(cons.ty)), lvalue.pos).getOrElse(?)
-            }
-        }
+        // unwrap the array by `idx` dimensions
+        val innerTy = unwrapArrayType(baseTy, idx.length)
 
         // the unwrapped type must satisfy the constraint
-        (resultTy.getOrElse(?).satisfies(cons, lvalue.pos), TyExpr.LVal.ArrayElem(typedId, typedIdx, resultTy.getOrElse(?)))
+        (innerTy.satisfies(cons, lvalue.pos), TyExpr.LVal.ArrayElem(typedId, typedIdx, innerTy))
     
     case pairElem: PairElem => checkPairElem(pairElem, cons)
 }
@@ -290,37 +296,37 @@ def checkPairElem(pairElem: PairElem, cons: Constraint)
 }
 
 /** Checks the type soundness of a binary expression. */
-def checkBinExpr(lhs: Expr, rhs: Expr, semType: SemType, cons: Constraint)
+def checkBinExpr(lhs: Expr, rhs: Expr, semType: SemType, cons: Constraint, pos: Position)
                 (build: (TyExpr, TyExpr) => TyExpr)
                 (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
     val (lhsTy, typedLhs) = checkExpr(lhs, Is(semType))
     val (rhsTy, typedRhs) = checkExpr(rhs, lhsTy.fold(Is(semType))(Is(_)))
     val typedExpr = build(typedLhs, typedRhs)
 
-    unifyTypes(typedLhs, typedRhs, lhsTy, rhsTy, lhs.pos)
+    unifyTypes(typedLhs, typedRhs, lhsTy, rhsTy, pos)
 
-    (typedExpr.ty.satisfies(cons, lhs.pos), typedExpr)
+    (typedExpr.ty.satisfies(cons, pos), typedExpr)
 }
 
 /** Checks the type soundness of an integer or character binary expression. */
-def checkIntChar(lhs: Expr, rhs: Expr, cons: Constraint)
+def checkIntChar(lhs: Expr, rhs: Expr, cons: Constraint, pos: Position)
                 (build: (TyExpr, TyExpr) => TyExpr)
                 (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
     val (lhsTy, typedLhs) = checkExpr(lhs, IsEither(KType.Int, KType.Char))
     val (rhsTy, typedRhs) = checkExpr(rhs, lhsTy.fold(IsEither(KType.Int, KType.Char))(Is(_)))
     val typedExpr = build(typedLhs, typedRhs)
 
-    unifyTypes(typedLhs, typedRhs, lhsTy, rhsTy, lhs.pos)
+    unifyTypes(typedLhs, typedRhs, lhsTy, rhsTy, pos)
 
-    (typedExpr.ty.satisfies(cons, lhs.pos), typedExpr)
+    (typedExpr.ty.satisfies(cons, pos), typedExpr)
 }
 
 /** Checks the type soundness of a unary expression. */
-def checkUnary(expr: Expr, argTy: SemType, cons: Constraint)
+def checkUnary(expr: Expr, argTy: SemType, cons: Constraint, pos: Position)
               (build: (TyExpr) => TyExpr)
               (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
     val (_, typedExpr) = checkExpr(expr, Is(argTy))
     val typedUExpr = build(typedExpr)
 
-    (typedUExpr.ty.satisfies(cons, expr.pos), typedExpr)
+    (typedUExpr.ty.satisfies(cons, pos), typedExpr)
 }

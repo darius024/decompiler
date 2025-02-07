@@ -4,6 +4,7 @@ import scala.collection.mutable
 
 import wacc.error.*
 import semanticTypes.*
+import wacc.semantics.typing.*
 import wacc.syntax.*
 import bridges.*
 import exprs.*
@@ -25,7 +26,7 @@ type FuncInfo    = (KType, List[IdInfo], Position)
   */
 class ScopeCheckerContext[C](val funcTypes: mutable.Map[String, FuncInfo],
                              val varTypes: mutable.Map[String, IdInfo],
-                             errs: mutable.Builder[ScopeError, C]) {
+                             errs: mutable.Builder[PartialSemanticError, C]) {
     def funcs: Map[String, FuncInfo] = funcTypes.toMap
     def vars: Map[String, IdInfo] = varTypes.toMap
     def errors: C = errs.result()
@@ -41,7 +42,7 @@ class ScopeCheckerContext[C](val funcTypes: mutable.Map[String, FuncInfo],
         varTypes += id.value -> (kType, pos)
 
     // add an error to the list of errors
-    def error(err: ScopeError) = {
+    def error(err: PartialSemanticError) = {
         errs += err
         None
     }
@@ -53,9 +54,9 @@ class ScopeCheckerContext[C](val funcTypes: mutable.Map[String, FuncInfo],
   * not duplicated within the same scope. It also checks that the
   * main body does not contain a return statement.
   */
-def scopeCheck(prog: Program): (List[ScopeError], Map[String, FuncInfo], Map[String, IdInfo]) = {
+def scopeCheck(prog: Program): TypeInfo = {
     // initialise the context with empty maps
-    given ctx: ScopeCheckerContext[List[ScopeError]] =
+    given ctx: ScopeCheckerContext[List[PartialSemanticError]] =
         ScopeCheckerContext(mutable.Map.empty[String, FuncInfo],
                             mutable.Map.empty[String, IdInfo],
                             List.newBuilder)
@@ -74,7 +75,7 @@ def scopeCheck(prog: Program): (List[ScopeError], Map[String, FuncInfo], Map[Str
     given funcScope: String = "main"
     rename(stmts, Map.empty)
 
-    (ctx.errors, ctx.funcs, ctx.vars)
+    TypeInfo(ctx.funcs, ctx.vars, ctx.errors)
 }
 
 /** Adds a function to the context and returns a map of its parameters. */
@@ -146,14 +147,14 @@ def rename(rvalue: LValue | RValue, parentScope: Map[String, RenamedInfo], curre
           (using ctx: ScopeCheckerContext[?]): Unit = rvalue match {
     case e: Expr => renameExpr(e, parentScope, currentScope)
 
+    case ArrayLit(exprs) => exprs.map(rename(_, parentScope, currentScope))
+
+    case NewPair(fst, snd) => renameBinExpr(fst, snd, parentScope, currentScope)
+
     case pairElem: PairElem => pairElem match {
         case Fst(lval) => rename(lval, parentScope, currentScope)
         case Snd(lval) => rename(lval, parentScope, currentScope)
     }
-
-    case ArrayLit(exprs) => exprs.map(rename(_, parentScope, currentScope))
-
-    case NewPair(fst, snd) => renameBinExpr(fst, snd, parentScope, currentScope)
 
     case Call(func, args) =>
         // check if the function is defined in the main scope

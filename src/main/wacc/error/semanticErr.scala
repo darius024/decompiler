@@ -43,20 +43,17 @@ sealed trait TypeError extends PartialSemanticError {
 case class TypeMismatch(unexpectedTy: SemType, expectedTy: Set[SemType])(val pos: Position) extends TypeError {
     override val unexpected = Some(SemanticType(unexpectedTy))
     override val expected = expectedTy.map(SemanticType(_))
-    override val reasons = Set("ensure that the types of all values match")
+    override val reasons = Set("the types of the values do not match")
 }
 case class TypeCannotBeInfered(val pos: Position) extends TypeError {
-    override val reasons = Set(
-        "attempting to exchange values between pairs of unknown types",
-        "pair exchange is only legal when the type of at least one of the sides is known or specified",
-    )
+    override val reasons = Set("the type of the value unpacked from the pair cannot be inferred")
 }
 case class NumberArgumentsMismatch(unexpectedNum: Int, expectedNum: Int)(val pos: Position) extends TypeError {
     override val unexpected = Some(SemanticNumArg(unexpectedNum))
     override val expected = Set(SemanticNumArg(expectedNum))
-    override val reasons = Set("ensure that the number of arguments match the function definition")
+    override val reasons = Set("the number of arguments does not match the function signature")
 }
 case class ReturnInMainBody(val pos: Position) extends TypeError {
     override val unexpected = Some(SemanticReturnMain)
-    override val reasons = Set("return outside of function is not allowed")
+    override val reasons = Set("return in the main body is not allowed")
 }
