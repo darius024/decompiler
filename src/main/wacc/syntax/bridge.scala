@@ -5,7 +5,7 @@ import parsley.ap.*
 import parsley.generic.*
 import parsley.position.pos
 
-/** Extend Parsley's generic bridges with position tracking specifically
+/** Extends Parsley's generic bridges with position tracking specifically
   * for constructors with different arities of 0, 1, 2, or 3.
   */
 object bridges {

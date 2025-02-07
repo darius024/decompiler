@@ -23,7 +23,7 @@ def satisfiesInvariant(ty: SemType, cons: Constraint, pos: Position)
                       (using ctx: TypeCheckerContext[?]): Option[SemType] = (ty, cons) match {
     // handle unknwon and unconstrained types
     case (?, Constraint.Is(refTy)) => Some(refTy)
-    case (?, _)         => Some(?)
+    case (?, _)                    => Some(?)
     case (ty, Constraint.Is(?))    => Some(ty)
 
     // check array type by unwrapping the inner type
@@ -56,19 +56,19 @@ def satisfiesInvariant(ty: SemType, cons: Constraint, pos: Position)
 def matchType(ty: SemType, refTy: SemType): Boolean = (ty, refTy) match {
     case (_, ?) => true
     case (?, _) => true
-    case (KType.Array(ty1, AnyDimension), KType.Array(refTy1, _))  => matchType(ty1, refTy1)
+    case (KType.Array(ty1, AnyDimension), KType.Array(refTy1, _))              => matchType(ty1, refTy1)
     case (KType.Array(ty1, idx), KType.Array(refTy1, refIdx)) if idx == refIdx => matchType(ty1, refTy1)
-    case (KType.Pair(ty1, ty2), KType.Pair(refTy1, refTy2)) => matchType(ty1, refTy1) && matchType(ty2, refTy2)
+    case (KType.Pair(ty1, ty2), KType.Pair(refTy1, refTy2))                    => matchType(ty1, refTy1) && matchType(ty2, refTy2)
     case (_, _) => false
 }
 
 /** Checks if a type Constraint.Is known. Types must be known. */
 def assertKnownType(semTy: Option[SemType], pos: Position)
                    (using ctx: TypeCheckerContext[?]): SemType = semTy match {
-    case Some(?)        => ctx.error(TypeCannotBeInfered(pos))
-                           ?
-    case Some(semType)  => semType
-    case None           => ?
+    case Some(?)       => ctx.error(TypeCannotBeInfered(pos))
+                          ?
+    case Some(semType) => semType
+    case None          => ?
 }
 
 /** Unifies the types of two expressions.
@@ -84,6 +84,18 @@ def unifyTypes(typedLhs: TyExpr, typedRhs: TyExpr, lhsTy: Option[SemType], rhsTy
     case (_, _)             => ()
 }
 
+/** Chooses the more specific type out of the two. */
+def moreSpecific(ty1: SemType, ty2: SemType): SemType = (ty1, ty2) match {
+    case (KType.Pair(kTy1, kTy2), KType.Pair(refTy1, refTy2)) =>
+        KType.Pair(moreSpecific(kTy1, refTy1), moreSpecific(kTy2, refTy2))
+    case (KType.Array(ty1, id), KType.Array(refTy1, _)) =>
+        KType.Array(moreSpecific(ty1, refTy1), id)
+
+    case (ty, ?) => ty
+    case (?, ty) => ty
+    case (ty, _) => ty
+}
+
 /** Flattens an array type. */
 def wrapArrayType(semType: SemType): SemType = semType match {
     case KType.Array(KType.Array(ty, idxIn), idxOut) => KType.Array(ty, idxIn + idxOut)
@@ -96,13 +108,4 @@ def unwrapArrayType(semType: Option[SemType], arity: Int): SemType = semType mat
     case Some(KType.Array(ty, idx)) if idx == arity => ty
     case Some(ty)                                   => ty
     case None                                       => ?
-}
-
-def moreSpecific(ty1: SemType, ty2: SemType): SemType = (ty1, ty2) match {
-    case (KType.Pair(kTy1, kTy2), KType.Pair(refTy1, refTy2)) => KType.Pair(moreSpecific(kTy1, refTy1), moreSpecific(kTy2, refTy2))
-    case (KType.Array(ty1, id), KType.Array(refTy1, _)) => KType.Array(moreSpecific(ty1, refTy1), id)
-
-    case (ty, ?) => ty
-    case (?, ty) => ty
-    case (ty, _) => ty
 }

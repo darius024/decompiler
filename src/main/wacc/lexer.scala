@@ -3,7 +3,8 @@ package wacc
 import parsley.Parsley
 import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions.*
-import parsley.token.errors.*
+
+import wacc.error.errorConfig.*
 
 /** Describes the lexical rules of the parser. */
 object lexer {
@@ -61,70 +62,7 @@ object lexer {
         ),
     )
 
-    // configure errors
-    private val errConfig = new ErrorConfig {
-        override def labelSymbol = List(
-            List("!", "+", "-", "len", "ord", "chr")
-                .map(_ -> Label("unary operator")),
-            List("*", "%", "/", "+", ">", ">=", "<", "<=", "==", "!=", "&&", "||")
-                .map(_ -> Label("binary operator")),
-            List("skip", "read", "free", "return", "exit", "print", "println", "if", "while", "begin")
-                .map(_ -> Label("statement")),
-            List("int", "bool", "char", "string", "pair")
-                .map(_ -> Label("type")),
-            List("fst", "snd")
-                .map(_ -> Label("pair element")),
-            List("newpair", "null")
-                .map(_ -> Label("pair literal")),
-            List("call")
-                .map(_ -> Label("function call")),
-            List("then" -> LabelAndReason(
-                    reason = "the condition of an if statement must be closed with `then`", 
-                    label  = "then branch"
-                )),
-            List("else" -> LabelAndReason(
-                    reason = "all if statements must have an else clause", 
-                    label  = "else branch"
-                )),
-            List("do" -> LabelAndReason(
-                    reason = "the condition of a while loop must be closed with `do`", 
-                    label  = "do body"
-                )),
-            List("fi" -> LabelAndReason(
-                    reason = "unclosed if statement", 
-                    label  = "fi"
-                )),
-            List("done" -> LabelAndReason(
-                    reason = "unclosed while loop", 
-                    label  = "done"
-                )),
-            List("end" -> Label("end")),
-            List(";" -> LabelAndReason( 
-                    reason = "semicolon required to separate statements", 
-                    label  = "semicolon"
-                )),
-            List("=" -> Label("assignment")),
-            List("[" -> Label("array index")),
-            List("(" -> Label("open paranthesis")),
-        ).flatten.toMap
-
-        override def labelEscapeEnd = LabelAndReason(
-            reason = "valid escape sequences are \\0, \\n, \\t, \\b, \\f, \\r, \\\", \\\' or \\\\", 
-            label  = "escape sequence"
-        )
-
-        override def verifiedCharBadCharsUsedInLiteral = BadCharsReason(Map(
-            '\"'.toInt -> "double quotes must be escaped inside character literals",
-            '\''.toInt -> "single quotes must be escaped inside character literals",
-        ))
-
-        override def labelIntegerDecimalEnd = Label("end of integer")
-        override def labelCharAsciiEnd = Label("end of character literal")
-        override def labelStringAsciiEnd(mult: Boolean, row: Boolean) = Label("end of string literal")
-        
-    }
-
-    // lexer instance
+    // lexer instance with error configuration
     private val lexer = Lexer(desc, errConfig)
 
     // basic token type parsers

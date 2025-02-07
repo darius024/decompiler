@@ -1,8 +1,8 @@
 package wacc
 
+import java.io.File
 import scala.annotation.unused
 import parsley.{Success, Failure}
-import java.io.File
 
 // entry point
 def main(args: Array[String]): Unit = args.headOption match {
@@ -35,11 +35,11 @@ def compile(file: File): (String, ExitCode) = {
     return ("Code compiled successfully.", ExitCode.Success)
 }
 
-/** Using an enum of fixed values to prevent invalid codes being used. */
-enum ExitCode(val value: Int) {
-    case Success extends ExitCode(0)
-    case SyntaxErr extends ExitCode(100)
+/** Using an enum of fixed codes to prevent invalid codes being used. */
+enum ExitCode(val code: Int) {
+    case Success     extends ExitCode(0)
+    case SyntaxErr   extends ExitCode(100)
     case SemanticErr extends ExitCode(200)
 
-    def enforce(): Unit = System.exit(value)
+    def enforce(): Unit = System.exit(code)
 }

@@ -52,6 +52,6 @@ object semanticTypes {
         case Pair                   => KType.Pair(?, ?)
     }
 
-    /** Match any dimension. */
+    /** Matches any dimension. */
     final val AnyDimension = -1
 }

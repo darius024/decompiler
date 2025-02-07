@@ -3,8 +3,9 @@ package wacc.semantics.typing
 import wacc.semantics.scoping.semanticTypes.*
 
 /** Typed expression nodes.
+  * 
   * Each node has a specific type associated with it,
-  * which is used to store type information.
+  * which stores type information.
   */
 sealed abstract class TyExpr(var ty: SemType)
 object TyExpr {

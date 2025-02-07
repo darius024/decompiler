@@ -35,7 +35,6 @@ object parser {
         | ParensExpr(parens(expr))
         )
 
-    // operator precedence hierarchy   
     private lazy val expr: Parsley[Expr] = labelExpr(precedence {
         SOps(InfixR)(Or        from "||")  +:
         SOps(InfixR)(And       from "&&")  +:
@@ -108,12 +107,12 @@ object parser {
         ( Skip.from  ("skip")
         | Declaration(idType, ("=" ~> rvalue) | _func)
         | Assignment (lvalue,  "=" ~> rvalue)
-        | Read       ("read"      ~> lvalue)
-        | Print      ("print"     ~> expr)
-        | Println    ("println"   ~> expr)
-        | Free       ("free"      ~> expr)
-        | Return     ("return"    ~> expr)
-        | Exit       ("exit"      ~> expr)
+        | Read       ("read"       ~> lvalue)
+        | Print      ("print"      ~> expr)
+        | Println    ("println"    ~> expr)
+        | Free       ("free"       ~> expr)
+        | Return     ("return"     ~> expr)
+        | Exit       ("exit"       ~> expr)
         )
         
     private lazy val compoundStmt: Parsley[Stmt] = 

@@ -24,6 +24,7 @@ def format(errs: NonEmptyList[PartialSemanticError], program: File): String =
 /** Augments a partial semantic error with additional information. */
 private def augmentError(err: PartialSemanticError, program: File): SemanticError = {
     val (row, col) = err.pos
+    // adjust row and column information
     val errorRow = if (row >= 0) row - 1 else 0
     val adjustedCol = if (col >= 0) col - 1 else 0
 
@@ -40,5 +41,6 @@ private def augmentError(err: PartialSemanticError, program: File): SemanticErro
     } else Nil
     val errorLines = ErrorLines.VanillaError(err.unexpected, err.expected, err.reasons, line)
 
+    // build the semantic error
     return SemanticError(err.pos, program.getName(), errorLines, err.errorType)
 }
