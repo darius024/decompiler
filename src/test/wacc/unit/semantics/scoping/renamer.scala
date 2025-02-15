@@ -17,7 +17,7 @@ import types.*
 
 /** Tests the scope checker and renamer of variables. */
 class ScopeCheckerTest extends AnyFlatSpec {
-
+    private val funcScope = "main"
     private val pos: Position = NoPosition
 
     "Scope checker" should "add a variable to the scope correctly" in {
@@ -37,7 +37,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val typeInfo = scopeCheck(prog)
 
-        typeInfo.errs should contain (VariableAlreadyDeclared("x")(pos))
+        typeInfo.errs should contain (VariableAlreadyDeclared("x", pos)(funcScope, pos))
     }
 
     it should "detect usage of an undeclared variable" in {
@@ -46,7 +46,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val typeInfo = scopeCheck(prog)
 
-        typeInfo.errs should contain (VariableNotInScope("y")(pos))
+        typeInfo.errs should contain (VariableNotInScope("y", Nil)(funcScope, pos))
 
         // NonEmptyList(head, tail)
     }
@@ -59,7 +59,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val typeInfo = scopeCheck(prog)
 
-        typeInfo.funcs shouldBe Map("f" -> (KType.Int, Nil, pos))
+        typeInfo.funcs.keys.toList shouldBe List("f")
         typeInfo.errs shouldBe empty
     }
 
@@ -72,7 +72,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val typeInfo = scopeCheck(prog)
 
-        typeInfo.errs should contain (FunctionAlreadyDeclared("f")(pos))
+        typeInfo.errs should contain (FunctionAlreadyDeclared("f", pos)(funcScope, pos))
     }
 
     it should "detect parameter redeclaration in function definitions" in {
@@ -87,7 +87,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val typeInfo = scopeCheck(prog)
 
-        typeInfo.errs should contain (VariableAlreadyDeclared("x")(pos))
+        typeInfo.errs should contain (VariableAlreadyDeclared("x", pos)(funcScope, pos))
     }
 
     it should "detect not defined functions" in {
@@ -96,7 +96,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val typeInfo = scopeCheck(prog)
 
-        typeInfo.errs should contain (FunctionNotDefined("f")(pos))
+        typeInfo.errs should contain (FunctionNotDefined("f")(funcScope, pos))
     }
 
     it should "allow for variables to be shadowed" in {
@@ -135,7 +135,7 @@ class ScopeCheckerTest extends AnyFlatSpec {
         ))(pos)
         val typeInfo = scopeCheck(prog)
 
-        typeInfo.errs should contain (VariableNotInScope("y")(pos))
+        typeInfo.errs should contain (VariableNotInScope("y", List("x"))(funcScope, pos))
     }
 
     it should "allow for mutual recursion" in {

@@ -2,7 +2,7 @@ package wacc.semantics
 
 import cats.data.NonEmptyList
 import java.io.File
-import scala.io.Source
+import os.*
 
 import scoping.scopeCheck
 import typing.*
@@ -19,7 +19,7 @@ def check(prog: Program): Either[NonEmptyList[PartialSemanticError], TyProg] =
 
 /** Formats the error messages to contain the code segment. */
 def format(errs: NonEmptyList[PartialSemanticError], program: File): String =
-    errs.map(augmentError(_, program)).toList.mkString("\n")
+    errs.map(augmentError(_, program).message).toList.mkString("\n")
 
 /** Augments a partial semantic error with additional information. */
 private def augmentError(err: PartialSemanticError, program: File): SemanticError = {
@@ -28,10 +28,8 @@ private def augmentError(err: PartialSemanticError, program: File): SemanticErro
     val errorRow = if (row >= 0) row - 1 else 0
     val adjustedCol = if (col >= 0) col - 1 else 0
 
-    val source = Source.fromFile(program)
     // ensure consistency in tab size (4 spaces)
-    val lines = source.getLines().map(_.replace("\t", "    ")).toList
-    source.close()
+    val lines = os.read.lines(os.Path(program.getAbsolutePath)).map(_.replace("\t", "    "))
 
     // fetch the lines information
     val line = if (errorRow < lines.length) {

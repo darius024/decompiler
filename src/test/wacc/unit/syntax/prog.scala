@@ -22,9 +22,9 @@ class ProgramParserTests extends AnyFlatSpec {
     "Program" should "parse a function" in {
         inside(parseFunc("int f","", "return 0", "skip")) {
             case Right(Program(
-                List(Function((IntType, Id("f")), Nil, NonEmptyList(Return(IntLit(0)), _))),
+                List(Function((IntType, Id("f")), Array(), NonEmptyList(Return(IntLit(0)), _))),
                 NonEmptyList(Skip, _)
-                )) => succeed
+            )) => succeed
         }
     }
     it should "parse functions with parameters" in {
@@ -32,7 +32,7 @@ class ProgramParserTests extends AnyFlatSpec {
             case Right(Program(
                 List(Function(
                     (IntType, Id("add")),
-                    List((IntType, Id("x")), (IntType, Id("y"))),
+                    Array((IntType, Id("x")), (IntType, Id("y"))),
                     NonEmptyList(Return(Add(Id("x"), Id("y"))), _)
                 )),
                 NonEmptyList(Skip, _)
@@ -48,8 +48,8 @@ class ProgramParserTests extends AnyFlatSpec {
         ) {
             case Right(Program(
                 List(
-                    Function((IntType, Id("f")), Nil, NonEmptyList(Return(IntLit(1)), _)),
-                    Function((BoolType, Id("g")), Nil, NonEmptyList(Return(BoolLit(true)), _))
+                    Function((IntType, Id("f")), Array(), NonEmptyList(Return(IntLit(1)), _)),
+                    Function((BoolType, Id("g")), Array(), NonEmptyList(Return(BoolLit(true)), _))
                 ),
                 NonEmptyList(Skip, _)
             )) => succeed
@@ -67,7 +67,7 @@ class ProgramParserTests extends AnyFlatSpec {
         )
         ) {
             case Right(Program(
-                List(Function((IntType, Id("f")), Nil,
+                List(Function((IntType, Id("f")), Array(),
                     (NonEmptyList(
                         Declaration((IntType, Id("x")), IntLit(1)),
                         Return(Id("x")) :: _
@@ -90,7 +90,7 @@ class ProgramParserTests extends AnyFlatSpec {
         )
         ) {
             case Right(Program(
-                List(Function((IntType, Id("f")), Nil,
+                List(Function((IntType, Id("f")), Array(),
                     (NonEmptyList(
                         Declaration((IntType, Id("x")), IntLit(1)),
                         Declaration((IntType, Id("y")), IntLit(2)) ::
@@ -118,13 +118,13 @@ class ProgramParserTests extends AnyFlatSpec {
         ) {
             case Right(Program(
                 List(
-                    Function((IntType, Id("f")), Nil,
+                    Function((IntType, Id("f")), Array(),
                         (NonEmptyList(
                             Declaration((IntType, Id("x")), IntLit(1)),
                             Return(Id("x")) :: _
                         ))
                     ),
-                    Function((BoolType, Id("g")), Nil,
+                    Function((BoolType, Id("g")), Array(),
                         (NonEmptyList(
                             Declaration((BoolType, Id("y")), BoolLit(true)),
                             Return(Id("y")) :: _
@@ -150,12 +150,12 @@ class ProgramParserTests extends AnyFlatSpec {
         ) {
             case Right(Program(
                 List(
-                    Function((IntType, Id("f")), List((IntType, Id("x"))),
+                    Function((IntType, Id("f")), Array((IntType, Id("x"))),
                         (NonEmptyList(
                             Return(Id("x")), _
                         ))
                     ),
-                    Function((BoolType, Id("g")), List((BoolType, Id("y"))),
+                    Function((BoolType, Id("g")), Array((BoolType, Id("y"))),
                         (NonEmptyList(
                             Return(Id("y")), _
                         ))
@@ -180,12 +180,12 @@ class ProgramParserTests extends AnyFlatSpec {
         ) {
             case Right(Program(
                 List(
-                    Function((IntType, Id("f")), List((IntType, Id("x"))),
+                    Function((IntType, Id("f")), Array((IntType, Id("x"))),
                         (NonEmptyList(
                             Return(Add(Id("x"), IntLit(1))), _
                         ))
                     ),
-                    Function((BoolType, Id("g")), List((BoolType, Id("y"))),
+                    Function((BoolType, Id("g")), Array((BoolType, Id("y"))),
                         (NonEmptyList(
                             Return(Not(Id("y"))), _
                         ))

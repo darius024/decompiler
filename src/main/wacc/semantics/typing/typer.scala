@@ -46,8 +46,8 @@ class TypeCheckerContext[C](tyInfo: TypeInfo, errs: mutable.Builder[PartialSeman
     def returnTypeOf(funcName: String): SemType =
         tyInfo.funcs.get(funcName).map(_._1).getOrElse(?)
     // get the signature of the function
-    def signatureOf(funcName: String): List[SemType] =
-        tyInfo.funcs.get(funcName).map(_._2.map(_._1)).getOrElse(Nil)
+    def signatureOf(funcName: String): Array[KType] =
+        tyInfo.funcs.get(funcName).map(_._2.map(_._1)).getOrElse(Array.empty[KType])
 
     // add an error to the context
     def error(err: PartialSemanticError) = {
@@ -69,6 +69,7 @@ def typeCheck(prog: Program, tyInfo: TypeInfo): Either[NonEmptyList[PartialSeman
     
     val Program(funcs, stmts) = prog
     val typedFuncs = funcs.map(check)
+    given funcScope: String = "main"
     val typedStmts = stmts.toList.flatMap(check(_, None))
 
     ctx.errors match {
@@ -81,6 +82,7 @@ def typeCheck(prog: Program, tyInfo: TypeInfo): Either[NonEmptyList[PartialSeman
 def check(func: Function)
          (using ctx: TypeCheckerContext[?]): TyFunc = {
     val Function((_, funcName), params, stmts) = func
+    given funcScope: String = funcName.value
 
     val retTy = ctx.returnTypeOf(funcName.value)
     val typedParams = params.map { (_, id) => checkLValue(id, Unconstrained)._2 }
@@ -94,6 +96,7 @@ def check(func: Function)
   * Uses the type parameter to verify the return values of statements.
   */
 def check(stmt: Stmt, retTy: Option[SemType])
+         (using funcScope: String)
          (using ctx: TypeCheckerContext[?]): Option[TyStmt] = stmt match {
     case Skip => None
 
@@ -130,7 +133,7 @@ def check(stmt: Stmt, retTy: Option[SemType])
 
     case Return(expr) =>
         retTy match {
-            case None => ctx.error(ReturnInMainBody(expr.pos))
+            case None => ctx.error(ReturnInMainBody(funcScope, expr.pos))
             case Some(returnTy) =>
                 val (_, typedExpr) = checkExpr(expr, Is(returnTy))
                 Some(TyStmt.Return(typedExpr))
@@ -161,6 +164,7 @@ def check(stmt: Stmt, retTy: Option[SemType])
   * Imposes specific constraints on the types of the operations.
   */
 def checkExpr(expr: Expr, cons: Constraint)
+             (using funcScope: String)
              (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = expr match {
     case Or(lhs, rhs)           => checkBinExpr(lhs, rhs, KType.Bool, cons, expr.pos)(TyExpr.Or.apply)
     case And(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Bool, cons, expr.pos)(TyExpr.And.apply)
@@ -197,6 +201,7 @@ def checkExpr(expr: Expr, cons: Constraint)
 
 /** Checks the type soundness of an rvalue. */
 def checkRValue(rvalue: RValue, cons: Constraint)
+               (using funcScope: String)
                (using ctx: TypeCheckerContext[?]): (Option[SemType], TyExpr) = rvalue match {
     case expr: Expr => checkExpr(expr, cons)
         
@@ -232,7 +237,7 @@ def checkRValue(rvalue: RValue, cons: Constraint)
         
         // check if the number of arguments match
         if (argsTy.length != args.length) {
-            ctx.error(NumberArgumentsMismatch(args.length, argsTy.length)(func.pos))
+            ctx.error(NumberArgumentsMismatch(args.length, argsTy.length)(funcScope, func.pos))
         }
 
         // transform the arguments into typed expressions
@@ -248,6 +253,7 @@ def checkRValue(rvalue: RValue, cons: Constraint)
 
 /** Checks the type soundness of an lvalue. */
 def checkLValue(lvalue: LValue, cons: Constraint)
+               (using funcScope: String)
                (using ctx: TypeCheckerContext[?]): (Option[SemType], TyExpr.LVal) = lvalue match {
     case Id(value) =>
         // retrieve the type of the identifier
@@ -279,6 +285,7 @@ def checkLValue(lvalue: LValue, cons: Constraint)
   * If the pair element is not a pair, it asserts that it must have a pair type.
   */
 def checkPairElem(pairElem: PairElem, cons: Constraint)
+                 (using funcScope: String)
                  (using TypeCheckerContext[?]): (Option[SemType], TyExpr.LVal) = pairElem match {
     case Fst(lval) =>
         val (fstTy, typedFst) = checkLValue(lval, IsPair)
@@ -298,6 +305,7 @@ def checkPairElem(pairElem: PairElem, cons: Constraint)
 /** Checks the type soundness of a binary expression. */
 def checkBinExpr(lhs: Expr, rhs: Expr, semType: SemType, cons: Constraint, pos: Position)
                 (build: (TyExpr, TyExpr) => TyExpr)
+                (using funcScope: String)
                 (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
     val (lhsTy, typedLhs) = checkExpr(lhs, Is(semType))
     val (rhsTy, typedRhs) = checkExpr(rhs, lhsTy.fold(Is(semType))(Is(_)))
@@ -311,6 +319,7 @@ def checkBinExpr(lhs: Expr, rhs: Expr, semType: SemType, cons: Constraint, pos: 
 /** Checks the type soundness of an integer or character binary expression. */
 def checkIntChar(lhs: Expr, rhs: Expr, cons: Constraint, pos: Position)
                 (build: (TyExpr, TyExpr) => TyExpr)
+                (using funcScope: String)
                 (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
     val (lhsTy, typedLhs) = checkExpr(lhs, IsEither(KType.Int, KType.Char))
     val (rhsTy, typedRhs) = checkExpr(rhs, lhsTy.fold(IsEither(KType.Int, KType.Char))(Is(_)))
@@ -324,6 +333,7 @@ def checkIntChar(lhs: Expr, rhs: Expr, cons: Constraint, pos: Position)
 /** Checks the type soundness of a unary expression. */
 def checkUnary(expr: Expr, argTy: SemType, cons: Constraint, pos: Position)
               (build: (TyExpr) => TyExpr)
+              (using funcScope: String)
               (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
     val (_, typedExpr) = checkExpr(expr, Is(argTy))
     val typedUExpr = build(typedExpr)

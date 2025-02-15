@@ -9,6 +9,7 @@ import Constraint.*
 
 /** Checks if a type satisfies a constraint. */
 extension (ty: SemType) def satisfies(cons: Constraint, pos: Position)
+                                     (using funcScope: String)
                                      (using ctx: TypeCheckerContext[?]): Option[SemType] = (ty, cons) match {
     // allow for string and char[] type coercion
     case (kTy @ KType.Array(KType.Char, 1), Constraint.Is(KType.Str)) => Some(kTy)
@@ -20,6 +21,7 @@ extension (ty: SemType) def satisfies(cons: Constraint, pos: Position)
   * Used to disallow variance in the array and pair types. 
   */
 def satisfiesInvariant(ty: SemType, cons: Constraint, pos: Position)
+                      (using funcScope: String)
                       (using ctx: TypeCheckerContext[?]): Option[SemType] = (ty, cons) match {
     // handle unknwon and unconstrained types
     case (?, Constraint.Is(refTy)) => Some(refTy)
@@ -43,11 +45,11 @@ def satisfiesInvariant(ty: SemType, cons: Constraint, pos: Position)
         if matchType(ty1, refTy1) && matchType(ty2, refTy2) => Some(kTy)
     case (semTy, Constraint.IsEither(ty1, ty2)) =>
         if semTy == ty1 || semTy == ty2 then Some(semTy)
-        else ctx.error(TypeMismatch(semTy, Set(ty1, ty2))(pos))
+        else ctx.error(TypeMismatch(semTy, Set(ty1, ty2))(funcScope, pos))
 
     case (kTy, Constraint.Is(refTy)) =>
         if kTy == refTy then Some(kTy)
-        else ctx.error(TypeMismatch(kTy, Set(refTy))(pos))
+        else ctx.error(TypeMismatch(kTy, Set(refTy))(funcScope, pos))
     
     case _ => None
 }
@@ -64,8 +66,9 @@ def matchType(ty: SemType, refTy: SemType): Boolean = (ty, refTy) match {
 
 /** Checks if a type Constraint.Is known. Types must be known. */
 def assertKnownType(semTy: Option[SemType], pos: Position)
+                   (using funcScope: String)
                    (using ctx: TypeCheckerContext[?]): SemType = semTy match {
-    case Some(?)       => ctx.error(TypeCannotBeInfered(pos))
+    case Some(?)       => ctx.error(TypeCannotBeInfered(funcScope, pos))
                           ?
     case Some(semType) => semType
     case None          => ?
@@ -77,8 +80,9 @@ def assertKnownType(semTy: Option[SemType], pos: Position)
   * If one of the types Constraint.Is known, it Constraint.Is imposed to the other type.
   */
 def unifyTypes(typedLhs: TyExpr, typedRhs: TyExpr, lhsTy: Option[SemType], rhsTy: Option[SemType], pos: Position)
+              (using funcScope: String)
               (using ctx: TypeCheckerContext[?]): Unit = (lhsTy, rhsTy) match {
-    case (Some(?), Some(?)) => ctx.error(TypeCannotBeInfered(pos))
+    case (Some(?), Some(?)) => ctx.error(TypeCannotBeInfered(funcScope, pos))
     case (Some(?), Some(t)) => typedLhs.ty = t
     case (Some(t), _)       => typedRhs.ty = t
     case (_, _)             => ()
@@ -99,7 +103,7 @@ def moreSpecific(ty1: SemType, ty2: SemType): SemType = (ty1, ty2) match {
 /** Flattens an array type. */
 def wrapArrayType(semType: SemType): SemType = semType match {
     case KType.Array(KType.Array(ty, idxIn), idxOut) => KType.Array(ty, idxIn + idxOut)
-    case ty => ty
+    case ty                                          => ty
 }
 
 /** Unwraps an array type. */
