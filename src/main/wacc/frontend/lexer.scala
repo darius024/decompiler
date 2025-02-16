@@ -1,4 +1,4 @@
-package wacc
+package wacc.frontend
 
 import parsley.Parsley
 import parsley.Parsley.notFollowedBy

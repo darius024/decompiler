@@ -4,6 +4,8 @@ import java.io.File
 import parsley.{Success, Failure}
 import scala.annotation.unused
 
+import wacc.frontend.*
+
 // entry point
 @main
 def main(path: String): Unit = {

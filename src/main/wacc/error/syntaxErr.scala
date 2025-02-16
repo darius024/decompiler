@@ -61,7 +61,7 @@ abstract class SyntaxErrorBuilder extends ErrorBuilder[SyntaxError] {
 
 /** Contains the implicit definition of the error builder. */
 object syntaxErrors {
-    import wacc.lexer.*
+    import wacc.frontend.lexer.*
     
     // provide better messages by using token information from the lexer
     implicit val errorBuilder: ErrorBuilder[SyntaxError] = new SyntaxErrorBuilder with LexToken {

@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.Inside.*
 
 import wacc.error.errors.*
-import wacc.parser
+import wacc.frontend.parser
 import wacc.syntax.*
 import exprs.*
 import prog.*

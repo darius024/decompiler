@@ -1,4 +1,4 @@
-package wacc
+package wacc.frontend
 
 import java.io.File
 import parsley.{Parsley, Result, Failure}
@@ -14,7 +14,7 @@ import implicits.implicitSymbol
 import wacc.error.advancedErrors.*
 import wacc.error.syntaxErrors.*
 import wacc.error.errors.*
-import syntax.*
+import wacc.syntax.*
 import exprs.*
 import prog.*
 import stmts.*
