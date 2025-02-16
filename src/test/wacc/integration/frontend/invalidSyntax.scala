@@ -1,9 +1,9 @@
-package wacc.integration
+package wacc.integration.frontend
 
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.must.Matchers.*
 
-import utils.*
+import wacc.integration.utils.*
 import wacc.ExitCode
 
 /** Tests compiler frontend on invalid semantic programs. */
@@ -17,7 +17,7 @@ class InvalidSyntaxTest extends AnyWordSpec {
             listTests(root / category) foreach { test =>
                 // each test case
                 s"not parse ${test.relativeTo(root / category)}" in {
-                    if (isDisabled(root.baseName, category)) pending
+                    if (isDisabled("frontend", root.baseName, category)) pending
 
                     // run
                     val (msg, code) = compileTest(test)

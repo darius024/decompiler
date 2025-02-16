@@ -74,7 +74,7 @@ object errorConfig {
 
 /** Advanced errors used by Parsley. */
 object advancedErrors {
-    import wacc.lexer.implicits.implicitSymbol
+    import wacc.frontend.lexer.implicits.implicitSymbol
 
     lazy val _emptyMain = unit.verifiedExplain("missing main program body")
     lazy val _beforeMain = unit.verifiedExplain("all program body and function declarations must be within `begin` and `end`")

@@ -1,17 +1,17 @@
 package wacc
 
 import java.io.File
-import scala.annotation.unused
 import parsley.{Success, Failure}
+import scala.annotation.unused
+
+import wacc.frontend.*
 
 // entry point
-def main(args: Array[String]): Unit = args.headOption match {
-    case Some(path) => {
-        val (errs, code) = compile(new File(path))
-        println(errs)
-        code.enforce()
-    }
-    case None => println("No program has been entered.")
+@main
+def main(path: String): Unit = {
+    val (errs, code) = compile(new File(path))
+    println(errs)
+    code.enforce()
 }
 
 // compilation pipeline
@@ -21,7 +21,7 @@ def compile(file: File): (String, ExitCode) = {
         // on successful compilation, the AST is returned
         case Success(ast) => ast
         // otherwise, there is a syntax error
-        case Failure(msg) => return (s"$msg", ExitCode.SyntaxErr)
+        case Failure(err) => return (s"${err.message}", ExitCode.SyntaxErr)
     }
 
     // semantic analysis: scope and type checking
@@ -32,7 +32,7 @@ def compile(file: File): (String, ExitCode) = {
         case Left(errs) => return (s"${semantics.format(errs, file)}", ExitCode.SemanticErr)
     }
 
-    return ("Code compiled successfully.", ExitCode.Success)
+    ("Code compiled successfully.", ExitCode.Success)
 }
 
 /** Using an enum of fixed codes to prevent invalid codes being used. */

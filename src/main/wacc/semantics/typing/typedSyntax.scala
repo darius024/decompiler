@@ -67,5 +67,5 @@ enum TyStmt {
 }
 
 /** Typed function and program nodes. */
-case class TyFunc(id: TyExpr.LVal, params: List[TyExpr.LVal], stmts: List[TyStmt])
+case class TyFunc(id: TyExpr.LVal, params: Array[TyExpr.LVal], stmts: List[TyStmt])
 case class TyProg(funcs: List[TyFunc], stmts: List[TyStmt])

@@ -17,7 +17,7 @@ import types.*
 
 /** Tests the type checker for programs not well-typed. */
 class TypeCheckerTests extends AnyFlatSpec {
-
+    private val funcScope = "main"
     private val pos: Position = NoPosition
 
     "Type checker" should "detect type mismatches in declarations" in {
@@ -27,7 +27,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(pos))
+                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(funcScope, pos))
         }
     }
 
@@ -39,7 +39,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(pos))
+                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(funcScope, pos))
         }
     }
 
@@ -52,7 +52,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(pos))
+                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(funcScope, pos))
         }
     }
 
@@ -63,7 +63,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(pos))
+                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(funcScope, pos))
         }
     }
 
@@ -74,7 +74,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int, KType.Char))(pos))
+                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int, KType.Char))(funcScope, pos))
         }
     }
 
@@ -85,7 +85,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Int, Set(KType.Bool))(pos))
+                errs.toList should contain (TypeMismatch(KType.Int, Set(KType.Bool))(funcScope, pos))
         }
     }
 
@@ -96,7 +96,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Int, Set(KType.Bool))(pos))
+                errs.toList should contain (TypeMismatch(KType.Int, Set(KType.Bool))(funcScope, pos))
         }
     }
 
@@ -118,7 +118,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(pos))
+                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(funcScope, pos))
         }
     }
 
@@ -130,7 +130,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Pair(KType.Int, KType.Bool), Set(KType.Pair(KType.Int, KType.Char)))(pos))
+                errs.toList should contain (TypeMismatch(KType.Pair(KType.Int, KType.Bool), Set(KType.Pair(KType.Int, KType.Char)))(funcScope, pos))
         }
     }
 
@@ -143,7 +143,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Char, Set(KType.Int))(pos))
+                errs.toList should contain (TypeMismatch(KType.Char, Set(KType.Int))(funcScope, pos))
         }
     }
 
@@ -156,7 +156,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(pos))
+                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(funcScope, pos))
         }
     }
 
@@ -169,7 +169,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Int, Set(KType.Bool))(pos))
+                errs.toList should contain (TypeMismatch(KType.Int, Set(KType.Bool))(funcScope, pos))
         }
     }
 
@@ -182,7 +182,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(pos))
+                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int))(funcScope, pos))
         }
     }
 
@@ -193,7 +193,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Int, Set(KType.Bool))(pos))
+                errs.toList should contain (TypeMismatch(KType.Int, Set(KType.Bool))(funcScope, pos))
         }
     }
 
@@ -205,7 +205,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int, KType.Char))(pos))
+                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Int, KType.Char))(funcScope, pos))
         }
     }
 
@@ -216,7 +216,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Array(?, AnyDimension), KType.Pair(?, ?)))(pos))
+                errs.toList should contain (TypeMismatch(KType.Bool, Set(KType.Array(?, AnyDimension), KType.Pair(?, ?)))(funcScope, pos))
         }
     }
 
@@ -239,7 +239,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Array(KType.Char, 2), Set(KType.Array(KType.Str, 1)))(pos))
+                errs.toList should contain (TypeMismatch(KType.Array(KType.Char, 2), Set(KType.Array(KType.Str, 1)))(funcScope, pos))
         }
     }
 
@@ -251,7 +251,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeMismatch(KType.Pair(KType.Array(KType.Char, 1), KType.Array(KType.Char, 1)), Set(KType.Pair(KType.Str, KType.Str)))(pos))
+                errs.toList should contain (TypeMismatch(KType.Pair(KType.Array(KType.Char, 1), KType.Array(KType.Char, 1)), Set(KType.Pair(KType.Str, KType.Str)))(funcScope, pos))
         }
     }
 
@@ -262,7 +262,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (VariableNotInScope("y")(pos))
+                errs.toList should contain (VariableNotInScope("y", Nil)(funcScope, pos))
         }
     }
 
@@ -273,7 +273,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeCannotBeInfered(pos))
+                errs.toList should contain (TypeCannotBeInfered(funcScope, pos))
         }
     }
 
@@ -290,7 +290,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (TypeCannotBeInfered(pos))
+                errs.toList should contain (TypeCannotBeInfered(funcScope, pos))
         }
     }
 
@@ -303,7 +303,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (NumberArgumentsMismatch(0, 1)(pos))
+                errs.toList should contain (NumberArgumentsMismatch(0, 1)(funcScope, pos))
         }
     }
 
@@ -314,7 +314,7 @@ class TypeCheckerTests extends AnyFlatSpec {
         
         inside(semantics.check(prog)) {
             case Left(errs) =>
-                errs.toList should contain (ReturnInMainBody(pos))
+                errs.toList should contain (ReturnInMainBody(funcScope, pos))
         }
     }
 }

@@ -15,7 +15,7 @@ object prog {
       * <param-list> ::= <param> (',' <param>)*
       * <param> ::= <type> <ident>
       */
-    case class Function(typeId: TypeId, params: List[TypeId], stmts: StmtList)(val pos: Position)
+    case class Function(typeId: TypeId, params: Array[TypeId], stmts: StmtList)(val pos: Position)
 
     // companion objects
     
@@ -36,6 +36,9 @@ object prog {
             case Function((_, name), _, stmts) if !endsWithReturnOrExit(stmts) =>
                 Seq(s"function `${name.value}` must have a return on all exit paths")
         }
+
+        override def apply(typeId: TypeId, params: List[TypeId], stmts: StmtList)(pos: Position): Function =
+            Function(typeId, params.toArray, stmts)(pos)
 
         override def labels: List[String] = List("function")
     }

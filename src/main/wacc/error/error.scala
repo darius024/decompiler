@@ -16,19 +16,20 @@ object errors {
     sealed trait WaccError(pos: bridges.Position, source: String, lines: ErrorLines) {
         val errorType: String
 
-        override def toString: String = {
+        def message: String = {
             val sb = new StringBuilder
             val whitespace = s"\n${" " * WaccErrorBuilder.Indent}"
 
             sb.append(s"$errorType in $source at row ${pos._1}, column ${pos._2}:")
             lines match {
                 case ErrorLines.VanillaError(unexpected, expected, reasons, line) =>
-                    val formattedUnexpected = unexpected.getOrElse("end of file")
-                    val sortedExpected = expected.toSeq.sortBy(_.toString)
-                    val formattedExpected = 
-                        if (sortedExpected.isEmpty) "" 
-                        else if (sortedExpected.length == 1) sortedExpected.head
-                        else sortedExpected.init.mkString(", ") + " or " + sortedExpected.last
+                    val formattedUnexpected = unexpected.map(_.print).getOrElse("end of input")
+                    val sortedExpected = expected.toSeq.map(_.print).sorted
+                    val formattedExpected = sortedExpected.size compare 1 match {
+                        case 0 => sortedExpected.head
+                        case 1 => sortedExpected.init.mkString(", ") + " or " + sortedExpected.last
+                        case _ => ""
+                    }
                     
                     if (unexpected.nonEmpty) {
                         sb.append(s"${whitespace}unexpected: $formattedUnexpected")
@@ -58,7 +59,7 @@ object errors {
     }
     /** Error that occurs during the file reading phase. */
     case object IOError extends WaccError(bridges.NoPosition, "", ErrorLines.VanillaError(None, Set.empty, Set.empty, Seq.empty)) {
-        override val errorType: String = "IOException caused"
+        override val errorType: String = "File Not Found"
     }
 }
 

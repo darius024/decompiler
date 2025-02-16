@@ -12,11 +12,10 @@ import prog.*
 import stmts.*
 import types.*
 
-
 /** Renamed types to store identifier information. */
 type IdInfo      = (KType, Position)
 type RenamedInfo = (String, IdInfo)
-type FuncInfo    = (KType, List[IdInfo], Position)
+type FuncInfo    = (KType, Array[IdInfo], Position)
 
 /** Context for the scope checker.
   * 
@@ -32,7 +31,7 @@ class ScopeCheckerContext[C](val funcTypes: mutable.Map[String, FuncInfo],
     def errors: C = errs.result()
 
     // insert a function to the function map
-    def addFunc(id: Id, retType: KType, params: List[IdInfo], pos: Position) =
+    def addFunc(id: Id, retType: KType, params: Array[IdInfo], pos: Position) =
         funcTypes += id.value -> (retType, params, pos)
     
     // insert a renamed variable to the global variable map
@@ -91,9 +90,10 @@ def addFunction(func: Function)
 
     // add the function defintion to the context
     if (ctx.funcs.contains(funcName.value)) {
-        ctx.error(FunctionAlreadyDeclared(funcName.value)(funcName.pos))
+        val funcLocation = ctx.funcs(funcName.value)._3
+        ctx.error(FunctionAlreadyDeclared(funcName.value, funcLocation)("main", funcName.pos))
     } else {
-        ctx.addFunc(funcName, convertType(retTy), paramScope.toList.map(_._2._2), func.pos)
+        ctx.addFunc(funcName, convertType(retTy), paramScope.toArray.map(_._2._2), func.pos)
     }
     paramScope.toMap
 }
@@ -114,8 +114,8 @@ def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: muta
     case Skip =>
 
     case Declaration((ty, id), rv) =>
-        checkIdInScope(ty, id, currentScope)
         rename(rv, parentScope, currentScope)
+        checkIdInScope(ty, id, currentScope)
     
     case Assignment(lv, rv) =>
         rename(lv, parentScope, currentScope)
@@ -130,15 +130,15 @@ def rename(stmt: Stmt, parentScope: Map[String, RenamedInfo], currentScope: muta
 
     case If(cond, thenStmts, elseStmts) =>
         rename(cond, parentScope, currentScope)
-        rename(thenStmts, parentScope.toMap ++ currentScope.toMap)
-        rename(elseStmts, parentScope.toMap ++ currentScope.toMap)
+        rename(thenStmts, parentScope ++ currentScope)
+        rename(elseStmts, parentScope ++ currentScope)
     
     case While(cond, doStmts) =>
         rename(cond, parentScope, currentScope)
-        rename(doStmts, parentScope.toMap ++ currentScope.toMap)
+        rename(doStmts, parentScope ++ currentScope)
 
     case Block(stmts) =>
-        rename(stmts, parentScope.toMap ++ currentScope.toMap)
+        rename(stmts, parentScope ++ currentScope)
 }
 
 /** Renames and checks all variables in a value. */
@@ -161,7 +161,7 @@ def rename(rvalue: LValue | RValue, parentScope: Map[String, RenamedInfo], curre
         if (ctx.funcs.contains(func.value)) {
             args.foreach(rename(_, parentScope, currentScope))
         } else {
-            ctx.error(FunctionNotDefined(func.value)(func.pos))
+            ctx.error(FunctionNotDefined(func.value)(funcScope, func.pos))
         }
 }
 
@@ -177,7 +177,7 @@ def renameExpr(expr: Expr, parentScope: Map[String, RenamedInfo], currentScope: 
             if (parentScope.contains(value)) {
                 id.value = parentScope(value)._1
             } else {
-                ctx.error(VariableNotInScope(id.value)(id.pos))
+                ctx.error(VariableNotInScope(id.value, (parentScope ++ currentScope).keys.toList)(funcScope, id.pos))
             }
         }
     
@@ -221,7 +221,8 @@ def checkIdInScope(ty: IdType, id: Id, scope: mutable.Map[String, RenamedInfo])
                   (using funcScope: String)
                   (using ctx: ScopeCheckerContext[?]): Unit = {
     if (scope.contains(id.value)) {
-        ctx.error(VariableAlreadyDeclared(id.value)(id.pos))
+        val varLocation = scope(id.value)._2._2
+        ctx.error(VariableAlreadyDeclared(id.value, varLocation)(funcScope, id.pos))
     } else {
         // add the new variable to the current scope and the global map
         val actualId = id.value

@@ -1,8 +1,8 @@
-package wacc
+package wacc.frontend
 
 import java.io.File
 import parsley.{Parsley, Result, Failure}
-import parsley.Parsley.{atomic, many, notFollowedBy}
+import parsley.Parsley.{atomic, many}
 import parsley.combinator.countMany
 import parsley.expr.{precedence, SOps, InfixL, InfixR, InfixN, Prefix, Atoms}
 import parsley.cats.combinator.*
@@ -14,7 +14,7 @@ import implicits.implicitSymbol
 import wacc.error.advancedErrors.*
 import wacc.error.syntaxErrors.*
 import wacc.error.errors.*
-import syntax.*
+import wacc.syntax.*
 import exprs.*
 import prog.*
 import stmts.*
@@ -49,7 +49,7 @@ object parser {
         SOps(InfixL)(Mul       from "*",
                      Div       from "/",
                      Mod       from "%")   +:
-        SOps(Prefix)(Neg       from atomic("-" <~ notFollowedBy(digit)),
+        SOps(Prefix)(Neg       from atomic(minusExpr),
                      Not       from "!",
                      Len       from "len",
                      Ord       from "ord",

@@ -1,6 +1,7 @@
-package wacc
+package wacc.frontend
 
 import parsley.Parsley
+import parsley.Parsley.notFollowedBy
 import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions.*
 
@@ -67,6 +68,9 @@ object lexer {
 
     // basic token type parsers
     val digit = parsley.character.digit
+    val minus = lexer.nonlexeme.symbol("-")
+    val minusExpr = lexer.lexeme(minus <~ notFollowedBy(digit))
+    
     val identifier = lexer.lexeme.names.identifier
     val integer = lexer.lexeme.integer.decimal32
     val character = lexer.lexeme.character.ascii
@@ -90,8 +94,7 @@ object lexer {
         lexer.nonlexeme.integer.decimal32.map(n => s"integer $n"),
         lexer.nonlexeme.character.ascii.map(c => s"character '$c'"),
         lexer.nonlexeme.string.ascii.map(s => s"string $s"),
-        lexer.nonlexeme.symbol(" ").map(_ => "whitespace"),
-        lexer.nonlexeme.symbol("\n").map(_ => "endline"),
+        parsley.character.whitespace.map(_ => "whitespace"),
     ) ++ desc.symbolDesc.hardKeywords.map { k =>
         lexer.nonlexeme.symbol(k).as(s"keyword $k")
     }
