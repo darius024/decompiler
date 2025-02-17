@@ -110,6 +110,7 @@ object instructions {
     case class PushStack(reg1: Register, reg2: Register = XZR) extends Instruction
     case class PopStack(reg1: Register, reg2: Register = XZR) extends Instruction
     
+    // operations
     case class Add(dest: Register, src1: Register, src2: RegImm) extends Instruction
     case class Sub(dest: Register, src1: Register, src2: RegImm) extends Instruction
     case class Mul(dest: Register, src1: Register, src2: RegImm) extends Instruction
