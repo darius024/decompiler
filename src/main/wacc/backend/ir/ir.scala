@@ -48,7 +48,8 @@ object registers {
     case class R12(val size: Int = QUAD_WORD) extends Register(size)
     case class R13(val size: Int = QUAD_WORD) extends Register(size)
     case class R14(val size: Int = QUAD_WORD) extends Register(size)
-    case class R15(val size: Int = QUAD_WORD) extends Register(size) 
+    case class R15(val size: Int = QUAD_WORD) extends Register(size)
+    case class RIP(val size: Int = QUAD_WORD) extends Register(size)
 
     case class TempReg(num: Int, val size: Int = QUAD_WORD) extends Register(size)
     class Temporary {
@@ -124,6 +125,9 @@ object instructions {
     case class FuncCall(label: Label) extends Instruction
     case class Jump(label: Label, jumpFlag: JumpFlag) extends Instruction
     case class JumpComp(label: Label, compFlag: CompFlag) extends Instruction
+
+    // sign extend EAX into EDX
+    case object ConvertDoubleToQuad extends Instruction
 }
 
 object flags {

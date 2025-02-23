@@ -3,6 +3,7 @@ package wacc.backend.generator
 import scala.collection.mutable
 
 import wacc.backend.ir.*
+import errors.*
 import flags.*
 import immediate.*
 import instructions.*
@@ -12,7 +13,6 @@ import widgets.*
 
 import wacc.semantics.scoping.semanticTypes.*
 import wacc.semantics.typing.*
-import TyExpr.*
 import TyStmt.*
 
 class WidgetManager {
@@ -167,11 +167,118 @@ def generate(stmt: TyStmt)
 }
 
 def generate(expr: TyExpr)
-            (using codeGen: CodeGenerator): TempReg = ???
+            (using codeGen: CodeGenerator): TempReg = expr match {
+    case exp: TyExpr.BinaryBool =>
+        shortCircuit(exp)
+
+    case TyExpr.BinaryComp(lhs, rhs, op) =>
+        val lhsTemp = generate(lhs)
+        val rhsTemp = generate(rhs)
+
+        codeGen.addInstr(Cmp(lhsTemp, rhsTemp))
+
+        val compFlag = convertToJump(op)
+        val resultReg = codeGen.nextTemp(HALF_WORD)
+        codeGen.addInstr(SetComp(resultReg, compFlag))
+
+        resultReg
+    
+    case exp @ TyExpr.BinaryArithmetic(lhs, rhs, TyExpr.OpArithmetic.Div) =>
+        generateDivMod(exp)
+    
+    case exp @ TyExpr.BinaryArithmetic(lhs, rhs, TyExpr.OpArithmetic.Mod) =>
+        generateDivMod(exp)
+
+    case TyExpr.BinaryArithmetic(lhs, rhs, op) =>
+        val lhsTemp = generate(lhs)
+        val rhsTemp = generate(rhs)
+
+        codeGen.addInstr(op match {
+            case TyExpr.OpArithmetic.Add => Add(lhsTemp, rhsTemp)
+            case TyExpr.OpArithmetic.Sub => Sub(lhsTemp, rhsTemp)
+            case TyExpr.OpArithmetic.Mul =>
+                val temp = codeGen.nextTemp(DOUBLE_WORD)
+                Mul(temp, lhsTemp, rhsTemp)
+            // TODO: remove this case
+            case _ => Add(lhsTemp, rhsTemp)
+        })
+
+        codeGen.addInstr(Jump(ErrOverflow.label, JumpFlag.Overflow))
+
+        lhsTemp
+
+    case TyExpr.Not(expr) => {
+        // TODO: temp should be 8-bit register
+        val temp = generate(expr)
+        codeGen.addInstr(Cmp(temp, Imm(1)))
+        codeGen.addInstr(SetComp(temp, CompFlag.NE))
+
+        val resultReg = codeGen.nextTemp(HALF_WORD)
+        codeGen.addInstr(Mov(resultReg, temp))
+        resultReg
+    }
+    case TyExpr.Neg(expr) => {
+        val temp = generate(expr)
+        val resultReg = codeGen.nextTemp(DOUBLE_WORD)
+        codeGen.addInstr(Mov(resultReg, Imm(0)))
+        codeGen.addInstr(Sub(resultReg, temp))
+
+        codeGen.addInstr(Jump(ErrOverflow.label, JumpFlag.Overflow))
+        resultReg
+    }
+    case TyExpr.Len(expr) => ???
+    case TyExpr.Ord(expr) =>
+        val temp = generate(expr)
+        val resultReg = codeGen.nextTemp(DOUBLE_WORD)
+        codeGen.addInstr(Mov(resultReg, temp))
+        resultReg
+    case TyExpr.Chr(expr) =>
+        val temp = generate(expr)
+        codeGen.addInstr(Test(temp, Imm(-128)))
+        codeGen.addInstr(Mov(RSI(), temp))
+        codeGen.addInstr(codeGen.getWidgetLabel(ErrBadChar))
+        temp
+
+    case TyExpr.IntLit(value)  =>
+        val temp = codeGen.nextTemp()
+        codeGen.addInstr(Mov(temp, Imm(value)))
+        temp
+    case TyExpr.BoolLit(value) =>
+        val temp = codeGen.nextTemp(HALF_WORD)
+        codeGen.addInstr(Mov(temp, Imm(if (value) 1 else 0)))
+        temp
+    case TyExpr.CharLit(value) =>
+        val temp = codeGen.nextTemp()
+        codeGen.addInstr(Mov(temp, Imm(value.toInt)))
+        temp
+    case TyExpr.StrLit(value)  =>
+        val label = codeGen.nextLabel(LabelType.Str)
+        codeGen.addDirective(StrLabel(label, value))
+
+        val temp = codeGen.nextTemp()
+        codeGen.addInstr(Lea(temp, MemAccess(RIP(), label)))
+        temp
+    case TyExpr.PairLit        =>
+        val temp = codeGen.nextTemp()
+        codeGen.addInstr(Mov(temp, Imm(0)))
+        temp
+
+    case TyExpr.Id(value, semTy)    => ???
+    case arrElem : TyExpr.ArrayElem => generateArrayElem(arrElem)
+    case pairFst : TyExpr.PairFst   => generateFstSnd(pairFst)
+    case pairSnd : TyExpr.PairSnd   => generateFstSnd(pairSnd)
+
+    case TyExpr.ArrayLit(exprs, semTy)          => ???
+    case TyExpr.NewPair(fst, snd, fstTy, sndTy) => ???
+    case TyExpr.Call(func, args, retTy, argTys) => ???
+
+    // TODO: remove this case
+    case _ => ???
+}
 
 def generateCond(expr: TyExpr, label: Label)
                 (using codeGen: CodeGenerator): Unit = expr match {
-    case BinaryComp(lhs, rhs, op) => {
+    case TyExpr.BinaryComp(lhs, rhs, op) => {
         val lhsTemp = generate(lhs)
         val rhsTemp = generate(rhs)
         
@@ -180,7 +287,7 @@ def generateCond(expr: TyExpr, label: Label)
         val compType = convertToJump(op)
         codeGen.addInstr(JumpComp(label, compType))
     }
-    case _: BoolLit | _: BinaryBool => {
+    case _: TyExpr.BoolLit | _: TyExpr.BinaryBool => {
         val temp = generate(expr)
         codeGen.addInstr(Cmp(temp, Imm(1)))
         codeGen.addInstr(JumpComp(label, CompFlag.E))
@@ -188,20 +295,58 @@ def generateCond(expr: TyExpr, label: Label)
     case _ =>
 }
 
-def generateDivMod(expr: TyExpr)
+def generateDivMod(expr: TyExpr.BinaryArithmetic)
+                  (using codeGen: CodeGenerator): TempReg = {
+    val TyExpr.BinaryArithmetic(lhs, rhs, op) = expr
+
+    val rhsTemp = generate(rhs)
+    codeGen.addInstr(Cmp(rhsTemp, Imm(0)))
+    codeGen.addInstr(JumpComp(codeGen.getWidgetLabel(ErrDivZero), CompFlag.E))
+
+    val lhsTemp = generate(lhs)
+    codeGen.addInstr(Mov(RAX(), lhsTemp))
+    codeGen.addInstr(ConvertDoubleToQuad)
+    
+    codeGen.addInstr(Div(rhsTemp))
+
+    val resultReg = codeGen.nextTemp(DOUBLE_WORD)
+    val res = if (op == TyExpr.OpArithmetic.Div) then RAX(DOUBLE_WORD) else RDX(DOUBLE_WORD)
+    codeGen.addInstr(Mov(resultReg, res))
+
+    resultReg
+}
+
+def generateFstSnd(pairElem: TyExpr.TyPairElem)
                   (using codeGen: CodeGenerator): TempReg = ???
 
-def generateFstSnd(pairElem: TyPairElem)
-                  (using codeGen: CodeGenerator): TempReg = ???
-
-def generateArrayElem(arrayElem: ArrayElem)
+def generateArrayElem(arrayElem: TyExpr.ArrayElem)
                      (using codeGen: CodeGenerator): TempReg = ???
 
-def convertToJump(op: OpComp): CompFlag = op match {
-    case OpComp.Equal        => CompFlag.E
-    case OpComp.NotEqual     => CompFlag.NE
-    case OpComp.GreaterThan  => CompFlag.G
-    case OpComp.GreaterEqual => CompFlag.GE
-    case OpComp.LessThan     => CompFlag.L
-    case OpComp.LessEqual    => CompFlag.LE
+def convertToJump(op: TyExpr.OpComp): CompFlag = op match {
+    case TyExpr.OpComp.Equal        => CompFlag.E
+    case TyExpr.OpComp.NotEqual     => CompFlag.NE
+    case TyExpr.OpComp.GreaterThan  => CompFlag.G
+    case TyExpr.OpComp.GreaterEqual => CompFlag.GE
+    case TyExpr.OpComp.LessThan     => CompFlag.L
+    case TyExpr.OpComp.LessEqual    => CompFlag.LE
+}
+
+def shortCircuit(expr: TyExpr.BinaryBool)
+                (using codeGen: CodeGenerator): TempReg = {
+    val TyExpr.BinaryBool(lhs, rhs, op) = expr
+    val compFlag = if (op == TyExpr.OpBool.And) then CompFlag.NE else CompFlag.E
+
+    val label = codeGen.nextLabel(LabelType.AnyLabel)
+    val lhsTemp = generate(lhs)
+    codeGen.addInstr(Cmp(lhsTemp, Imm(1)))
+    codeGen.addInstr(JumpComp(label , compFlag))
+
+    val rhsTemp = generate(rhs)
+    codeGen.addInstr(Cmp(rhsTemp, Imm(1)))
+    codeGen.addInstr(label)
+
+    val resultReg = codeGen.nextTemp(HALF_WORD)
+    codeGen.addInstr(SetComp(resultReg, CompFlag.E))
+
+    resultReg
 }
