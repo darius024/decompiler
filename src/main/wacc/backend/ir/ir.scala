@@ -1,6 +1,8 @@
 package wacc.backend.ir
 
+import flags.*
 import immediate.*
+import instructions.*
 import memory.*
 import registers.*
 
@@ -25,8 +27,10 @@ import registers.*
   */
 
 object registers {
-    private final val QUAD_WORD = 64
-    private final val DOUBLE_WORD = 32
+    final val QUAD_WORD = 64
+    final val DOUBLE_WORD = 32
+    final val WORD        = 16
+    final val HALF_WORD   = 8
 
     abstract class Register(size: Int = QUAD_WORD)
     case class RAX(val size: Int) extends Register(size)
@@ -45,6 +49,16 @@ object registers {
     case class R13(val size: Int) extends Register(size)
     case class R14(val size: Int) extends Register(size)
     case class R15(val size: Int) extends Register(size) 
+
+    case class TempReg(num: Int, val size: Int = QUAD_WORD) extends Register()
+    class Temporary {
+        private var number = 0
+
+        def next(size: Int = QUAD_WORD): TempReg = {
+            number += 1
+            TempReg(number, size)
+        }
+    }
 }
 
 object immediate {
@@ -57,7 +71,7 @@ object immediate {
 object memory {
     sealed trait MemoryAccess
 
-    case class MemAccess(reg: Register, offset: Int) extends MemoryAccess
+    case class MemAccess(reg: Register, offset: Int | Label) extends MemoryAccess
 }
 
 object instructions {
@@ -67,38 +81,63 @@ object instructions {
 
     sealed trait Instruction
 
-    // labels and directives
+    // directives
     sealed trait Directive extends Instruction
 
+    case object IntelSyntax extends Directive
     case object SectionRoData extends Directive
     case object Text extends Directive
     case class Label(text: String) extends Directive
-    case class Global(label: String) extends Directive
-    case class StrLabel(name: String, size: Int) extends Directive
+    case class Global(name: String) extends Directive
+    case class StrLabel(label: Label, name: String) extends Directive
 
     // stack
     case class Push(reg: Register) extends Instruction
     case class Pop(reg: Register) extends Instruction
 
-    // operations
+    // comparison
+    case class Cmp(dest: Register, src: RegImm) extends Instruction
+    case class SetComp(dest: Register, compFlag: CompFlag) extends Instruction
+
+    // arithmetic operations
     case class Add(dest: Register, src: RegImm) extends Instruction
     case class Sub(dest: Register, src: RegImm) extends Instruction
-    case class Mul(dest: Register, src: RegImm) extends Instruction
-    case class Mod(dest: Register, src: RegImm) extends Instruction
-    case class Div(dest: Register, src: RegImm) extends Instruction
+
+    case class Mul(dest: Register, src1: RegImm, src2: RegImm) extends Instruction
+    case class Mod(src: RegImm) extends Instruction
+    case class Div(src: RegImm) extends Instruction
+
+    // boolean operations
     case class And(dest: Register, src: RegImm) extends Instruction
     case class Or (dest: Register, src: RegImm) extends Instruction
-
-    case class Neg(dest: Register, src1: RegImm) extends Instruction
-    case class Not(dest: Register, src1: RegImm) extends Instruction
+    case class Neg(dest: Register, src: RegImm) extends Instruction
+    case class Not(dest: Register, src: RegImm) extends Instruction
+    case class Test(dest: Register, src1: RegImm) extends Instruction
 
     // move
     case class Mov(dest: RegMem, src: RegImmMem) extends Instruction
     case class Lea(dest: Register, addr: MemAccess) extends Instruction
 
     // control flow
-    case class Call(label: Label) extends Instruction
-    case class Jump(label: Label) extends Instruction
     case object BranchError extends Instruction
-    case object Return extends Instruction
+    case object Ret extends Instruction
+    case class Call(label: Label) extends Instruction
+    case class Jump(label: Label, jumpFlag: JumpFlag) extends Instruction
+    case class JumpComp(label: Label, compFlag: CompFlag) extends Instruction
+}
+
+object flags {
+    enum CompFlag {
+        case E
+        case NE
+        case G
+        case GE
+        case L
+        case LE
+    }
+
+    enum JumpFlag {
+        case Overflow
+        case Unconditional
+    }
 }

@@ -7,13 +7,30 @@ import widgets.*
 
 object widgets {
 
-    // TODO: Consider adding dependencies for each widget
-    // For example, all errors require PrintString
+    val widgets: Set[Widget] = Set(
+        ReadInt,
+        ReadChar,
+        PrintInt,
+        PrintChar,
+        PrintString,
+        PrintBool,
+        PrintLn,
+        Malloc,
+        FreePair,
+        ArrayStore,
+        Exit,
+        errors.ErrNull,
+        errors.ErrOverflow,
+        errors.ErrDivZero,
+        errors.ErrOutOfBounds,
+        errors.ErrOutOfMemory,
+    )
 
     sealed trait Widget {
         val label: Label
         val directive: Directive
         def instructions: List[Instruction]
+        def dependencies: Set[Widget] = Set.empty
     }
 
     case object ReadInt extends Widget {
@@ -75,11 +92,18 @@ object widgets {
         val directive = ???
         def instructions: List[Instruction] = ???
     }
+
+    case object Exit extends Widget {
+        val label = ???
+        val directive = ???
+        def instructions: List[Instruction] = ???
+    }
 }
 
 object errors {
     sealed trait ErrorWidget extends Widget {
         def message: String
+        override def dependencies: Set[Widget] = Set(widgets.PrintString)
     }
 
     // TODO: Use the errorMessage to generate the errors
