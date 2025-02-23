@@ -18,7 +18,7 @@ object widgets {
         Malloc,
         FreePair,
         ArrayStore,
-        Exit,
+        ExitProg,
         errors.ErrNull,
         errors.ErrOverflow,
         errors.ErrDivZero,
@@ -93,7 +93,7 @@ object widgets {
         def instructions: List[Instruction] = ???
     }
 
-    case object Exit extends Widget {
+    case object ExitProg extends Widget {
         val label = ???
         val directive = ???
         def instructions: List[Instruction] = ???

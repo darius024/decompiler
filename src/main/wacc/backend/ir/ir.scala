@@ -32,25 +32,25 @@ object registers {
     final val WORD        = 16
     final val HALF_WORD   = 8
 
-    abstract class Register(size: Int = QUAD_WORD)
-    case class RAX(val size: Int) extends Register(size)
-    case class RBX(val size: Int) extends Register(size)
-    case class RCX(val size: Int) extends Register(size)
-    case class RDX(val size: Int) extends Register(size)
-    case class RSI(val size: Int) extends Register(size)
-    case class RDI(val size: Int) extends Register(size)
-    case class RSP(val size: Int) extends Register(size)
-    case class RBP(val size: Int) extends Register(size)
-    case class R8 (val size: Int) extends Register(size)
-    case class R9 (val size: Int) extends Register(size)
-    case class R10(val size: Int) extends Register(size)
-    case class R11(val size: Int) extends Register(size)
-    case class R12(val size: Int) extends Register(size)
-    case class R13(val size: Int) extends Register(size)
-    case class R14(val size: Int) extends Register(size)
-    case class R15(val size: Int) extends Register(size) 
+    abstract class Register(size: Int)
+    case class RAX(val size: Int = QUAD_WORD) extends Register(size)
+    case class RBX(val size: Int = QUAD_WORD) extends Register(size)
+    case class RCX(val size: Int = QUAD_WORD) extends Register(size)
+    case class RDX(val size: Int = QUAD_WORD) extends Register(size)
+    case class RSI(val size: Int = QUAD_WORD) extends Register(size)
+    case class RDI(val size: Int = QUAD_WORD) extends Register(size)
+    case class RSP(val size: Int = QUAD_WORD) extends Register(size)
+    case class RBP(val size: Int = QUAD_WORD) extends Register(size)
+    case class R8 (val size: Int = QUAD_WORD) extends Register(size)
+    case class R9 (val size: Int = QUAD_WORD) extends Register(size)
+    case class R10(val size: Int = QUAD_WORD) extends Register(size)
+    case class R11(val size: Int = QUAD_WORD) extends Register(size)
+    case class R12(val size: Int = QUAD_WORD) extends Register(size)
+    case class R13(val size: Int = QUAD_WORD) extends Register(size)
+    case class R14(val size: Int = QUAD_WORD) extends Register(size)
+    case class R15(val size: Int = QUAD_WORD) extends Register(size) 
 
-    case class TempReg(num: Int, val size: Int = QUAD_WORD) extends Register()
+    case class TempReg(num: Int, val size: Int = QUAD_WORD) extends Register(size)
     class Temporary {
         private var number = 0
 
@@ -87,7 +87,7 @@ object instructions {
     case object IntelSyntax extends Directive
     case object SectionRoData extends Directive
     case object Text extends Directive
-    case class Label(text: String) extends Directive
+    case class Label(name: String) extends Directive
     case class Global(name: String) extends Directive
     case class StrLabel(label: Label, name: String) extends Directive
 
@@ -121,7 +121,7 @@ object instructions {
     // control flow
     case object BranchError extends Instruction
     case object Ret extends Instruction
-    case class Call(label: Label) extends Instruction
+    case class FuncCall(label: Label) extends Instruction
     case class Jump(label: Label, jumpFlag: JumpFlag) extends Instruction
     case class JumpComp(label: Label, compFlag: CompFlag) extends Instruction
 }

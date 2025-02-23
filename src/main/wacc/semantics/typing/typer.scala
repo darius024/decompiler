@@ -88,7 +88,7 @@ def check(func: Function)
     val typedParams = params.map { (_, id) => checkLValue(id, Unconstrained)._2 }
     val typedStmts = stmts.toList.flatMap(check(_, Some(retTy)))
 
-    TyFunc(TyExpr.Id(funcName.value, retTy), typedParams, typedStmts)
+    TyFunc(funcName.value, typedParams, typedStmts)
 }
 
 /** Checks the type soundness of a statement.
