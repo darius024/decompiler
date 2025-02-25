@@ -28,6 +28,8 @@ class ValidProgramTest extends AnyWordSpec {
                         os.remove(os.pwd / s"$fileName")
                         pending
                     }
+
+                    // TODO: check exit code as well
                     
                     // testing the frontend should have created the assembly
                     // files at the root level of the directory
@@ -39,11 +41,10 @@ class ValidProgramTest extends AnyWordSpec {
                     try {
                         // transform the compiled program into an executable object
                         val compileResult = os.proc(
-                            "aarch64-linux-gnu-gcc",
+                            "gcc",
                             "-o", os.pwd / s"$fileName",
                             "-z", "noexecstack",
-                            "-march=armv8-a",
-                            os.pwd / s"$fileName"
+                            os.pwd / s"$fileName.s"
                         ).call(
                             timeout = 2000,
                         )
@@ -53,9 +54,7 @@ class ValidProgramTest extends AnyWordSpec {
 
                         // run/emulate the executable and compare results
                         val emulateResult = os.proc(
-                            "qemu-aarch64",
-                            "-L", "/usr/aarch64-linux-gnu/",
-                            os.pwd / s"$fileName"
+                            s"./$fileName"
                         ).call(
                             stdin = inputParameter,
                             timeout = 3000,
