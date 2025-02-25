@@ -25,12 +25,12 @@ class Labeller {
     private var labelCount     = 0
     private var strCount       = 0
 
-    // TODO: Improve labelling
+    // TODO: correct labelling of string labels
     def nextLabel(labelType: LabelType): Label = labelType match {
         case Main           => Label("main")
         case Function(name) => Label(s"wacc_$name")
         case Str            => Label(s".L.str${strCount += 1; strCount}")
-        case Widget(name)   => Label(s".L.$name")
+        case Widget(name)   => Label(s"$name")
 
         case If        => Label(s".L_if_${ifCount += 1; ifCount}")
         case IfEnd     => Label(s".L_end_if_${endIfCount += 1; endIfCount}")
