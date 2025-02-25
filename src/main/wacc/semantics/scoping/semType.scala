@@ -19,7 +19,6 @@ object semanticTypes {
         case Str
         case Array(ty: SemType, arity: Int)
         case Pair(fst: SemType, snd: SemType)
-        case Func(retTy: SemType, argsTy: List[SemType])
 
         override def toString: String = this match {
             case Int            => "int"
@@ -35,9 +34,6 @@ object semanticTypes {
                 case (?, ?) => "pair"
                 case _      => s"pair(${fst.toString}, ${snd.toString})"
             }
-            case Func(retTy, argsTy) => 
-                val argsStr = argsTy.map(_.toString).mkString(", ")
-                s"${retTy.toString}($argsStr)"
         }
     }
 

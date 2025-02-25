@@ -2,6 +2,8 @@ package wacc.semantics.typing
 
 import wacc.semantics.scoping.semanticTypes.*
 
+type TyStmtList = List[TyStmt]
+
 /** Typed expression nodes.
   * 
   * Each node has a specific type associated with it,
@@ -9,23 +11,31 @@ import wacc.semantics.scoping.semanticTypes.*
   */
 sealed abstract class TyExpr(var ty: SemType)
 object TyExpr {
-    case class Or(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
-    case class And(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
+    sealed trait Operation
+    enum OpComp extends Operation {
+        case Equal
+        case NotEqual
+        case GreaterThan
+        case GreaterEqual
+        case LessThan
+        case LessEqual
+    }
+    case class BinaryComp(lhs: TyExpr, rhs: TyExpr, op: OpComp) extends TyExpr(KType.Bool)
 
-    case class Equal(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
-    case class NotEqual(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
+    enum OpBool extends Operation {
+        case And
+        case Or
+    }
+    case class BinaryBool(lhs: TyExpr, rhs: TyExpr, op: OpBool) extends TyExpr(KType.Bool)
 
-    case class Greater(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
-    case class GreaterEq(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
-    case class Less(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
-    case class LessEq(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Bool)
-
-    case class Add(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Int)
-    case class Sub(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Int)
-
-    case class Mul(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Int)
-    case class Div(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Int)
-    case class Mod(lhs: TyExpr, rhs: TyExpr) extends TyExpr(KType.Int)
+    enum OpArithmetic extends Operation {
+        case Add
+        case Sub
+        case Mul
+        case Div
+        case Mod 
+    }
+    case class BinaryArithmetic(lhs: TyExpr, rhs: TyExpr, op: OpArithmetic) extends TyExpr(KType.Int)
 
     case class Not(expr: TyExpr) extends TyExpr(KType.Bool)
     case class Neg(expr: TyExpr) extends TyExpr(KType.Int)
@@ -40,16 +50,16 @@ object TyExpr {
     case object PairLit extends TyExpr(KType.Pair(?, ?))
 
     /** Typed l-values. */
-    enum LVal(ty: SemType) extends TyExpr(ty) {
-        case Id(value: String, semTy: SemType) extends LVal(semTy)
-        case ArrayElem(lVal: LVal, idx: List[TyExpr], semTy: SemType) extends LVal(semTy)
-        case PairFst(lval: LVal, semTy: SemType) extends LVal(semTy)
-        case PairSnd(lval: LVal, semTy: SemType) extends LVal(semTy)
-    }
+    abstract class LVal(ty: SemType) extends TyExpr(ty)
+    case class Id(value: String, semTy: SemType) extends LVal(semTy)
+    case class ArrayElem(lval: LVal, idx: List[TyExpr], semTy: SemType) extends LVal(semTy)
+    sealed trait TyPairElem
+    case class PairFst(lval: LVal, semTy: SemType) extends LVal(semTy) with TyPairElem
+    case class PairSnd(lval: LVal, semTy: SemType) extends LVal(semTy) with TyPairElem
 
     case class ArrayLit(exprs: List[TyExpr], semTy: SemType) extends TyExpr(semTy)
     case class NewPair(fst: TyExpr, snd: TyExpr, fstTy: SemType, sndTy: SemType) extends TyExpr(KType.Pair(fstTy, sndTy))
-    case class Call(func: LVal.Id, args: List[TyExpr], argTys: List[SemType]) extends TyExpr(KType.Func(func.ty, argTys))
+    case class Call(func: String, args: List[TyExpr], retTy: SemType, argTys: List[SemType]) extends TyExpr(retTy)
 }
 
 /** Typed statement nodes. */
@@ -61,11 +71,11 @@ enum TyStmt {
     case Exit(expr: TyExpr)
     case Print(expr: TyExpr)
     case Println(expr: TyExpr)
-    case If(cond: TyExpr, thenStmts: List[TyStmt], elseStmts: List[TyStmt])
-    case While(cond: TyExpr, doStmts: List[TyStmt])
-    case Block(stmts: List[TyStmt])
+    case If(cond: TyExpr, thenStmts: TyStmtList, elseStmts: TyStmtList)
+    case While(cond: TyExpr, doStmts: TyStmtList)
+    case Block(stmts: TyStmtList)
 }
 
 /** Typed function and program nodes. */
-case class TyFunc(id: TyExpr.LVal, params: Array[TyExpr.LVal], stmts: List[TyStmt])
-case class TyProg(funcs: List[TyFunc], stmts: List[TyStmt])
+case class TyFunc(name: String, params: Array[TyExpr.LVal], stmts: TyStmtList)
+case class TyProg(funcs: List[TyFunc], stmts: TyStmtList)

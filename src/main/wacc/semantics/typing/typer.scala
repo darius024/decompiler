@@ -88,7 +88,7 @@ def check(func: Function)
     val typedParams = params.map { (_, id) => checkLValue(id, Unconstrained)._2 }
     val typedStmts = stmts.toList.flatMap(check(_, Some(retTy)))
 
-    TyFunc(TyExpr.LVal.Id(funcName.value, retTy), typedParams, typedStmts)
+    TyFunc(funcName.value, typedParams, typedStmts)
 }
 
 /** Checks the type soundness of a statement.
@@ -166,22 +166,22 @@ def check(stmt: Stmt, retTy: Option[SemType])
 def checkExpr(expr: Expr, cons: Constraint)
              (using funcScope: String)
              (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = expr match {
-    case Or(lhs, rhs)           => checkBinExpr(lhs, rhs, KType.Bool, cons, expr.pos)(TyExpr.Or.apply)
-    case And(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Bool, cons, expr.pos)(TyExpr.And.apply)
+    case Or(lhs, rhs)           => checkBinExpr(lhs, rhs, KType.Bool, TyExpr.OpBool.Or, cons, expr.pos)
+    case And(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Bool, TyExpr.OpBool.And, cons, expr.pos)
     
-    case Equal(lhs, rhs)        => checkBinExpr(lhs, rhs, ?, cons, expr.pos)(TyExpr.Equal.apply)
-    case NotEqual(lhs, rhs)     => checkBinExpr(lhs, rhs, ?, cons, expr.pos)(TyExpr.NotEqual.apply)
+    case Equal(lhs, rhs)        => checkBinExpr(lhs, rhs, ?, TyExpr.OpComp.Equal, cons, expr.pos)
+    case NotEqual(lhs, rhs)     => checkBinExpr(lhs, rhs, ?, TyExpr.OpComp.NotEqual, cons, expr.pos)
     
-    case Greater(lhs, rhs)      => checkIntChar(lhs, rhs, cons, expr.pos)(TyExpr.Greater.apply)
-    case GreaterEq(lhs, rhs)    => checkIntChar(lhs, rhs, cons, expr.pos)(TyExpr.GreaterEq.apply)
-    case Less(lhs, rhs)         => checkIntChar(lhs, rhs, cons, expr.pos)(TyExpr.Less.apply)
-    case LessEq(lhs, rhs)       => checkIntChar(lhs, rhs, cons, expr.pos)(TyExpr.LessEq.apply)
+    case Greater(lhs, rhs)      => checkIntChar(lhs, rhs, TyExpr.OpComp.GreaterThan, cons, expr.pos)
+    case GreaterEq(lhs, rhs)    => checkIntChar(lhs, rhs, TyExpr.OpComp.GreaterEqual, cons, expr.pos)
+    case Less(lhs, rhs)         => checkIntChar(lhs, rhs, TyExpr.OpComp.LessThan, cons, expr.pos)
+    case LessEq(lhs, rhs)       => checkIntChar(lhs, rhs, TyExpr.OpComp.LessEqual, cons, expr.pos)
     
-    case Add(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons, expr.pos)(TyExpr.Add.apply)
-    case Sub(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons, expr.pos)(TyExpr.Sub.apply)
-    case Mul(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons, expr.pos)(TyExpr.Mul.apply)
-    case Div(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons, expr.pos)(TyExpr.Div.apply)
-    case Mod(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, cons, expr.pos)(TyExpr.Mod.apply)
+    case Add(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, TyExpr.OpArithmetic.Add, cons, expr.pos)
+    case Sub(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, TyExpr.OpArithmetic.Sub, cons, expr.pos)
+    case Mul(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, TyExpr.OpArithmetic.Mul, cons, expr.pos)
+    case Div(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, TyExpr.OpArithmetic.Div, cons, expr.pos)
+    case Mod(lhs, rhs)          => checkBinExpr(lhs, rhs, KType.Int, TyExpr.OpArithmetic.Mod, cons, expr.pos)
     
     case Not(exp)               => checkUnary(exp, KType.Bool, cons, expr.pos)(TyExpr.Not.apply)
     case Neg(exp)               => checkUnary(exp, KType.Int, cons, expr.pos)(TyExpr.Neg.apply)
@@ -248,7 +248,7 @@ def checkRValue(rvalue: RValue, cons: Constraint)
         }.unzip
 
         // the return type must satisfy the constraint
-        (retTy.satisfies(cons, func.pos), TyExpr.Call(TyExpr.LVal.Id(func.value, retTy), typedArgs, argTys))
+        (retTy.satisfies(cons, func.pos), TyExpr.Call(func.value, typedArgs, retTy, argTys))
 }
 
 /** Checks the type soundness of an lvalue. */
@@ -258,7 +258,7 @@ def checkLValue(lvalue: LValue, cons: Constraint)
     case Id(value) =>
         // retrieve the type of the identifier
         val kTy = ctx.typeOf(value)
-        (kTy.satisfies(cons, lvalue.pos), TyExpr.LVal.Id(value, kTy))
+        (kTy.satisfies(cons, lvalue.pos), TyExpr.Id(value, kTy))
     
     case ArrayElem(id, idx) =>
         // get the type of the array
@@ -274,7 +274,7 @@ def checkLValue(lvalue: LValue, cons: Constraint)
         val innerTy = unwrapArrayType(baseTy, idx.length)
 
         // the unwrapped type must satisfy the constraint
-        (innerTy.satisfies(cons, lvalue.pos), TyExpr.LVal.ArrayElem(typedId, typedIdx, innerTy))
+        (innerTy.satisfies(cons, lvalue.pos), TyExpr.ArrayElem(typedId, typedIdx, innerTy))
     
     case pairElem: PairElem => checkPairElem(pairElem, cons)
 }
@@ -290,26 +290,30 @@ def checkPairElem(pairElem: PairElem, cons: Constraint)
     case Fst(lval) =>
         val (fstTy, typedFst) = checkLValue(lval, IsPair)
         fstTy match {
-            case Some(KType.Pair(fst, _)) => (fst.satisfies(cons, lval.pos), TyExpr.LVal.PairFst(typedFst, fst))
-            case _ => (fstTy.getOrElse(?).satisfies(IsPair, lval.pos), TyExpr.LVal.PairFst(typedFst, ?))
+            case Some(KType.Pair(fst, _)) => (fst.satisfies(cons, lval.pos), TyExpr.PairFst(typedFst, fst))
+            case _ => (fstTy.getOrElse(?).satisfies(IsPair, lval.pos), TyExpr.PairFst(typedFst, ?))
         }
     
     case Snd(lval) =>
         val (sndTy, typedSnd) = checkLValue(lval, IsPair)
         sndTy match {
-            case Some(KType.Pair(_, snd)) => (snd.satisfies(cons, lval.pos), TyExpr.LVal.PairSnd(typedSnd, snd))
-            case _ => (sndTy.getOrElse(?).satisfies(IsPair, lval.pos), TyExpr.LVal.PairSnd(typedSnd, ?))
+            case Some(KType.Pair(_, snd)) => (snd.satisfies(cons, lval.pos), TyExpr.PairSnd(typedSnd, snd))
+            case _ => (sndTy.getOrElse(?).satisfies(IsPair, lval.pos), TyExpr.PairSnd(typedSnd, ?))
         }
 }
 
 /** Checks the type soundness of a binary expression. */
-def checkBinExpr(lhs: Expr, rhs: Expr, semType: SemType, cons: Constraint, pos: Position)
-                (build: (TyExpr, TyExpr) => TyExpr)
+def checkBinExpr(lhs: Expr, rhs: Expr, semType: SemType, op: TyExpr.Operation,
+                 cons: Constraint, pos: Position)
                 (using funcScope: String)
                 (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
     val (lhsTy, typedLhs) = checkExpr(lhs, Is(semType))
     val (rhsTy, typedRhs) = checkExpr(rhs, lhsTy.fold(Is(semType))(Is(_)))
-    val typedExpr = build(typedLhs, typedRhs)
+    val typedExpr = op match {
+        case oper: TyExpr.OpComp       => TyExpr.BinaryComp(typedLhs, typedRhs, oper)
+        case oper: TyExpr.OpBool       => TyExpr.BinaryBool(typedLhs, typedRhs, oper)
+        case oper: TyExpr.OpArithmetic => TyExpr.BinaryArithmetic(typedLhs, typedRhs, oper)
+    }
 
     unifyTypes(typedLhs, typedRhs, lhsTy, rhsTy, pos)
 
@@ -317,13 +321,13 @@ def checkBinExpr(lhs: Expr, rhs: Expr, semType: SemType, cons: Constraint, pos: 
 }
 
 /** Checks the type soundness of an integer or character binary expression. */
-def checkIntChar(lhs: Expr, rhs: Expr, cons: Constraint, pos: Position)
-                (build: (TyExpr, TyExpr) => TyExpr)
+def checkIntChar(lhs: Expr, rhs: Expr, op: TyExpr.OpComp,
+                 cons: Constraint, pos: Position)
                 (using funcScope: String)
                 (using TypeCheckerContext[?]): (Option[SemType], TyExpr) = {
     val (lhsTy, typedLhs) = checkExpr(lhs, IsEither(KType.Int, KType.Char))
     val (rhsTy, typedRhs) = checkExpr(rhs, lhsTy.fold(IsEither(KType.Int, KType.Char))(Is(_)))
-    val typedExpr = build(typedLhs, typedRhs)
+    val typedExpr = TyExpr.BinaryComp(typedLhs, typedRhs, op)
 
     unifyTypes(typedLhs, typedRhs, lhsTy, rhsTy, pos)
 
