@@ -267,65 +267,99 @@ object widgets {
     }
 }
 
+
 object errors {
     sealed trait ErrorWidget extends Widget {
         def message: String
         override def dependencies: Set[Widget] = Set(widgets.PrintString)
     }
 
-    // TODO: Use the errorMessage to generate the errors
-
     case object ErrNull extends ErrorWidget {
-        val label = ???
-        val directive = ???
-        def instructions: List[Instruction] = ???
-        def message: String = ???
+        val label = Label("_errNull")
+        override val directives = List(StrLabel(Label("_errNull_str0"), message))
+        def message: String = errorMessages.generateError("null pointer")
+        def instructions: List[Instruction] = List(
+            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Lea(RDI(), MemAccess(RIP(), Label("_errNull_str0"))),
+            Call(widgets.PrintString.label),
+            Mov(RDI(BYTE), Imm(errorCodes.FAILURE)),
+            Call(library.exit)
+        )
     }
 
     case object ErrOverflow extends ErrorWidget {
-        val label = ???
-        val directive = ???
-        def instructions: List[Instruction] = ???
-        def message: String = ???
+        val label = Label("_errOverflow")
+        override val directives = List(StrLabel(Label("_errOverflow_str0"), message))
+        def message: String = errorMessages.generateError("integer overflow or underflow occurred")
+        def instructions: List[Instruction] = List(
+            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Lea(RDI(), MemAccess(RIP(), Label("_errOverflow_str0"))),
+            Call(widgets.PrintString.label),
+            Mov(RDI(BYTE), Imm(errorCodes.FAILURE)),
+            Call(library.exit)
+        )
     }
 
     case object ErrDivZero extends ErrorWidget {
-        val label = ???
-        val directive = ???
-        def instructions: List[Instruction] = ???
-        def message: String = ???
+        val label = Label("_errDivZero")
+        override val directives = List(StrLabel(Label("_errDivZero_str0"), message))
+        def message: String = errorMessages.generateError("division or modulo by zero")
+        def instructions: List[Instruction] = List(
+            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Lea(RDI(), MemAccess(RIP(), Label("_errDivZero_str0"))),
+            Call(widgets.PrintString.label),
+            Mov(RDI(BYTE), Imm(errorCodes.FAILURE)),
+            Call(library.exit)
+        )
     }
 
     case object ErrOutOfBounds extends ErrorWidget {
-        val label = ???
-        val directive = ???
-        def instructions: List[Instruction] = ???
-        def message: String = ???
+        val label = Label("_errOutOfBounds")
+        override val directives = List(StrLabel(Label("_errOutOfBounds_str0"), message))
+        def message: String = errorMessages.generateError("array index %d out of bounds")
+        def instructions: List[Instruction] = List(
+            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Lea(RDI(), MemAccess(RIP(), Label("_errOutOfBounds_str0"))),
+            Mov(RAX(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Call(library.printf),
+            Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Call(library.fflush),
+            Mov(RDI(BYTE), Imm(errorCodes.FAILURE)),
+            Call(library.exit)
+        )
     }
 
     case object ErrOutOfMemory extends ErrorWidget {
-        val label = ???
-        val directive = ???
-        def instructions: List[Instruction] = ???
-        def message: String = ???
+        val label = Label("_errOutOfMemory")
+        override val directives = List(StrLabel(Label("_errOutOfMemory_str0"), message))
+        def message: String = errorMessages.generateError("out of memory")
+        def instructions: List[Instruction] = List(
+            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Lea(RDI(), MemAccess(RIP(), Label("_errOutOfMemory_str0"))),
+            Call(widgets.PrintString.label),
+            Mov(RDI(BYTE), Imm(errorCodes.FAILURE)),
+            Call(library.exit)
+        )
     }
 
     case object ErrBadChar extends ErrorWidget {
-        val label = ???
-        val directive = ???
-        def instructions: List[Instruction] = ???
-        def message: String = ???
+        val label = Label("_errBadChar")
+        override val directives = List(StrLabel(Label("_errBadChar_str0"), message))
+        def message: String = errorMessages.generateError("invalid character")
+        def instructions: List[Instruction] = List(
+            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Lea(RDI(), MemAccess(RIP(), Label("_errBadChar_str0"))),
+            Mov(RAX(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Call(library.printf),
+            Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Call(library.fflush),
+            Mov(RDI(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Call(library.exit)
+        )
     }
 }
 
 object errorMessages {
-    final val overflow = ???
-    final val divideByZero = ???
-    final val nullPointer = ???
-    final val arrayOutOfBounds = ???
-    final val outOfMemory = ???
-    final val badChar = ???
-
     def generateError(message: String): String = s"fatal error: $message\n"
 }
 
@@ -338,6 +372,7 @@ object library {
     val puts   = Label("puts")
     val scanf  = Label("scanf")
 }
+
 
 object arrStore {
     def instructions(size: Int): List[Instruction] = List(
