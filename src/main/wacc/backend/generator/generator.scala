@@ -26,19 +26,19 @@ class WidgetManager {
 }
 
 class CodeGenerator(instructions: mutable.Builder[Instruction, List[Instruction]],
-                    directives: mutable.Builder[Directive, Set[Directive]],
+                    directives: mutable.Builder[StrLabel, Set[StrLabel]],
                     labeller: Labeller,
                     temp: Temporary,
                     widgets: WidgetManager) {
     def ir: List[Instruction] = instructions.result()
-    def data: Set[Directive] = directives.result()
+    def data: Set[StrLabel] = directives.result()
     def dependencies: Set[Widget] = widgets.usedWidgets
 
     def addInstr(instruction: Instruction): Unit = {
         instructions += instruction
     }
 
-    def addDirective(directive: Directive): Unit = {
+    def addStrLabel(directive: StrLabel): Unit = {
         directives += directive
     }
 
@@ -110,7 +110,7 @@ def generate(stmt: TyStmt)
         }
         codeGen.addInstr(Call(codeGen.getWidgetLabel(widget)))
     
-    case Free(expr: TyExpr) => ???
+    case Free(expr: TyExpr) =>
 
     case Return(expr: TyExpr) =>
         val temp = generate(expr)
@@ -226,7 +226,7 @@ def generate(expr: TyExpr)
         codeGen.addInstr(Jump(ErrOverflow.label, JumpFlag.Overflow))
         resultReg
     }
-    case TyExpr.Len(expr) => ???
+    case TyExpr.Len(expr) => TempReg(-1)
     case TyExpr.Ord(expr) =>
         val temp = generate(expr)
         val resultReg = codeGen.nextTemp(DOUBLE_WORD)
@@ -253,7 +253,7 @@ def generate(expr: TyExpr)
         temp
     case TyExpr.StrLit(value)  =>
         val label = codeGen.nextLabel(LabelType.Str)
-        codeGen.addDirective(StrLabel(label, value))
+        codeGen.addStrLabel(StrLabel(label, value))
 
         val temp = codeGen.nextTemp()
         codeGen.addInstr(Lea(temp, MemAccess(RIP(), label)))
@@ -263,17 +263,17 @@ def generate(expr: TyExpr)
         codeGen.addInstr(Mov(temp, Imm(0)))
         temp
 
-    case TyExpr.Id(value, semTy)    => ???
+    case TyExpr.Id(value, semTy)    => TempReg(-1)
     case arrElem : TyExpr.ArrayElem => generateArrayElem(arrElem)
     case pairFst : TyExpr.PairFst   => generateFstSnd(pairFst)
     case pairSnd : TyExpr.PairSnd   => generateFstSnd(pairSnd)
 
-    case TyExpr.ArrayLit(exprs, semTy)          => ???
-    case TyExpr.NewPair(fst, snd, fstTy, sndTy) => ???
-    case TyExpr.Call(func, args, retTy, argTys) => ???
+    case TyExpr.ArrayLit(exprs, semTy)          => TempReg(-1)
+    case TyExpr.NewPair(fst, snd, fstTy, sndTy) => TempReg(-1)
+    case TyExpr.Call(func, args, retTy, argTys) => TempReg(-1)
 
     // TODO: remove this case
-    case _ => ???
+    case _ => TempReg(-1)
 }
 
 def generateCond(expr: TyExpr, label: Label)
@@ -317,10 +317,10 @@ def generateDivMod(expr: TyExpr.BinaryArithmetic)
 }
 
 def generateFstSnd(pairElem: TyExpr.TyPairElem)
-                  (using codeGen: CodeGenerator): TempReg = ???
+                  (using codeGen: CodeGenerator): TempReg = TempReg(-1)
 
 def generateArrayElem(arrayElem: TyExpr.ArrayElem)
-                     (using codeGen: CodeGenerator): TempReg = ???
+                     (using codeGen: CodeGenerator): TempReg = TempReg(-1)
 
 def convertToJump(op: TyExpr.OpComp): CompFlag = op match {
     case TyExpr.OpComp.Equal        => CompFlag.E

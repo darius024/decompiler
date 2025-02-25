@@ -38,7 +38,7 @@ object widgets {
 
     sealed trait Widget {
         val label: Label
-        val directives: List[Directive] = List.empty
+        val directives: List[StrLabel] = List.empty
         def instructions: List[Instruction]
         def dependencies: Set[Widget] = Set.empty
     }

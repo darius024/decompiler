@@ -2,7 +2,7 @@ package wacc
 
 import java.io.File
 import parsley.{Success, Failure}
-import scala.annotation.unused
+import wacc.backend.*
 import wacc.frontend.*
 
 // entry point
@@ -24,12 +24,15 @@ def compile(file: File): (String, ExitCode) = {
     }
 
     // semantic analysis: scope and type checking
-    @unused val typedAst = semantics.check(ast) match {
+    val typedAst = semantics.check(ast) match {
         // on successful analysis, the typed AST is returned
         case Right(tyAst) => tyAst
         // otherwise, there is a semantic error
         case Left(errs) => return (s"${semantics.format(errs, file)}", ExitCode.SemanticErr)
     }
+
+    // code generation and assembly formatter
+    formatter.format(generator.generate(typedAst), file)
 
     ("Code compiled successfully.", ExitCode.Success)
 }
