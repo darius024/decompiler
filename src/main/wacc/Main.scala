@@ -3,7 +3,6 @@ package wacc
 import java.io.File
 import parsley.{Success, Failure}
 import scala.annotation.unused
-
 import wacc.frontend.*
 
 // entry point
@@ -37,9 +36,15 @@ def compile(file: File): (String, ExitCode) = {
 
 /** Using an enum of fixed codes to prevent invalid codes being used. */
 enum ExitCode(val code: Int) {
-    case Success     extends ExitCode(0)
-    case SyntaxErr   extends ExitCode(100)
-    case SemanticErr extends ExitCode(200)
+    case Success     extends ExitCode(exitCodes.SUCCESS)
+    case SyntaxErr   extends ExitCode(exitCodes.SYNTAX_ERROR)
+    case SemanticErr extends ExitCode(exitCodes.SEMANTIC_ERROR)
 
     def enforce(): Unit = System.exit(code)
+}
+
+object exitCodes {
+    final val SUCCESS = 0
+    final val SYNTAX_ERROR = 100
+    final val SEMANTIC_ERROR = 200
 }

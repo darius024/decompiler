@@ -27,31 +27,31 @@ import registers.*
   */
 
 object registers {
-    final val QUAD_WORD = 64
+    final val QUAD_WORD   = 64
     final val DOUBLE_WORD = 32
     final val WORD        = 16
-    final val HALF_WORD   = 8
+    final val BYTE        = 8
 
-    abstract class Register(size: Int)
-    case class RAX(val size: Int = QUAD_WORD) extends Register(size)
-    case class RBX(val size: Int = QUAD_WORD) extends Register(size)
-    case class RCX(val size: Int = QUAD_WORD) extends Register(size)
-    case class RDX(val size: Int = QUAD_WORD) extends Register(size)
-    case class RSI(val size: Int = QUAD_WORD) extends Register(size)
-    case class RDI(val size: Int = QUAD_WORD) extends Register(size)
-    case class RSP(val size: Int = QUAD_WORD) extends Register(size)
-    case class RBP(val size: Int = QUAD_WORD) extends Register(size)
-    case class R8 (val size: Int = QUAD_WORD) extends Register(size)
-    case class R9 (val size: Int = QUAD_WORD) extends Register(size)
-    case class R10(val size: Int = QUAD_WORD) extends Register(size)
-    case class R11(val size: Int = QUAD_WORD) extends Register(size)
-    case class R12(val size: Int = QUAD_WORD) extends Register(size)
-    case class R13(val size: Int = QUAD_WORD) extends Register(size)
-    case class R14(val size: Int = QUAD_WORD) extends Register(size)
-    case class R15(val size: Int = QUAD_WORD) extends Register(size)
-    case class RIP(val size: Int = QUAD_WORD) extends Register(size)
+    abstract class Register(val size: Int)
+    case class RAX(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class RBX(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class RCX(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class RDX(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class RSI(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class RDI(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class RSP(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class RBP(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class R8 (val dim: Int = QUAD_WORD) extends Register(dim)
+    case class R9 (val dim: Int = QUAD_WORD) extends Register(dim)
+    case class R10(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class R11(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class R12(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class R13(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class R14(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class R15(val dim: Int = QUAD_WORD) extends Register(dim)
+    case class RIP(val dim: Int = QUAD_WORD) extends Register(dim)
 
-    case class TempReg(num: Int, val size: Int = QUAD_WORD) extends Register(size)
+    case class TempReg(num: Int, val dim: Int = QUAD_WORD) extends Register(dim)
     class Temporary {
         private var number = 0
 
@@ -59,6 +59,10 @@ object registers {
             number += 1
             TempReg(number, size)
         }
+    }
+
+    object initialValues {
+        final val CLEAR = 0
     }
 }
 
@@ -73,10 +77,11 @@ object memory {
     sealed trait MemoryAccess
 
     case class MemAccess(reg: Register, offset: Int | Label) extends MemoryAccess
+    case class MemRegAccess(base: Register, reg: Register, coeff: Int) extends MemoryAccess
 }
 
 object instructions {
-    type RegMem = Register | MemAccess
+    type RegMem = Register | MemoryAccess
     type RegImm = Register | Immediate
     type RegImmMem = Register | Immediate | MemAccess
 
@@ -118,11 +123,11 @@ object instructions {
     // move
     case class Mov(dest: RegMem, src: RegImmMem) extends Instruction
     case class Lea(dest: Register, addr: MemAccess) extends Instruction
+    case class CMov(dest: Register, src: Register, cond: CompFlag) extends Instruction
 
     // control flow
-    case object BranchError extends Instruction
     case object Ret extends Instruction
-    case class FuncCall(label: Label) extends Instruction
+    case class Call(label: Label) extends Instruction
     case class Jump(label: Label, jumpFlag: JumpFlag) extends Instruction
     case class JumpComp(label: Label, compFlag: CompFlag) extends Instruction
 
@@ -144,4 +149,21 @@ object flags {
         case Overflow
         case Unconditional
     }
+}
+
+object errorCodes {
+    final val FAILURE = -1
+    final val ARRAY_OUT_OF_BOUNDS = 1
+    final val NULL_POINTER = 0
+}
+
+object memoryOffsets {
+    final val NO_OFFSET = 0
+    final val ARRAY_LENGTH_OFFSET = -4
+    final val STACK_ALIGNMENT = -16
+    final val BOOL_PRINT_OFFSET = 24
+    final val ARR_STORE1 = 1
+    final val ARR_STORE2 = 2
+    final val ARR_STORE4 = 4
+    final val ARR_STORE8 = 8
 }
