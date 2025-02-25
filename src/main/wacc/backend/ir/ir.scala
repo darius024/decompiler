@@ -96,6 +96,8 @@ object instructions {
     case class Label(name: String) extends Directive
     case class Global(name: String) extends Directive
     case class StrLabel(label: Label, name: String) extends Directive
+    case class DirInt(size: Int) extends Directive
+    case class Asciz(name: String) extends Directive
 
     // stack
     case class Push(reg: Register) extends Instruction
