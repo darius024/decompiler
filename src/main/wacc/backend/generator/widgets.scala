@@ -45,7 +45,7 @@ object widgets {
 
     case object ReadInt extends Widget {
         val label = Label("_readi")
-        override val directives = List(StrLabel(Label("_readi_str0"), asciz.integer))
+        override val directives = List(StrLabel(Label(".L._readi_str0"), asciz.integer))
         def instructions: List[Instruction] = List(
             Push(RBP()),
             Mov(RBP(), RSP()),
@@ -66,7 +66,7 @@ object widgets {
 
     case object ReadChar extends Widget {
         val label = Label("_readc")
-        override val directives = List(StrLabel(Label("_readc_str0"), asciz.character))
+        override val directives = List(StrLabel(Label(".L._readc_str0"), asciz.character))
         def instructions: List[Instruction] = List(
             Push(RBP()),
             Mov(RBP(), RSP()),
@@ -87,7 +87,7 @@ object widgets {
 
     case object PrintInt extends Widget {
         val label = Label("_printi")
-        override val directives = List(StrLabel(Label("_printi_str0"), asciz.integer))
+        override val directives = List(StrLabel(Label(".L._printi_str0"), asciz.integer))
         def instructions: List[Instruction] = List(
             Push(RBP()),
             Mov(RBP(), RSP()),
@@ -106,7 +106,7 @@ object widgets {
 
     case object PrintChar extends Widget {
         val label = Label("_printc")
-        override val directives = List(StrLabel(Label("_printc_str0"), asciz.character))
+        override val directives = List(StrLabel(Label(".L._printc_str0"), asciz.character))
         def instructions: List[Instruction] = List(
             Push(RBP()),
             Mov(RBP(), RSP()),
@@ -125,7 +125,7 @@ object widgets {
 
     case object PrintString extends Widget {
         val label = Label("_prints")
-        override val directives = List(StrLabel(Label("_prints_str0"), asciz.string))
+        override val directives = List(StrLabel(Label(".L._prints_str0"), asciz.string))
         def instructions: List[Instruction] = List(
             Push(RBP()),
             Mov(RBP(), RSP()),
@@ -146,9 +146,9 @@ object widgets {
     case object PrintBool extends Widget {
         val label = Label("_printb")
         override val directives = List(
-            StrLabel(Label("_printb_str0"), "false"),
-            StrLabel(Label("_printb_str1"), "true"),
-            StrLabel(Label("_printb_str2"), asciz.string)
+            StrLabel(Label(".L._printb_str0"), "false"),
+            StrLabel(Label(".L._printb_str1"), "true"),
+            StrLabel(Label(".L._printb_str2"), asciz.string)
         )
         def instructions: List[Instruction] = List(
             Push(RBP()),
@@ -175,7 +175,7 @@ object widgets {
 
     case object PrintLn extends Widget {
         val label = Label("_println")
-        override val directives = List(StrLabel(Label("_println_str0"), asciz.endl))
+        override val directives = List(StrLabel(Label(".L._println_str0"), asciz.endl))
         def instructions: List[Instruction] = List(
             Push(RBP()),
             Mov(RBP(), RSP()),
@@ -276,7 +276,7 @@ object errors {
 
     case object ErrNull extends ErrorWidget {
         val label = Label("_errNull")
-        override val directives = List(StrLabel(Label("_errNull_str0"), message))
+        override val directives = List(StrLabel(Label(".L._errNull_str0"), message))
         def message: String = errorMessages.generateError("null pointer")
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
@@ -289,7 +289,7 @@ object errors {
 
     case object ErrOverflow extends ErrorWidget {
         val label = Label("_errOverflow")
-        override val directives = List(StrLabel(Label("_errOverflow_str0"), message))
+        override val directives = List(StrLabel(Label(".L._errOverflow_str0"), message))
         def message: String = errorMessages.generateError("integer overflow or underflow occurred")
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
@@ -302,7 +302,7 @@ object errors {
 
     case object ErrDivZero extends ErrorWidget {
         val label = Label("_errDivZero")
-        override val directives = List(StrLabel(Label("_errDivZero_str0"), message))
+        override val directives = List(StrLabel(Label(".L._errDivZero_str0"), message))
         def message: String = errorMessages.generateError("division or modulo by zero")
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
@@ -315,7 +315,7 @@ object errors {
 
     case object ErrOutOfBounds extends ErrorWidget {
         val label = Label("_errOutOfBounds")
-        override val directives = List(StrLabel(Label("_errOutOfBounds_str0"), message))
+        override val directives = List(StrLabel(Label(".L._errOutOfBounds_str0"), message))
         def message: String = errorMessages.generateError("array index %d out of bounds")
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
@@ -331,7 +331,7 @@ object errors {
 
     case object ErrOutOfMemory extends ErrorWidget {
         val label = Label("_errOutOfMemory")
-        override val directives = List(StrLabel(Label("_errOutOfMemory_str0"), message))
+        override val directives = List(StrLabel(Label(".L._errOutOfMemory_str0"), message))
         def message: String = errorMessages.generateError("out of memory")
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
@@ -344,7 +344,7 @@ object errors {
 
     case object ErrBadChar extends ErrorWidget {
         val label = Label("_errBadChar")
-        override val directives = List(StrLabel(Label("_errBadChar_str0"), message))
+        override val directives = List(StrLabel(Label(".L._errBadChar_str0"), message))
         def message: String = errorMessages.generateError("invalid character")
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),

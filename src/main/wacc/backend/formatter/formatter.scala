@@ -38,9 +38,14 @@ def formatStrLabel(strLabel: StrLabel): List[Instruction] = List(
 )
 
 def formatWidget(widget: Widget): List[Instruction] =
-       List(SectionRoData)
-    ++ widget.directives.flatMap(formatStrLabel)
-    ++ List(Text, widget.label)
+    (if (widget.directives.isEmpty) {
+        Nil
+    } else {
+        List(SectionRoData)
+        ++ widget.directives.flatMap(formatStrLabel)
+        ++ List(Text)
+    })
+    ++ List(widget.label)
     ++ widget.instructions
 
 def formatRegister(reg: Register): String = reg match {
@@ -65,23 +70,23 @@ def formatRegister(reg: Register): String = reg match {
     case TempReg(num, size) => "TEMP_REG"
 }   
 
-def formatOperand(op: RegImmMem): String = op match {
+def formatOperand(op: RegImmMem, size: Int = QUAD_WORD): String = op match {
     case reg: Register     => formatRegister(reg)
     case imm: Immediate    => formatImmediate(imm)
-    case mem: MemoryAccess => formatMemAccess(mem)
+    case mem: MemoryAccess => formatMemAccess(mem, size)
 }
 
-def formatDestOperand(op: RegMem): String = op match {
+def formatDestOperand(op: RegMem, size: Int = QUAD_WORD): String = op match {
     case reg: Register     => formatRegister(reg)
-    case mem: MemoryAccess => formatMemAccess(mem)
+    case mem: MemoryAccess => formatMemAccess(mem, size)
 }
 
 def formatInstruction(instr: Instruction): String = instr match {
     case IntelSyntax                         => ".intel_syntax noprefix"
-    case SectionRoData                       => "section .rodata"
+    case SectionRoData                       => ".section .rodata"
     case Text                                => ".text"
     case Label(name)                         => s"\n$name:"
-    case Global(label)                       => s"globl $label"
+    case Global(label)                       => s".globl $label"
     // TODO: correct label name by adding "db"
     case StrLabel(label: Label, _)           => s".L.${label.name}:"
     case DirInt(size)                        => s"    .int $size"
@@ -102,10 +107,10 @@ def formatInstruction(instr: Instruction): String = instr match {
     case Not(dest, src)                      => s"    not ${formatRegister(dest)}"
     
     case CMov(dest, src, cond)               => s"    cmov${flags.toString.toLowerCase} ${formatRegister(dest)} ${formatRegister(src)}"
-    case Mov(dest, src)                      => s"    mov ${formatDestOperand(dest)}, ${formatOperand(src)}"
+    case Mov(dest, src)                      => s"    mov ${formatDestOperand(dest)}, ${formatOperand(src, dest match { case r: Register => r.size; case _ => QUAD_WORD })}"
     case Lea(dest, addr)                     => s"    lea ${formatRegister(dest)}, ${formatMemAccess(addr)}"
     
-    case Call(label)                         => s"    call ${label.name}"
+    case Call(label)                         => s"    call ${label.name}${if (label.name(0) != '_' && label.name(0) != '.') "@plt" else ""}"
     case Jump(label, JumpFlag.Overflow)      => s"    jo ${label.name}"
     case Jump(label, JumpFlag.Unconditional) => s"    jmp ${label.name}"
     case Ret                                 => s"    ret"
@@ -121,8 +126,10 @@ def formatImmediate(imm: Immediate): String = imm match {
     case Imm(value)                          => s"$value"
 }
 
-def formatMemAccess(mem: MemoryAccess): String = {
-    def sizeCheck(reg: Register) = reg.size match {
+// TODO: pass the size of the other register
+// size check should be performed in terms of the other
+def formatMemAccess(mem: MemoryAccess, size: Int = QUAD_WORD): String = {
+    def sizeCheck(dim: Int) = dim match {
         case BYTE        => "byte"
         case WORD        => "word"
         case DOUBLE_WORD => "dword"
@@ -131,11 +138,13 @@ def formatMemAccess(mem: MemoryAccess): String = {
     
     mem match {
         case MemAccess(reg: Register, offset: Int) => 
-            if (offset == 0) s"[${formatRegister(reg)}]"
-            else s"${sizeCheck(reg)} ptr [${formatRegister(reg)} + $offset]"
+            val operand = if (offset == 0) s"[${formatRegister(reg)}]" else s"[${formatRegister(reg)} ${if offset > 0 then "+" else ""} $offset]"
+            s"${sizeCheck(size)} ptr $operand"
+        case MemAccess(reg @ RIP(_), offset: Label) =>
+            s"[${formatRegister(reg)} + ${offset.name}]"
         case MemAccess(reg: Register, offset: Label) =>
-            s"${sizeCheck(reg)} ptr [${formatRegister(reg)} + ${offset.name}]"
+            s"${sizeCheck(size)} ptr [${formatRegister(reg)} + ${offset.name}]"
         case MemRegAccess(base, reg, coeff) =>
-            s"${sizeCheck(reg)} ptr [${formatRegister(base)} + ${formatRegister(reg)} * $coeff]"
+            s"${sizeCheck(size)} ptr [${formatRegister(base)} + ${formatRegister(reg)} * $coeff]"
     }
 }

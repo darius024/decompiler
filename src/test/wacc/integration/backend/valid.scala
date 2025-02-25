@@ -21,7 +21,13 @@ class ValidProgramTest extends AnyWordSpec {
             listTests(root / category) foreach { test =>
                 // each test case
                 s"generate assembly for ${test.relativeTo(root / category)}" in {
-                    if (isDisabled("backend", root.baseName, category)) pending
+                    if (isDisabled("backend", root.baseName, category)) {
+                        // clean up the executable and assembly file
+                        val fileName = test.last.stripSuffix(".wacc")
+                        os.remove(os.pwd / s"$fileName.s")
+                        os.remove(os.pwd / s"$fileName")
+                        pending
+                    }
                     
                     // testing the frontend should have created the assembly
                     // files at the root level of the directory
