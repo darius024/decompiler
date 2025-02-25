@@ -108,7 +108,7 @@ def generate(stmt: TyStmt)
             // TODO: Remove this case
             case _          => ReadInt
         }
-        codeGen.addInstr(FuncCall(codeGen.getWidgetLabel(widget)))
+        codeGen.addInstr(Call(codeGen.getWidgetLabel(widget)))
     
     case Free(expr: TyExpr) => ???
 
@@ -120,7 +120,7 @@ def generate(stmt: TyStmt)
     case Exit(expr: TyExpr) =>
         val temp = generate(expr)
         codeGen.addInstr(Mov(RDI(), temp))
-        codeGen.addInstr(FuncCall(codeGen.getWidgetLabel(ExitProg)))
+        codeGen.addInstr(Call(codeGen.getWidgetLabel(ExitProg)))
 
     case Print(expr: TyExpr) =>
         val temp = generate(expr)
@@ -134,11 +134,11 @@ def generate(stmt: TyStmt)
             // TODO: Remove this case
             case _          => PrintInt
         }
-        codeGen.addInstr(FuncCall(codeGen.getWidgetLabel(widget)))
+        codeGen.addInstr(Call(codeGen.getWidgetLabel(widget)))
 
     case Println(expr: TyExpr) =>
         generate(Print(expr))
-        codeGen.addInstr(FuncCall(PrintLn.label))
+        codeGen.addInstr(Call(PrintLn.label))
 
     case If(cond: TyExpr, thenStmts: TyStmtList, elseStmts: TyStmtList) =>
         val ifLabel = codeGen.nextLabel(LabelType.If)
@@ -178,7 +178,7 @@ def generate(expr: TyExpr)
         codeGen.addInstr(Cmp(lhsTemp, rhsTemp))
 
         val compFlag = convertToJump(op)
-        val resultReg = codeGen.nextTemp(HALF_WORD)
+        val resultReg = codeGen.nextTemp(BYTE)
         codeGen.addInstr(SetComp(resultReg, compFlag))
 
         resultReg
@@ -213,7 +213,7 @@ def generate(expr: TyExpr)
         codeGen.addInstr(Cmp(temp, Imm(1)))
         codeGen.addInstr(SetComp(temp, CompFlag.NE))
 
-        val resultReg = codeGen.nextTemp(HALF_WORD)
+        val resultReg = codeGen.nextTemp(BYTE)
         codeGen.addInstr(Mov(resultReg, temp))
         resultReg
     }
@@ -244,7 +244,7 @@ def generate(expr: TyExpr)
         codeGen.addInstr(Mov(temp, Imm(value)))
         temp
     case TyExpr.BoolLit(value) =>
-        val temp = codeGen.nextTemp(HALF_WORD)
+        val temp = codeGen.nextTemp(BYTE)
         codeGen.addInstr(Mov(temp, Imm(if (value) 1 else 0)))
         temp
     case TyExpr.CharLit(value) =>
@@ -345,7 +345,7 @@ def shortCircuit(expr: TyExpr.BinaryBool)
     codeGen.addInstr(Cmp(rhsTemp, Imm(1)))
     codeGen.addInstr(label)
 
-    val resultReg = codeGen.nextTemp(HALF_WORD)
+    val resultReg = codeGen.nextTemp(BYTE)
     codeGen.addInstr(SetComp(resultReg, CompFlag.E))
 
     resultReg
