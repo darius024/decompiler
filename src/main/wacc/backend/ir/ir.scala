@@ -83,7 +83,7 @@ object memory {
 object instructions {
     type RegMem = Register | MemoryAccess
     type RegImm = Register | Immediate
-    type RegImmMem = Register | Immediate | MemAccess
+    type RegImmMem = Register | Immediate | MemoryAccess
 
     sealed trait Instruction
 
@@ -168,4 +168,8 @@ object memoryOffsets {
     final val ARR_STORE2 = 2
     final val ARR_STORE4 = 4
     final val ARR_STORE8 = 8
+    final val ARR_LOAD1 = 1
+    final val ARR_LOAD2 = 2
+    final val ARR_LOAD4 = 4
+    final val ARR_LOAD8 = 8
 }
