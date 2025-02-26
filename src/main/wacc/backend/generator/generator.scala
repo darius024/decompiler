@@ -25,7 +25,7 @@ class WidgetManager {
     def usedWidgets: Set[Widget] = activeWidgets.toSet
 }
 
-class CodeGenerator(instructions: mutable.Builder[Instruction, List[Instruction]],
+class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruction]],
                     directives: mutable.Builder[StrLabel, Set[StrLabel]],
                     labeller: Labeller,
                     temp: Temporary,
@@ -68,14 +68,16 @@ def generate(prog: TyProg): CodeGenerator = {
 
     generate(codeGen.nextLabel(LabelType.Main), Array.empty, stmts)
 
-    codeGen
+    allocate(codeGen)
 }
 
 def generate(label: Label, params: Array[TyExpr.LVal], stmts: TyStmtList)
             (using codeGen: CodeGenerator): Unit = {    
     codeGen.addInstr(label)
 
+    // TODO: replace 24 with the actual number of pushed registers
     codeGen.addInstr(Push(RBP()))
+    codeGen.addInstr(Sub(RSP(), Imm(24)))
     codeGen.addInstr(Mov(RBP(), RSP()))
 
     // TODO: Assign parameters into registers
@@ -85,7 +87,11 @@ def generate(label: Label, params: Array[TyExpr.LVal], stmts: TyStmtList)
         codeGen.addInstr(Mov(RAX(), Imm(0)))
     }
 
-    codeGen.addInstr(Mov(RSP(), RBP()))
+    // TODO: keep either move or add here
+    // codeGen.addInstr(Mov(RSP(), RBP()))
+    // TODO: replace 24 with the actual number of pushed registers
+    codeGen.addInstr(Add(RSP(), Imm(24)))
+
     codeGen.addInstr(Pop(RBP()))
     codeGen.addInstr(Ret)
 }
