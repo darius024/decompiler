@@ -253,6 +253,26 @@ object widgets {
         def instructions: List[Instruction] = arrStore.instructions(memoryOffsets.ARR_STORE8)
     }
 
+    case object ArrayLoad1 extends Widget {
+        val label = Label("_arrLoad1")
+        def instructions: List[Instruction] = arrLoad.instructions(memoryOffsets.ARR_LOAD1)
+    }
+
+    case object ArrayLoad2 extends Widget {
+        val label = Label("_arrLoad2")
+        def instructions: List[Instruction] = arrLoad.instructions(memoryOffsets.ARR_LOAD2)
+    }
+    
+    case object ArrayLoad4 extends Widget {
+        val label = Label("_arrLoad4")
+        def instructions: List[Instruction] = arrLoad.instructions(memoryOffsets.ARR_LOAD4)
+    }
+
+    case object ArrayLoad8 extends Widget {
+        val label = Label("_arrLoad8")
+        def instructions: List[Instruction] = arrLoad.instructions(memoryOffsets.ARR_LOAD8)
+    }
+
     case object ExitProg extends Widget {
         val label = Label("_exit")
         def instructions: List[Instruction] = List(
@@ -385,6 +405,22 @@ object arrStore {
         CMov(RSI(), R10(), CompFlag.GE),
         JumpComp(ErrOutOfBounds.label, CompFlag.GE),
         Mov(MemRegAccess(R9(), R10(), size), RAX()),
+        Pop(RBX()),
+        Ret
+    )
+}
+
+object arrLoad {
+    def instructions(size: Int): List[Instruction] = List(
+        Push(RBX()),
+        Test(R10(DOUBLE_WORD), R10(DOUBLE_WORD)),
+        CMov(RSI(), R10(), CompFlag.L),
+        JumpComp(ErrOutOfBounds.label, CompFlag.L),
+        Mov(RBX(DOUBLE_WORD), MemAccess(R9(), memoryOffsets.ARRAY_LENGTH_OFFSET)),
+        Cmp(R10(DOUBLE_WORD), RBX(DOUBLE_WORD)),
+        CMov(RSI(), R10(), CompFlag.GE),
+        JumpComp(ErrOutOfBounds.label, CompFlag.GE),
+        Mov(RAX(), MemRegAccess(R9(), R10(), size)),
         Pop(RBX()),
         Ret
     )
