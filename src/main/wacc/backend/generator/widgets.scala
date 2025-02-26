@@ -27,6 +27,10 @@ object widgets {
         ArrayStore2,
         ArrayStore4,
         ArrayStore8,
+        ArrayLoad1,
+        ArrayLoad2,
+        ArrayLoad4,
+        ArrayLoad8,
         ExitProg,
 
         ErrNull,
