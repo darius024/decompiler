@@ -144,7 +144,7 @@ def generate(stmt: TyStmt)
 
     case Println(expr: TyExpr) =>
         generate(Print(expr))
-        codeGen.addInstr(Call(PrintLn.label))
+        codeGen.addInstr(Call(codeGen.getWidgetLabel(PrintLn)))
 
     case If(cond: TyExpr, thenStmts: TyStmtList, elseStmts: TyStmtList) =>
         val ifLabel = codeGen.nextLabel(LabelType.If)
@@ -209,7 +209,7 @@ def generate(expr: TyExpr)
             case _ => Add(lhsTemp, rhsTemp)
         })
 
-        codeGen.addInstr(Jump(ErrOverflow.label, JumpFlag.Overflow))
+        codeGen.addInstr(Jump(codeGen.getWidgetLabel(ErrOverflow), JumpFlag.Overflow))
 
         lhsTemp
 
