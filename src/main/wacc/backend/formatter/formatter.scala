@@ -70,23 +70,37 @@ def formatRegister(reg: Register): String = reg match {
     case TempReg(num, size) => "TEMP_REG"
 }   
 
-def formatOperand(op: RegImmMem, size: Int = QUAD_WORD): String = op match {
-    case reg: Register     => formatRegister(reg)
-    case imm: Immediate    => formatImmediate(imm)
-    case mem: MemoryAccess => formatMemAccess(mem, size)
+def formatCompFlag(flag: CompFlag): String = flag match {
+    case CompFlag.E  => "e"
+    case CompFlag.NE => "ne"
+    case CompFlag.G  => "g"
+    case CompFlag.GE => "ge"
+    case CompFlag.L  => "l"
+    case CompFlag.LE => "le"
 }
 
-def formatDestOperand(op: RegMem, size: Int = QUAD_WORD): String = op match {
+def formatJumpFlag(flag: JumpFlag): String = flag match {
+    case JumpFlag.Overflow => "o"
+    case JumpFlag.Unconditional => "mp"
+}
+
+def formatOperand(op: RegImmMem): String = op match {
     case reg: Register     => formatRegister(reg)
-    case mem: MemoryAccess => formatMemAccess(mem, size)
+    case imm: Immediate    => formatImmediate(imm)
+    case mem: MemoryAccess => formatMemAccess(mem)
+}
+
+def formatDestOperand(op: RegMem): String = op match {
+    case reg: Register     => formatRegister(reg)
+    case mem: MemoryAccess => formatMemAccess(mem)
 }
 
 def formatInstruction(instr: Instruction): String = instr match {
     case IntelSyntax                         => ".intel_syntax noprefix"
-    case SectionRoData                       => ".section .rodata"
+    case SectionRoData                       => "section .rodata"
     case Text                                => ".text"
     case Label(name)                         => s"\n$name:"
-    case Global(label)                       => s".globl $label"
+    case Global(label)                       => s"globl $label"
     // TODO: correct label name by adding "db"
     case StrLabel(label: Label, _)           => s".L.${label.name}:"
     case DirInt(size)                        => s"    .int $size"
@@ -106,19 +120,18 @@ def formatInstruction(instr: Instruction): String = instr match {
     case Neg(dest, src)                      => s"    neg ${formatRegister(dest)}"
     case Not(dest, src)                      => s"    not ${formatRegister(dest)}"
     
-    case CMov(dest, src, cond)               => s"    cmov${flags.toString.toLowerCase} ${formatRegister(dest)} ${formatRegister(src)}"
-    case Mov(dest, src)                      => s"    mov ${formatDestOperand(dest)}, ${formatOperand(src, dest match { case r: Register => r.size; case _ => QUAD_WORD })}"
+    case CMov(dest, src, cond)               => s"    cmov${formatCompFlag(cond)} ${formatRegister(dest)} ${formatRegister(src)}"
+    case Mov(dest, src)                      => s"    mov ${formatDestOperand(dest)}, ${formatOperand(src)}"
     case Lea(dest, addr)                     => s"    lea ${formatRegister(dest)}, ${formatMemAccess(addr)}"
     
-    case Call(label)                         => s"    call ${label.name}${if (label.name(0) != '_' && label.name(0) != '.') "@plt" else ""}"
-    case Jump(label, JumpFlag.Overflow)      => s"    jo ${label.name}"
-    case Jump(label, JumpFlag.Unconditional) => s"    jmp ${label.name}"
+    case Call(label)                         => s"    call ${label.name}"
+    case Jump(label, flag)                   => s"    j${formatJumpFlag(flag)} ${label.name}"
     case Ret                                 => s"    ret"
     
     case Cmp(op1, op2)                       => s"    cmp ${formatOperand(op1)}, ${formatOperand(op2)}"
     case Test(op1, op2)                      => s"    test ${formatOperand(op1)}, ${formatOperand(op2)}"
-    case SetComp(dest, flag)                 => s"    set${flag.toString.toLowerCase} ${formatRegister(dest)}"
-    case JumpComp(label, flag)               => s"    j${flag.toString.toLowerCase} ${label.name}"
+    case SetComp(dest, flag)                 => s"    set${formatCompFlag(flag)} ${formatRegister(dest)}"
+    case JumpComp(label, flag)               => s"    j${formatCompFlag(flag)} ${label.name}"
     case ConvertDoubleToQuad                 => s"    cdq"
 }
 
