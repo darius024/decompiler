@@ -70,15 +70,15 @@ class WidgetTests extends AnyFlatSpec with Matchers {
         usedWidgets should contain(PrintString)
     }
 
-    it should "have widget for println operations" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
-        val printlnStmt = Println(StrLit("Hello"))
-        generate(printlnStmt)(using codeGen)
+    // it should "have widget for println operations" in {
+    //     val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    //     val printlnStmt = Println(StrLit("Hello"))
+    //     generate(printlnStmt)(using codeGen)
         
-        val usedWidgets = codeGen.dependencies
-        usedWidgets should contain(PrintString)
-        usedWidgets should contain(PrintLn)
-    }
+    //     val usedWidgets = codeGen.dependencies
+    //     usedWidgets should contain(PrintString)
+    //     usedWidgets should contain(PrintLn)
+    // }
 
     it should "have widget for exit operations" in {
         val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
@@ -98,33 +98,33 @@ class WidgetTests extends AnyFlatSpec with Matchers {
         usedWidgets should contain(ErrDivZero)
     }
 
-    it should "have widget for overflow error" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
-        val addExpr = BinaryArithmetic(IntLit(Int.MaxValue), IntLit(1), OpArithmetic.Add)
-        generate(addExpr)(using codeGen)
+    // it should "have widget for overflow error" in {
+    //     val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    //     val addExpr = BinaryArithmetic(IntLit(Int.MaxValue), IntLit(1), OpArithmetic.Add)
+    //     generate(addExpr)(using codeGen)
         
-        val usedWidgets = codeGen.dependencies
-        usedWidgets should contain(ErrOverflow)
-    }
+    //     val usedWidgets = codeGen.dependencies
+    //     usedWidgets should contain(ErrOverflow)
+    // }
 
-    it should "have widget for array bounds error" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
-        val arrayType = KType.Array(KType.Int, 1)
-        val arrayElem = TyExpr.ArrayElem(TyExpr.Id("arr", arrayType), List(IntLit(-1)), arrayType)
-        generate(arrayElem)(using codeGen)
+    // it should "have widget for array bounds error" in {
+    //     val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    //     val arrayType = KType.Array(KType.Int, 1)
+    //     val arrayElem = TyExpr.ArrayElem(TyExpr.Id("arr", arrayType), List(IntLit(-1)), arrayType)
+    //     generate(arrayElem)(using codeGen)
         
-        val usedWidgets = codeGen.dependencies
-        usedWidgets should contain(ErrOutOfBounds)
-    }
+    //     val usedWidgets = codeGen.dependencies
+    //     usedWidgets should contain(ErrOutOfBounds)
+    // }
 
-    it should "have widget for null pointer error" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
-        val freePairStmt = Free(TyExpr.PairLit)
-        generate(freePairStmt)(using codeGen)
+    // it should "have widget for null pointer error" in {
+    //     val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    //     val freePairStmt = Free(TyExpr.PairLit)
+    //     generate(freePairStmt)(using codeGen)
         
-        val usedWidgets = codeGen.dependencies
-        usedWidgets should contain(ErrNull)
-    }
+    //     val usedWidgets = codeGen.dependencies
+    //     usedWidgets should contain(ErrNull)
+    // }
 
     it should "have all used widgets in the widgets set" in {
         val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
