@@ -19,7 +19,6 @@ object utils {
       case ty => (ty, 1)
     }
 
-  
   /** Gets the identifier name from an lvalue
    * @param lvalue The lvalue to get the name from
    * @return The name of the underlying identifier
@@ -32,8 +31,16 @@ object utils {
     case _ => ""
   }
 
+  /** Gets the name of the array from an array element
+   * @param arrayElem The array element to get the name from
+   * @return The name of the array
+   */
   def getArrayName(arrayElem: TyExpr.ArrayElem): String = getLvalName(arrayElem.lval)
 
+  /** Gets the index of an array element
+   * @param arrayElem The array element to get the index from
+   * @return The index of the array element
+   */
   def getArrayIndex(arrayElem: TyExpr.ArrayElem): List[TyExpr] = arrayElem.idx
 
 
@@ -48,6 +55,10 @@ object utils {
     case _ => lvalue
   }
 
+  /** Gets the nested pair element from a complex pair element
+   * @param arrayElem The complex pair element
+   * @return The nested pair element
+   */
   def getNestedPairLval(arrayElem: TyExpr.TyPairElem): TyExpr.LVal = arrayElem match {
     case TyExpr.PairFst(lval, _) => lval
     case TyExpr.PairSnd(lval, _) => lval

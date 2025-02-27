@@ -118,7 +118,6 @@ def generate(prog: TyProg): CodeGenerator = {
                         codeGen.nextTemp(getTypeSize(param.ty))
         val name = getLvalName(param)
         codeGen.allocateVar(name, loc)
-        // append the location to the list of registers where arguments are stored
         codeGen.addFunctionArg(label.name, loc)
         }
     }
@@ -371,7 +370,7 @@ def generate(expr: TyExpr)
             codeGen.addInstr(Mov(resultReg, temp))
             resultReg
         
-        case TyExpr.Neg(expr) => {
+        case TyExpr.Neg(expr) => 
             val temp = generate(expr)
             val resultReg = codeGen.nextTemp(DOUBLE_WORD)
             codeGen.addInstr(Mov(resultReg, Imm(0)))
@@ -379,14 +378,14 @@ def generate(expr: TyExpr)
 
             codeGen.addInstr(Jump(ErrOverflow.label, JumpFlag.Overflow))
             resultReg
-        }
-        case TyExpr.Len(expr) => {
+        
+        case TyExpr.Len(expr) => 
             val temp = generate(expr)
             // TODO: ask darius if we need to check if the array is null
             val resultReg = codeGen.nextTemp(DOUBLE_WORD)
             codeGen.addInstr(Mov(resultReg, MemAccess(temp, -4)))
             resultReg
-        }
+        
         case TyExpr.Ord(expr) =>
             val temp = generate(expr)
             val resultReg = codeGen.nextTemp(DOUBLE_WORD)
@@ -452,9 +451,6 @@ def generate(expr: TyExpr)
 
             temp
         }
-
-    // TODO: remove this case
-    case _ => TempReg(-1)
 }
 
 def generateCond(expr: TyExpr, label: Label)
@@ -561,9 +557,6 @@ def generateArrayLit(exprs: List[TyExpr], semTy: SemType)
     
     val elementSize = getTypeSize(semTy) / 8 // convert bits to bytes 
     val totalSize = 4 + elementSize * exprs.length
-
-    //TODO: We can use r11 here or in second pass and then store it another register when we are done setting it up
-    // because in the reference compiler it is used when adding elements to array
 
     val arrayPtr = codeGen.nextTemp()
     codeGen.addInstr(Mov(RDI(DOUBLE_WORD), Imm(totalSize)))

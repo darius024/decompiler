@@ -30,10 +30,6 @@ object widgets {
         ArrayLoad2,
         ArrayLoad4,
         ArrayLoad8,
-        ArrayLoad1,
-        ArrayLoad2,
-        ArrayLoad4,
-        ArrayLoad8,
         ExitProg,
 
         ErrNull,
