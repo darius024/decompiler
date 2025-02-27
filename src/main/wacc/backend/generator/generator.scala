@@ -117,6 +117,21 @@ def generate(stmt: TyStmt)
         codeGen.addInstr(Call(codeGen.getWidgetLabel(widget)))
     
     case Free(expr: TyExpr) =>
+        val temp = generate(expr)
+        expr.ty match {
+            case KType.Array(_, _) =>
+                codeGen.addInstr(Mov(RDI(), temp))
+                codeGen.addInstr(Sub(RDI(), Imm(memoryOffsets.ARRAY_LENGTH_OFFSET)))
+                codeGen.addInstr(Call(codeGen.getWidgetLabel(FreeProg)))
+            case KType.Pair(_, _) =>
+                codeGen.addInstr(Cmp(temp, Imm(0)))
+                codeGen.addInstr(JumpComp(codeGen.getWidgetLabel(ErrNull), CompFlag.E))
+                codeGen.addInstr(Mov(RDI(), temp))
+                codeGen.addInstr(Call(codeGen.getWidgetLabel(FreePair)))
+            case _ =>
+                codeGen.addInstr(Mov(RDI(), temp))
+                codeGen.addInstr(Call(codeGen.getWidgetLabel(FreeProg)))
+        }
 
     case Return(expr: TyExpr) =>
         val temp = generate(expr)
