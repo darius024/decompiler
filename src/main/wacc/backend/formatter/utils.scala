@@ -14,7 +14,7 @@ def formatCompFlag(flag: CompFlag): String = flag match {
 }
 
 def formatJumpFlag(flag: JumpFlag): String = flag match {
-    case JumpFlag.Overflow => "o"
+    case JumpFlag.Overflow      => "o"
     case JumpFlag.Unconditional => "mp"
 }
 
@@ -54,3 +54,18 @@ def formatString(name: String): String = name
     .replace("\f", "\\f")       // form feed
     .replace("\r", "\\r")       // carriage return
     .replace("\\", "\\\\")      // backslash
+
+def matchSize(operands: Seq[RegImmMemLabel]): RegSize = operands.match {
+    case Seq(reg1: Register, reg2: Register) =>
+        sizeToReg(Seq(reg1.size.size, reg2.size.size).min)
+    case Seq(reg: Register, _) => reg.size
+    case Seq(_, reg: Register) => reg.size
+    case _                 => RegSize.QUAD_WORD
+}
+
+def sizeToReg(size: Int): RegSize = size match {
+    case 1 => RegSize.BYTE
+    case 2 => RegSize.WORD
+    case 4 => RegSize.DOUBLE_WORD
+    case 8 => RegSize.QUAD_WORD
+}

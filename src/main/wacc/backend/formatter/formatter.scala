@@ -46,9 +46,11 @@ def formatHeader(using outputStream: OutputStream) = {
 }
 
 def formatBlock(directives: Set[StrLabel])
-               (using outputStream: OutputStream): Unit = if (!directives.isEmpty) {
+               (using outputStream: OutputStream): Unit = {
     format(List(SectionRoData))
-    directives.map(formatDirective)
+    if (!directives.isEmpty) {
+        directives.map(formatDirective)
+    }
     format(List(Text))
 }
 
@@ -67,47 +69,49 @@ def formatWidgets(widgets: Set[Widget])
 }
 
 def formatInstruction(instr: Instruction): String = {
-    def format(opcode: String, operands: RegImmMemLabel*): String =
-        f"    $opcode%-6s ${operands.map(formatOperand(_)).mkString(", ")}"
+    def format(opcode: String, operands: RegImmMemLabel*): String = {
+        val size = matchSize(operands)
+        f"    $opcode%-6s ${operands.map(formatOperand(_, size)).mkString(", ")}"
+    }
 
     instr match {
-        case IntelSyntax              => ".intel_syntax noprefix"
-        case SectionRoData            => ".section .rodata"
-        case Text                     => ".text"
-        case Label(name)              => s"\n$name:"
-        case Global(label)            => s".globl $label"
-        case StrLabel(label, _)       => s".L.${label.name}:"
-        case DirInt(size)             => format(".int", size.toString)
-        case Asciz(name)              => format(".asciz", "\"$name\"")
+        case IntelSyntax            => ".intel_syntax noprefix"
+        case SectionRoData          => ".section .rodata"
+        case Text                   => ".text"
+        case Label(name)            => s"$name:"
+        case Global(label)          => s".globl $label"
+        case StrLabel(label, _)     => s".L.${label.name}:"
+        case DirInt(size)           => format(".int", size.toString)
+        case Asciz(name)            => format(".asciz", s"\"${formatString(name)}\"")
 
-        case Push(reg)                => format("push", reg)
-        case Pop(reg)                 => format("pop" , reg)
+        case Push(reg)              => format("push", reg)
+        case Pop(reg)               => format("pop" , reg)
 
-        case Add(dest, src)           => format("add" , dest, src)
-        case Sub(dest, src)           => format("sub" , dest, src)
-        case Mul(dest, src1, src2)    => format("imul", dest, src1, src2)
-        case Div(src)                 => format("idiv", src)
-        case Mod(src)                 => format("idiv", src)
-        case And(dest, src)           => format("and" , dest, src)
-        case Or(dest, src)            => format("or"  , dest, src)
+        case Add(dest, src)         => format("add" , dest, src)
+        case Sub(dest, src)         => format("sub" , dest, src)
+        case Mul(dest, src1, src2)  => format("imul", dest, src1, src2)
+        case Div(src)               => format("idiv", src)
+        case Mod(src)               => format("idiv", src)
+        case And(dest, src)         => format("and" , dest, src)
+        case Or(dest, src)          => format("or"  , dest, src)
 
-        case CMov(dest, src, cond)    => format(s"cmov${formatCompFlag(cond)}", dest, src)
-        case Mov(dest, src)           => format("mov" , dest, src)
-        case Lea(dest, addr)          => format("lea" , dest, addr)
+        case CMov(dest, src, cond)  => format(s"cmov${formatCompFlag(cond)}", dest, src)
+        case Mov(dest, src)         => format("mov" , dest, src)
+        case Lea(dest, addr)        => format("lea" , dest, addr)
 
-        case Call(label)              => format("call" , label)
-        case Jump(label, flag)        => format(s"j${formatJumpFlag(flag)}", label)
-        case Ret                      => format("ret")
+        case Call(label)            => format("call" , label)
+        case Jump(label, flag)      => format(s"j${formatJumpFlag(flag)}", label)
+        case Ret                    => format("ret\n")
 
-        case Cmp(src1, src2)          => format("cmp" , src1, src2)
-        case Test(src1, src2)         => format("test", src1, src2)
-        case SetComp(dest, flag)      => format(s"set${formatCompFlag(flag)}", dest)
-        case JumpComp(label, flag)    => format(s"j${formatCompFlag(flag)}", label)
-        case ConvertDoubleToQuad      => format("cdq")
+        case Cmp(src1, src2)        => format("cmp" , src1, src2)
+        case Test(src1, src2)       => format("test", src1, src2)
+        case SetComp(dest, flag)    => format(s"set${formatCompFlag(flag)}", dest)
+        case JumpComp(label, flag)  => format(s"j${formatCompFlag(flag)}", label)
+        case ConvertDoubleToQuad    => format("cdq")
     }
 }
 
-def formatOperand(op: RegImmMemLabel, size: RegSize = RegSize.QUAD_WORD): String = op match {
+def formatOperand(op: RegImmMemLabel, size: RegSize): String = op match {
     case reg: Register     => formatRegister(reg)
     case imm: Immediate    => formatImmediate(imm)
     case mem: MemoryAccess => formatMemAccess(mem, size)
@@ -119,7 +123,7 @@ def formatImmediate(imm: Immediate): String = imm match {
     case Imm(value) => s"$value"
 }
 
-def formatMemAccess(mem: MemoryAccess, size: RegSize = RegSize.QUAD_WORD): String = mem match {
+def formatMemAccess(mem: MemoryAccess, size: RegSize): String = mem match {
     case MemAccess(reg: Register, offset: Int) => 
         val operand = if (offset == 0) s"[${formatRegister(reg)}]" else s"[${formatRegister(reg)} ${if offset > 0 then "+" else ""} $offset]"
         s"${sizePtr(size)} ptr $operand"

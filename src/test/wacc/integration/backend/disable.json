@@ -9,7 +9,6 @@
         "scope",
         "function",
         "expressions",
-        "sequence",
         "while"
     ]
 }

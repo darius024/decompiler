@@ -70,9 +70,9 @@ object immediate {
 
 /** Memory accesses that instructions use. */
 object memory {
-    sealed trait MemoryAccess
+    sealed trait MemoryAccess { val base: Register }
 
-    case class MemAccess(reg: Register, offset: Int | Label = memoryOffsets.NO_OFFSET) extends MemoryAccess
+    case class MemAccess(base: Register, offset: Int | Label = memoryOffsets.NO_OFFSET) extends MemoryAccess
     case class MemRegAccess(base: Register, reg: Register, coeff: Int) extends MemoryAccess
 }
 
