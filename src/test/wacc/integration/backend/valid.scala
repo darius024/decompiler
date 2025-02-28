@@ -28,14 +28,12 @@ class ValidProgramTest extends AnyWordSpec {
                         os.remove(os.pwd / s"$fileName")
                         pending
                     }
-
-                    // TODO: check exit code as well
                     
                     // testing the frontend should have created the assembly
                     // files at the root level of the directory
 
                     // parse the header to get the input and output parameters
-                    val (inputParameter, outputParameter) = parseHeader(test)
+                    val (inputParameter, outputParameter, exitCode) = parseHeader(test)
                     val fileName = test.last.stripSuffix(".wacc")
 
                     try {
@@ -58,10 +56,18 @@ class ValidProgramTest extends AnyWordSpec {
                         ).call(
                             stdin = inputParameter,
                             timeout = 3000,
+                            check = false,
                         )
                         
                         // the output should match the expected output
-                        emulateResult.out.text().trim() mustBe outputParameter.mkString("\n")
+                        if (!outputParameter.isEmpty) {
+                            emulateResult.out.text().trim() mustBe outputParameter.mkString("\n")
+                        }
+
+                        // the exit code should match
+                        if (exitCode != 0) {
+                            emulateResult.exitCode mustBe exitCode
+                        }
                     } finally {
                         // clean up the executable and assembly file
                         os.remove(os.pwd / s"$fileName.s")

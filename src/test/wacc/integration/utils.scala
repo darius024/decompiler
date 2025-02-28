@@ -2,6 +2,7 @@ package wacc.integration
 
 import java.io.File
 import os.{Generator, Path}
+
 import wacc.ExitCode
 
 /** Utility functions for integration tests. */
@@ -27,7 +28,7 @@ object utils {
         os.walk.stream(path).filter(os.isFile)
 
     /** Parse the header of the test file. */
-    def parseHeader(test: Path): (String, Seq[String]) = {
+    def parseHeader(test: Path): (String, Seq[String], Int) = {
         // read the file to be able to fetch information from the header
         val lines = os.read.lines(test)
 
@@ -43,7 +44,15 @@ object utils {
             .drop(1)
             .takeWhile(_.startsWith("# "))
             .map(_.stripPrefix("# ").trim)
+        
+        // find the possible exit code
+        val exit = lines
+            .dropWhile(!_.startsWith("# Exit:"))
+            .drop(1)
+            .headOption
+            .map(_.stripPrefix("# ").trim)
+            .getOrElse("0")
 
-        (input, output)
+        (input, output, exit.toInt)
     }
 }

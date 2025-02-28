@@ -102,14 +102,14 @@ def formatDestOperand(op: RegMem): String = op match {
 
 def formatInstruction(instr: Instruction): String = instr match {
     case IntelSyntax                         => ".intel_syntax noprefix"
-    case SectionRoData                       => "section .rodata"
+    case SectionRoData                       => ".section .rodata"
     case Text                                => ".text"
     case Label(name)                         => s"\n$name:"
-    case Global(label)                       => s"globl $label"
+    case Global(label)                       => s".globl $label"
     // TODO: correct label name by adding "db"
     case StrLabel(label: Label, _)           => s".L.${label.name}:"
     case DirInt(size)                        => s"    .int $size"
-    case Asciz(name)                         => s"    .asciz \"$name\""
+    case Asciz(name)                         => s"    .asciz \"${formatString(name)}\""
     
     case Push(reg)                           => s"    push ${formatRegister(reg)}"
     case Pop(reg)                            => s"    pop ${formatRegister(reg)}"
@@ -166,3 +166,12 @@ def formatMemAccess(mem: MemoryAccess, size: RegSize = QUAD_WORD): String = {
             s"${sizeCheck(size)} ptr [${formatRegister(base)} + ${formatRegister(reg)} * $coeff]"
     }
 }
+
+def formatString(name: String): String = name
+    .replace("\u0000", "\\0")   // null character
+    .replace("\b", "\\b")       // backspace
+    .replace("\t", "\\t")       // tab
+    .replace("\n", "\\n")       // newline
+    .replace("\f", "\\f")       // form feed
+    .replace("\r", "\\r")       // carriage return
+    .replace("\\", "\\\\")      // backslash
