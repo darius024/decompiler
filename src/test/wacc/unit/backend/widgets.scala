@@ -1,20 +1,19 @@
 package wacc.unit.backend
 
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.matchers.should.Matchers.*
 
-import wacc.backend.generator.{CodeGenerator, Labeller, WidgetManager, generate, generateDivMod}
-import wacc.backend.generator.widgets.{widgets => widgetSet, ReadInt, ReadChar, PrintInt, PrintBool, PrintChar, PrintString, PrintLn, ExitProg}
-import wacc.backend.generator.errors.{ErrDivZero, ErrOverflow, ErrOutOfBounds, ErrNull}
+import wacc.backend.generator.*
+import wacc.backend.generator.errors.*
+import wacc.backend.generator.widgets.*
 import wacc.backend.ir.registers.*
+import wacc.semantics.scoping.semanticTypes.*
 import wacc.semantics.typing.*
-import wacc.semantics.scoping.semanticTypes.{KType}
 import TyStmt.*
-import TyExpr.{IntLit, BoolLit, CharLit, StrLit, BinaryArithmetic, OpArithmetic}
+import TyExpr.*
 
 /** Tests the widget functionality and coverage. */
-class WidgetTests extends AnyFlatSpec with Matchers {
+class WidgetTests extends AnyFlatSpec {
 
     "Widget system" should "have widget for integer read operations" in {
         val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
