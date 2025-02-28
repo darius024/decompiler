@@ -12,6 +12,7 @@ import memory.*
 import registers.*
 import widgets.*
 
+/** Shared type of all operands. */
 type RegImmMemLabel = RegImmMem | Label | String
 
 /** Formats the assembly instructions produced by the code generator.
@@ -24,15 +25,20 @@ def format(codeGen: CodeGenerator, file: File): Unit = {
     given outputStream: OutputStream = os.write.outputStream(outputPath)
 
     try {
+        // set up the intel type of assembly used
         formatHeader
+        // include string literals into the data segment
         formatBlock(codeGen.data)
+        // print the program in assembly instructions
         format(codeGen.ir)
+        // plug in the used widgets
         formatWidgets(codeGen.dependencies)
     } finally {
         outputStream.close()
     }
 }
 
+/** Formats a block by printing each instruction on a new line. */
 def format(instructions: List[Instruction])
           (using outputStream: OutputStream) = instructions.foreach { instr =>
     // perform writes using the output stream
@@ -41,19 +47,24 @@ def format(instructions: List[Instruction])
     outputStream.write("\n".getBytes)
 }
 
+/** Prints the type of assembly used and sets the global entry point. */
 def formatHeader(using outputStream: OutputStream) = {
     format(List(IntelSyntax, Global("main")))
 }
 
+/** Plugs in the string literals used in the program. */
 def formatBlock(directives: Set[StrLabel])
                (using outputStream: OutputStream): Unit = {
+    // delimits the data segment
     format(List(SectionRoData))
     if (!directives.isEmpty) {
         directives.map(formatDirective)
     }
+    // delimits the beginning of the code segment
     format(List(Text))
 }
 
+/** Formats a directive by printing its size and value. */
 def formatDirective(strLabel: StrLabel)
                    (using outputStream: OutputStream): Unit = {
     val StrLabel(label, name) = strLabel
@@ -61,6 +72,7 @@ def formatDirective(strLabel: StrLabel)
     format(List(DirInt(name.length), label, Asciz(name)))
 }
 
+/** Formats a widget with its own data and code segment. */
 def formatWidgets(widgets: Set[Widget])
                  (using outputStream: OutputStream): Unit = widgets.foreach { widget =>
     formatBlock(widget.directives)
@@ -68,7 +80,9 @@ def formatWidgets(widgets: Set[Widget])
     format(widget.instructions)
 }
 
+/** Transforms instructions into their corresponding assembly instructions. */
 def formatInstruction(instr: Instruction): String = {
+    /** Formats instructions uniformly based on their arity. */
     def format(opcode: String, operands: RegImmMemLabel*): String = {
         val size = matchSize(operands)
         f"    $opcode%-6s ${operands.map(formatOperand(_, size)).mkString(", ")}"
@@ -111,6 +125,7 @@ def formatInstruction(instr: Instruction): String = {
     }
 }
 
+/** Formats an operand according to its type. */
 def formatOperand(op: RegImmMemLabel, size: RegSize): String = op match {
     case reg: Register     => formatRegister(reg)
     case imm: Immediate    => formatImmediate(imm)
@@ -119,15 +134,18 @@ def formatOperand(op: RegImmMemLabel, size: RegSize): String = op match {
     case str: String       => str
 }
 
+/** Prints an immediate value. */
 def formatImmediate(imm: Immediate): String = imm match {
     case Imm(value) => s"$value"
 }
 
+/** Prints a memory access. */
 def formatMemAccess(mem: MemoryAccess, size: RegSize): String = mem match {
     case MemAccess(reg: Register, offset: Int) => 
         val operand = if (offset == 0) s"[${formatRegister(reg)}]" else s"[${formatRegister(reg)} ${if offset > 0 then "+" else ""} $offset]"
         s"${sizePtr(size)} ptr $operand"
     
+    // the RIP register does not require pointer dereference
     case MemAccess(reg @ RIP(_), offset: Label) =>
         s"[${formatRegister(reg)} + ${offset.name}]"
     case MemAccess(reg: Register, offset: Label) =>
@@ -137,6 +155,7 @@ def formatMemAccess(mem: MemoryAccess, size: RegSize): String = mem match {
         s"${sizePtr(size)} ptr [${formatRegister(base)} + ${formatRegister(reg)} * $coeff]"
 }
 
+/** Prints a register. */
 def formatRegister(reg: Register): String = reg match {
     // general purpose registers
     case RAX(size) => parameterRegister("a", size)
