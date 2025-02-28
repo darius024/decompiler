@@ -66,9 +66,9 @@ def formatString(name: String): String = name
 def matchSize(operands: Seq[RegImmMemLabel]): RegSize = operands.match {
     case Seq(reg1: Register, reg2: Register) =>
         sizeToReg(Seq(reg1.size.size, reg2.size.size).min)
-    case Seq(reg: Register, _) => reg.size
-    case Seq(_, reg: Register) => reg.size
-    case _                 => RegSize.QUAD_WORD
+    case Seq(reg: Register, _)               => reg.size
+    case Seq(_, reg: Register)               => reg.size
+    case _                                   => RegSize.QUAD_WORD
 }
 
 /** Transforms the number of bytes into the corresponding type. */
