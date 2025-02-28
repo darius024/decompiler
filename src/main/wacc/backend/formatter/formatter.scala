@@ -56,23 +56,29 @@ def formatWidget(widget: Widget): List[Instruction] =
     ++ widget.instructions
 
 def formatRegister(reg: Register): String = reg match {
-    case RAX(size) => if (size == BYTE) "al" else if (size == DOUBLE_WORD) "eax" else "rax"
-    case RBX(size) => if (size == BYTE) "bl" else if (size == DOUBLE_WORD) "ebx" else "rbx"
-    case RCX(size) => if (size == BYTE) "cl" else if (size == DOUBLE_WORD) "ecx" else "rcx"
-    case RDX(size) => if (size == BYTE) "dl" else if (size == DOUBLE_WORD) "edx" else "rdx"
-    case RSI(size) => if (size == BYTE) "sil" else if (size == DOUBLE_WORD) "esi" else "rsi"
-    case RDI(size) => if (size == BYTE) "dil" else if (size == DOUBLE_WORD) "edi" else "rdi"
-    case RSP(size) => if (size == DOUBLE_WORD) "esp" else "rsp"
-    case RBP(size) => if (size == DOUBLE_WORD) "ebp" else "rbp"
-    case R8 (size) => if (size == BYTE) "r8b" else if (size == DOUBLE_WORD) "r8d" else "r8"
-    case R9 (size) => if (size == BYTE) "r9b" else if (size == DOUBLE_WORD) "r9d" else "r9"
-    case R10(size) => if (size == BYTE) "r10b" else if (size == DOUBLE_WORD) "r10d" else "r10"
-    case R11(size) => if (size == BYTE) "r11b" else if (size == DOUBLE_WORD) "r11d" else "r11"
-    case R12(size) => if (size == BYTE) "r12b" else if (size == DOUBLE_WORD) "r12d" else "r12"
-    case R13(size) => if (size == BYTE) "r13b" else if (size == DOUBLE_WORD) "r13d" else "r13"
-    case R14(size) => if (size == BYTE) "r14b" else if (size == DOUBLE_WORD) "r14d" else "r14"
-    case R15(size) => if (size == BYTE) "r15b" else if (size == DOUBLE_WORD) "r15d" else "r15"
-    case RIP(size) => if (size == DOUBLE_WORD) "eip" else "rip"
+    // general purpose registers
+    case RAX(size) => parameterRegister("a", size)
+    case RBX(size) => parameterRegister("b", size)
+    case RCX(size) => parameterRegister("c", size)
+    case RDX(size) => parameterRegister("d", size)
+
+    // parameter / special registers
+    case RDI(size) => specialRegister("di", size)
+    case RSI(size) => specialRegister("si", size)
+    case RBP(size) => specialRegister("bp", size)
+    case RIP(size) => specialRegister("ip", size)
+    case RSP(size) => specialRegister("sp", size)
+
+    // extended registers
+    case R8 (size) => numberedRegister("8" , size)
+    case R9 (size) => numberedRegister("9" , size)
+    case R10(size) => numberedRegister("10", size)
+    case R11(size) => numberedRegister("11", size)
+    case R12(size) => numberedRegister("12", size)
+    case R13(size) => numberedRegister("13", size)
+    case R14(size) => numberedRegister("14", size)
+    case R15(size) => numberedRegister("15", size)
+
     // TODO: remove this case
     case TempReg(num, size) => "TEMP_REG"
 }
@@ -184,3 +190,24 @@ def formatString(name: String): String = name
     .replace("\f", "\\f")       // form feed
     .replace("\r", "\\r")       // carriage return
     .replace("\\", "\\\\")      // backslash
+
+def parameterRegister(reg: String, size: RegSize) = size match {
+    case BYTE        => s"${reg}l"
+    case WORD        => s"${reg}x"
+    case DOUBLE_WORD => s"e${reg}x"
+    case QUAD_WORD   => s"r${reg}x"
+}
+
+def specialRegister(reg: String, size: RegSize) = size match {
+    case BYTE        => s"${reg}l"
+    case WORD        => s"${reg}"
+    case DOUBLE_WORD => s"e${reg}"
+    case QUAD_WORD   => s"r${reg}"
+}
+
+def numberedRegister(reg: String, size: RegSize) = size match {
+    case BYTE        => s"r${reg}b"
+    case WORD        => s"r${reg}w"
+    case DOUBLE_WORD => s"r${reg}d"
+    case QUAD_WORD   => s"r${reg}"
+}
