@@ -13,6 +13,8 @@ import registers.*
 import RegSize.*
 import widgets.*
 
+type RegImmMemLabel = RegImmMem | Label | String
+
 /** Formats the assembly instructions produced by the code generator.
   * 
   * Constructs the assembly file at the root level of the project and prints to it.
@@ -73,7 +75,92 @@ def formatRegister(reg: Register): String = reg match {
     case RIP(size) => if (size == DOUBLE_WORD) "eip" else "rip"
     // TODO: remove this case
     case TempReg(num, size) => "TEMP_REG"
-}   
+}
+
+def formatOperand(op: RegImmMemLabel, size: RegSize = QUAD_WORD): String = op match {
+    case reg: Register     => formatRegister(reg)
+    case imm: Immediate    => formatImmediate(imm)
+    case mem: MemoryAccess => formatMemAccess(mem, size)
+    case label: Label      => label.name
+    case str: String       => str
+}
+
+def formatDestOperand(op: RegMem): String = op match {
+    case reg: Register     => formatRegister(reg)
+    case mem: MemoryAccess => formatMemAccess(mem)
+}
+
+def formatInstruction(instr: Instruction): String = {
+    def format(opcode: String, operands: RegImmMemLabel*): String =
+        f"    $opcode%-6s ${operands.map(formatOperand(_)).mkString(", ")}"
+
+    instr match {
+        case IntelSyntax              => ".intel_syntax noprefix"
+        case SectionRoData            => ".section .rodata"
+        case Text                     => ".text"
+        case Label(name)              => s"\n$name:"
+        case Global(label)            => s".globl $label"
+        case StrLabel(label, _)       => s".L.${label.name}:"
+        case DirInt(size)             => format(".int", size.toString)
+        case Asciz(name)              => format(".asciz", "\"$name\"")
+
+        case Push(reg)                => format("push", reg)
+        case Pop(reg)                 => format("pop" , reg)
+
+        case Add(dest, src)           => format("add" , dest, src)
+        case Sub(dest, src)           => format("sub" , dest, src)
+        case Mul(dest, src1, src2)    => format("imul", dest, src1, src2)
+        case Div(src)                 => format("idiv", src)
+        case Mod(src)                 => format("idiv", src)
+        case And(dest, src)           => format("and" , dest, src)
+        case Or(dest, src)            => format("or"  , dest, src)
+
+        // TODO: remove these unused instructions
+        case Neg(dest, _)             => format("neg" , dest)
+        case Not(dest, _)             => format("not" , dest)
+
+        case CMov(dest, src, cond)    => format(s"cmov${formatCompFlag(cond)}", dest, src)
+        case Mov(dest, src)           => format("mov" , dest, src)
+        case Lea(dest, addr)          => format("lea" , dest, addr)
+
+        case Call(label)              => format("call" , label)
+        case Jump(label, flag)        => format(s"j${formatJumpFlag(flag)}", label)
+        case Ret                      => format("ret")
+
+        case Cmp(src1, src2)          => format("cmp" , src1, src2)
+        case Test(src1, src2)         => format("test", src1, src2)
+        case SetComp(dest, flag)      => format(s"set${formatCompFlag(flag)}", dest)
+        case JumpComp(label, flag)    => format(s"j${formatCompFlag(flag)}", label)
+        case ConvertDoubleToQuad      => format("cdq")
+    }
+}
+
+def formatImmediate(imm: Immediate): String = imm match {
+    case Imm(value) => s"$value"
+}
+
+def formatMemAccess(mem: MemoryAccess, size: RegSize = QUAD_WORD): String = {
+    def sizePtr(dim: RegSize) = dim match {
+        case BYTE        => "byte"
+        case WORD        => "word"
+        case DOUBLE_WORD => "dword"
+        case QUAD_WORD   => "qword"
+    }
+    
+    mem match {
+        case MemAccess(reg: Register, offset: Int) => 
+            val operand = if (offset == 0) s"[${formatRegister(reg)}]" else s"[${formatRegister(reg)} ${if offset > 0 then "+" else ""} $offset]"
+            s"${sizePtr(size)} ptr $operand"
+        
+        case MemAccess(reg @ RIP(_), offset: Label) =>
+            s"[${formatRegister(reg)} + ${offset.name}]"
+        case MemAccess(reg: Register, offset: Label) =>
+            s"${sizePtr(size)} ptr [${formatRegister(reg)} + ${offset.name}]"
+        
+        case MemRegAccess(base, reg, coeff) =>
+            s"${sizePtr(size)} ptr [${formatRegister(base)} + ${formatRegister(reg)} * $coeff]"
+    }
+}
 
 def formatCompFlag(flag: CompFlag): String = flag match {
     case CompFlag.E  => "e"
@@ -87,84 +174,6 @@ def formatCompFlag(flag: CompFlag): String = flag match {
 def formatJumpFlag(flag: JumpFlag): String = flag match {
     case JumpFlag.Overflow => "o"
     case JumpFlag.Unconditional => "mp"
-}
-
-def formatOperand(op: RegImmMem, size: RegSize = QUAD_WORD): String = op match {
-    case reg: Register     => formatRegister(reg)
-    case imm: Immediate    => formatImmediate(imm)
-    case mem: MemoryAccess => formatMemAccess(mem, size)
-}
-
-def formatDestOperand(op: RegMem): String = op match {
-    case reg: Register     => formatRegister(reg)
-    case mem: MemoryAccess => formatMemAccess(mem)
-}
-
-def formatInstruction(instr: Instruction): String = instr match {
-    case IntelSyntax                         => ".intel_syntax noprefix"
-    case SectionRoData                       => ".section .rodata"
-    case Text                                => ".text"
-    case Label(name)                         => s"\n$name:"
-    case Global(label)                       => s".globl $label"
-    // TODO: correct label name by adding "db"
-    case StrLabel(label: Label, _)           => s".L.${label.name}:"
-    case DirInt(size)                        => s"    .int $size"
-    case Asciz(name)                         => s"    .asciz \"${formatString(name)}\""
-    
-    case Push(reg)                           => s"    push ${formatRegister(reg)}"
-    case Pop(reg)                            => s"    pop ${formatRegister(reg)}"
-    
-    case Add(dest, src)                      => s"    add ${formatRegister(dest)}, ${formatOperand(src)}"
-    case Sub(dest, src)                      => s"    sub ${formatRegister(dest)}, ${formatOperand(src)}"
-    case Mul(dest, src1, src2)               => s"    imul ${formatRegister(dest)}, ${formatOperand(src1)}, ${formatOperand(src2)}"
-    case Div(src)                            => s"    idiv ${formatOperand(src)}"
-    case Mod(src)                            => s"    idiv ${formatOperand(src)}"
-    case And(dest, src)                      => s"    and ${formatRegister(dest)}, ${formatOperand(src)}"
-    case Or(dest, src)                       => s"    or ${formatRegister(dest)}, ${formatOperand(src)}"
-    
-    case Neg(dest, src)                      => s"    neg ${formatRegister(dest)}"
-    case Not(dest, src)                      => s"    not ${formatRegister(dest)}"
-    
-    case CMov(dest, src, cond)               => s"    cmov${formatCompFlag(cond)} ${formatRegister(dest)} ${formatRegister(src)}"
-    case Mov(dest, src)                      => s"    mov ${formatDestOperand(dest)}, ${formatOperand(src)}"
-    case Lea(dest, addr)                     => s"    lea ${formatRegister(dest)}, ${formatMemAccess(addr)}"
-    
-    case Call(label)                         => s"    call ${label.name}"
-    case Jump(label, flag)                   => s"    j${formatJumpFlag(flag)} ${label.name}"
-    case Ret                                 => s"    ret"
-    
-    case Cmp(op1, op2)                       => s"    cmp ${formatOperand(op1)}, ${formatOperand(op2)}"
-    case Test(op1, op2)                      => s"    test ${formatOperand(op1)}, ${formatOperand(op2)}"
-    case SetComp(dest, flag)                 => s"    set${formatCompFlag(flag)} ${formatRegister(dest)}"
-    case JumpComp(label, flag)               => s"    j${formatCompFlag(flag)} ${label.name}"
-    case ConvertDoubleToQuad                 => s"    cdq"
-}
-
-def formatImmediate(imm: Immediate): String = imm match {
-    case Imm(value)                          => s"$value"
-}
-
-// TODO: pass the size of the other register
-// size check should be performed in terms of the other
-def formatMemAccess(mem: MemoryAccess, size: RegSize = QUAD_WORD): String = {
-    def sizeCheck(dim: RegSize) = dim match {
-        case BYTE        => "byte"
-        case WORD        => "word"
-        case DOUBLE_WORD => "dword"
-        case QUAD_WORD   => "qword"
-    }
-    
-    mem match {
-        case MemAccess(reg: Register, offset: Int) => 
-            val operand = if (offset == 0) s"[${formatRegister(reg)}]" else s"[${formatRegister(reg)} ${if offset > 0 then "+" else ""} $offset]"
-            s"${sizeCheck(size)} ptr $operand"
-        case MemAccess(reg @ RIP(_), offset: Label) =>
-            s"[${formatRegister(reg)} + ${offset.name}]"
-        case MemAccess(reg: Register, offset: Label) =>
-            s"${sizeCheck(size)} ptr [${formatRegister(reg)} + ${offset.name}]"
-        case MemRegAccess(base, reg, coeff) =>
-            s"${sizeCheck(size)} ptr [${formatRegister(base)} + ${formatRegister(reg)} * $coeff]"
-    }
 }
 
 def formatString(name: String): String = name
