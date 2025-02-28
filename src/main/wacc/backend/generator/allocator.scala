@@ -76,20 +76,6 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
                 case reg          => reg
             }
             Or(dest, srcReg)
-        case Neg(dest: TempReg, src: RegImm) =>
-            regMachine.nextRegister(dest)
-            val srcReg = src match {
-                case reg: TempReg => regMachine.nextRegister(reg)
-                case reg          => reg
-            }
-            Neg(dest, srcReg)
-        case Not(dest: TempReg, src: RegImm) =>
-            regMachine.nextRegister(dest)
-            val srcReg = src match {
-                case reg: TempReg => regMachine.nextRegister(reg)
-                case reg          => reg
-            }
-            Not(dest, srcReg)
         case Test(dest: TempReg, src: RegImm) =>
             regMachine.nextRegister(dest)
             val srcReg = src match {
