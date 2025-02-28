@@ -31,7 +31,7 @@ integration-frontend:
   artifacts:
     paths:
       - integration_frontend_output.log
-      - *.s
+      - "*.s"
     expire_in: never
 
 integration-backend:
