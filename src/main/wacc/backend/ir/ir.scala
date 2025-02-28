@@ -27,35 +27,37 @@ import registers.*
   */
 
 object registers {
-    final val QUAD_WORD   = 64
-    final val DOUBLE_WORD = 32
-    final val WORD        = 16
-    final val BYTE        = 8
+    enum RegSize(val size: Int) {
+        case QUAD_WORD   extends RegSize(8)
+        case DOUBLE_WORD extends RegSize(4)
+        case WORD        extends RegSize(2)
+        case BYTE        extends RegSize(1)
+    }
 
-    abstract class Register(val size: Int)
-    case class RAX(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class RBX(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class RCX(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class RDX(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class RSI(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class RDI(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class RSP(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class RBP(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class R8 (val dim: Int = QUAD_WORD) extends Register(dim)
-    case class R9 (val dim: Int = QUAD_WORD) extends Register(dim)
-    case class R10(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class R11(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class R12(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class R13(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class R14(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class R15(val dim: Int = QUAD_WORD) extends Register(dim)
-    case class RIP(val dim: Int = QUAD_WORD) extends Register(dim)
+    abstract class Register(val size: RegSize)
+    case class RAX(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class RBX(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class RCX(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class RDX(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class RSI(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class RDI(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class RSP(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class RBP(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class R8 (val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class R9 (val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class R10(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class R11(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class R12(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class R13(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class R14(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class R15(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class RIP(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
 
-    case class TempReg(num: Int, val dim: Int = QUAD_WORD) extends Register(dim)
+    case class TempReg(num: Int, val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
     class Temporary {
         private var number = 0
 
-        def next(size: Int = QUAD_WORD): TempReg = {
+        def next(size: RegSize = RegSize.QUAD_WORD): TempReg = {
             number += 1
             TempReg(number, size)
         }
@@ -76,7 +78,7 @@ object immediate {
 object memory {
     sealed trait MemoryAccess
 
-    case class MemAccess(reg: Register, offset: Int | Label) extends MemoryAccess
+    case class MemAccess(reg: Register, offset: Int | Label = memoryOffsets.NO_OFFSET) extends MemoryAccess
     case class MemRegAccess(base: Register, reg: Register, coeff: Int) extends MemoryAccess
 }
 
@@ -160,16 +162,24 @@ object errorCodes {
 }
 
 object memoryOffsets {
+    final val FALSE = 0
+    final val TRUE = 1
+    final val DIV_ZERO = 0
     final val NO_OFFSET = 0
+    final val NULL = 0
     final val ARRAY_LENGTH_OFFSET = -4
     final val STACK_ALIGNMENT = -16
     final val BOOL_PRINT_OFFSET = 24
-    final val ARR_STORE1 = 1
-    final val ARR_STORE2 = 2
-    final val ARR_STORE4 = 4
-    final val ARR_STORE8 = 8
-    final val ARR_LOAD1 = 1
-    final val ARR_LOAD2 = 2
-    final val ARR_LOAD4 = 4
-    final val ARR_LOAD8 = 8
+    final val ARR_STORE1 = RegSize.BYTE.size
+    final val ARR_STORE2 = RegSize.WORD.size
+    final val ARR_STORE4 = RegSize.DOUBLE_WORD.size
+    final val ARR_STORE8 = RegSize.QUAD_WORD.size
+    final val ARR_LOAD1 = RegSize.BYTE.size
+    final val ARR_LOAD2 = RegSize.WORD.size
+    final val ARR_LOAD4 = RegSize.DOUBLE_WORD.size
+    final val ARR_LOAD8 = RegSize.QUAD_WORD.size
+}
+
+object constants {
+    final val MAX_CALL_ARGS = 6
 }
