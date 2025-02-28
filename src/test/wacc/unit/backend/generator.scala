@@ -104,7 +104,7 @@ class CodeGeneratorTests extends AnyFlatSpec {
         generate(ifStmt)
         
         val instructions = codeGen.ir
-        codeGen.ir.collectFirst { case _: Jump => succeed } getOrElse fail("Expected Jump instruction")
+        instructions.collectFirst { case _: Jump => succeed } getOrElse fail("Expected Jump instruction")
     }
 
     it should "generate code for while loops" in {
