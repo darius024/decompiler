@@ -10,8 +10,13 @@ import immediate.*
 import instructions.*
 import memory.*
 import registers.*
+import RegSize.*
 import widgets.*
 
+/** Formats the assembly instructions produced by the code generator.
+  * 
+  * Constructs the assembly file at the root level of the project and prints to it.
+  */
 def format(codeGen: CodeGenerator, file: File): Unit = {
     // create and open a generic stream for IO
     val outputPath = os.pwd / s"${file.getName.stripSuffix(".wacc")}.s"
@@ -30,7 +35,7 @@ def format(codeGen: CodeGenerator, file: File): Unit = {
 def formatIR(codeGen: CodeGenerator): List[Instruction] = {
        List(IntelSyntax, Global("main"), SectionRoData)
     ++ codeGen.data.flatMap(formatStrLabel) ++ List(Text) ++ codeGen.ir
-    ++ (codeGen.dependencies ++ codeGen.dependencies.flatMap(_.dependencies)).toList.flatMap(formatWidget)
+    ++ codeGen.dependencies.toList.flatMap(formatWidget)
 }
 
 def formatStrLabel(strLabel: StrLabel): List[Instruction] = List(
@@ -70,13 +75,13 @@ def formatRegister(reg: Register): String = reg match {
     case TempReg(num, size) => "TEMP_REG"
 }   
 
-def formatOperand(op: RegImmMem, size: Int = QUAD_WORD): String = op match {
+def formatOperand(op: RegImmMem, size: RegSize = QUAD_WORD): String = op match {
     case reg: Register     => formatRegister(reg)
     case imm: Immediate    => formatImmediate(imm)
     case mem: MemoryAccess => formatMemAccess(mem, size)
 }
 
-def formatDestOperand(op: RegMem, size: Int = QUAD_WORD): String = op match {
+def formatDestOperand(op: RegMem, size: RegSize = QUAD_WORD): String = op match {
     case reg: Register     => formatRegister(reg)
     case mem: MemoryAccess => formatMemAccess(mem, size)
 }
@@ -128,8 +133,8 @@ def formatImmediate(imm: Immediate): String = imm match {
 
 // TODO: pass the size of the other register
 // size check should be performed in terms of the other
-def formatMemAccess(mem: MemoryAccess, size: Int = QUAD_WORD): String = {
-    def sizeCheck(dim: Int) = dim match {
+def formatMemAccess(mem: MemoryAccess, size: RegSize = QUAD_WORD): String = {
+    def sizeCheck(dim: RegSize) = dim match {
         case BYTE        => "byte"
         case WORD        => "word"
         case DOUBLE_WORD => "dword"
