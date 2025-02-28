@@ -53,14 +53,14 @@ object widgets {
             Push(RBP()),
             Mov(RBP(), RSP()),
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Sub(RSP(), Imm(WORD)),
-            Mov(MemAccess(RSP(), memoryOffsets.NO_OFFSET), RDI(DOUBLE_WORD)),
+            Sub(RSP(), Imm(RegSize.WORD.size)),
+            Mov(MemAccess(RSP(), memoryOffsets.NO_OFFSET), RDI(RegSize.DOUBLE_WORD)),
             Lea(RSI(), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._readi_str0"))),
-            Mov(RAX(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.scanf),
-            Mov(RAX(DOUBLE_WORD), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
-            Add(RSP(), Imm(WORD)),
+            Mov(RAX(RegSize.DOUBLE_WORD), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
+            Add(RSP(), Imm(RegSize.WORD.size)),
             Mov(RSP(), RBP()),
             Pop(RBP()),
             Ret
@@ -74,14 +74,14 @@ object widgets {
             Push(RBP()),
             Mov(RBP(), RSP()),
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Sub(RSP(), Imm(WORD)),
-            Mov(MemAccess(RSP(), memoryOffsets.NO_OFFSET), RDI(BYTE)),
+            Sub(RSP(), Imm(RegSize.WORD.size)),
+            Mov(MemAccess(RSP(), memoryOffsets.NO_OFFSET), RDI(RegSize.BYTE)),
             Lea(RSI(), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._readc_str0"))),
-            Mov(RAX(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.scanf),
-            Mov(RAX(BYTE), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
-            Add(RSP(), Imm(WORD)),
+            Mov(RAX(RegSize.BYTE), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
+            Add(RSP(), Imm(RegSize.WORD.size)),
             Mov(RSP(), RBP()),
             Pop(RBP()),
             Ret
@@ -95,9 +95,9 @@ object widgets {
             Push(RBP()),
             Mov(RBP(), RSP()),
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Mov(RSI(DOUBLE_WORD), RDI(DOUBLE_WORD)),
+            Mov(RSI(RegSize.DOUBLE_WORD), RDI(RegSize.DOUBLE_WORD)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._printi_str0"))),
-            Mov(RAX(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
             Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
@@ -114,9 +114,9 @@ object widgets {
             Push(RBP()),
             Mov(RBP(), RSP()),
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Mov(RSI(BYTE), RDI(BYTE)),
+            Mov(RSI(RegSize.BYTE), RDI(RegSize.BYTE)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._printc_str0"))),
-            Mov(RAX(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
             Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
@@ -134,9 +134,9 @@ object widgets {
             Mov(RBP(), RSP()),
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
             Mov(RDX(), RDI()),
-            Mov(RSI(DOUBLE_WORD), MemAccess(RDI(), memoryOffsets.ARRAY_LENGTH_OFFSET)),
+            Mov(RSI(RegSize.DOUBLE_WORD), MemAccess(RDI(), memoryOffsets.ARRAY_LENGTH_OFFSET)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._prints_str0"))),
-            Mov(RAX(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
             Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
@@ -157,16 +157,16 @@ object widgets {
             Push(RBP()),
             Mov(RBP(), RSP()),
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Cmp(RDI(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Cmp(RDI(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             JumpComp(Label(".L_printb0"), CompFlag.NE),
             Lea(RDX(), MemAccess(RIP(), Label(".L._printb_str0"))),
             Jump(Label(".L_printb1"), JumpFlag.Unconditional),
             Label(".L_printb0"),
             Lea(RDX(), MemAccess(RIP(), Label(".L._printb_str1"))),
             Label(".L_printb1"),
-            Mov(RSI(DOUBLE_WORD), MemAccess(RDX(), memoryOffsets.ARRAY_LENGTH_OFFSET)),
+            Mov(RSI(RegSize.DOUBLE_WORD), MemAccess(RDX(), memoryOffsets.ARRAY_LENGTH_OFFSET)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._printb_str2"))),
-            Mov(RAX(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
             Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
@@ -303,9 +303,9 @@ object errors {
         def message: String = errorMessages.generateError("null pointer")
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Lea(RDI(), MemAccess(RIP(), Label("_errNull_str0"))),
+            Lea(RDI(), MemAccess(RIP(), Label(".L._errNull_str0"))),
             Call(widgets.PrintString.label),
-            Mov(RDI(BYTE), Imm(errorCodes.FAILURE)),
+            Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
     }
@@ -316,9 +316,9 @@ object errors {
         def message: String = errorMessages.generateError("integer overflow or underflow occurred")
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Lea(RDI(), MemAccess(RIP(), Label("_errOverflow_str0"))),
+            Lea(RDI(), MemAccess(RIP(), Label(".L._errOverflow_str0"))),
             Call(widgets.PrintString.label),
-            Mov(RDI(BYTE), Imm(errorCodes.FAILURE)),
+            Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
     }
@@ -329,9 +329,9 @@ object errors {
         def message: String = errorMessages.generateError("division or modulo by zero")
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Lea(RDI(), MemAccess(RIP(), Label("_errDivZero_str0"))),
+            Lea(RDI(), MemAccess(RIP(), Label(".L._errDivZero_str0"))),
             Call(widgets.PrintString.label),
-            Mov(RDI(BYTE), Imm(errorCodes.FAILURE)),
+            Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
     }
@@ -342,12 +342,12 @@ object errors {
         def message: String = errorMessages.generateError("array index %d out of bounds")
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Lea(RDI(), MemAccess(RIP(), Label("_errOutOfBounds_str0"))),
-            Mov(RAX(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Lea(RDI(), MemAccess(RIP(), Label(".L._errOutOfBounds_str0"))),
+            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
             Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
-            Mov(RDI(BYTE), Imm(errorCodes.FAILURE)),
+            Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
     }
@@ -358,9 +358,9 @@ object errors {
         def message: String = errorMessages.generateError("out of memory")
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Lea(RDI(), MemAccess(RIP(), Label("_errOutOfMemory_str0"))),
+            Lea(RDI(), MemAccess(RIP(), Label(".L._errOutOfMemory_str0"))),
             Call(widgets.PrintString.label),
-            Mov(RDI(BYTE), Imm(errorCodes.FAILURE)),
+            Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
     }
@@ -371,12 +371,12 @@ object errors {
         def message: String = errorMessages.generateError("invalid character")
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Lea(RDI(), MemAccess(RIP(), Label("_errBadChar_str0"))),
-            Mov(RAX(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Lea(RDI(), MemAccess(RIP(), Label(".L._errBadChar_str0"))),
+            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
             Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
-            Mov(RDI(BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(RDI(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.exit)
         )
     }
@@ -396,18 +396,17 @@ object library {
     val scanf  = Label("scanf")
 }
 
-
 object arrStore {
     def instructions(size: Int): List[Instruction] = List(
         Push(RBX()),
-        Test(R10(DOUBLE_WORD), R10(DOUBLE_WORD)),
+        Test(R10(RegSize.DOUBLE_WORD), R10(RegSize.DOUBLE_WORD)),
         CMov(RSI(), R10(), CompFlag.L),
         JumpComp(ErrOutOfBounds.label, CompFlag.L),
-        Mov(RBX(DOUBLE_WORD), MemAccess(R9(), memoryOffsets.ARRAY_LENGTH_OFFSET)),
-        Cmp(R10(DOUBLE_WORD), RBX(DOUBLE_WORD)),
+        Mov(RBX(RegSize.DOUBLE_WORD), MemAccess(R9(), memoryOffsets.ARRAY_LENGTH_OFFSET)),
+        Cmp(R10(RegSize.DOUBLE_WORD), RBX(RegSize.DOUBLE_WORD)),
         CMov(RSI(), R10(), CompFlag.GE),
         JumpComp(ErrOutOfBounds.label, CompFlag.GE),
-        Mov(MemRegAccess(R9(), R10(), size), RAX()),
+        Mov(R9(RegSize.DOUBLE_WORD), MemRegAccess(R9(), R10(), size)),
         Pop(RBX()),
         Ret
     )
@@ -416,11 +415,11 @@ object arrStore {
 object arrLoad {
     def instructions(size: Int): List[Instruction] = List(
         Push(RBX()),
-        Test(R10(DOUBLE_WORD), R10(DOUBLE_WORD)),
+        Test(R10(RegSize.DOUBLE_WORD), R10(RegSize.DOUBLE_WORD)),
         CMov(RSI(), R10(), CompFlag.L),
         JumpComp(ErrOutOfBounds.label, CompFlag.L),
-        Mov(RBX(DOUBLE_WORD), MemAccess(R9(), memoryOffsets.ARRAY_LENGTH_OFFSET)),
-        Cmp(R10(DOUBLE_WORD), RBX(DOUBLE_WORD)),
+        Mov(RBX(RegSize.DOUBLE_WORD), MemAccess(R9(), memoryOffsets.ARRAY_LENGTH_OFFSET)),
+        Cmp(R10(RegSize.DOUBLE_WORD), RBX(RegSize.DOUBLE_WORD)),
         CMov(RSI(), R10(), CompFlag.GE),
         JumpComp(ErrOutOfBounds.label, CompFlag.GE),
         Mov(RAX(), MemRegAccess(R9(), R10(), size)),

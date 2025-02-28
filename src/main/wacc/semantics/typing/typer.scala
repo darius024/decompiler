@@ -85,7 +85,7 @@ def check(func: Function)
     given funcScope: String = funcName.value
 
     val retTy = ctx.returnTypeOf(funcName.value)
-    val typedParams = params.map { (_, id) => checkLValue(id, Unconstrained)._2 }
+    val typedParams = params.map { (_, id) => checkId(id, Unconstrained)._2 }
     val typedStmts = stmts.toList.flatMap(check(_, Some(retTy)))
 
     TyFunc(funcName.value, typedParams, typedStmts)
@@ -251,18 +251,24 @@ def checkRValue(rvalue: RValue, cons: Constraint)
         (retTy.satisfies(cons, func.pos), TyExpr.Call(func.value, typedArgs, retTy, argTys))
 }
 
+/** Checks the type soundness of an identifier. */
+def checkId(id: Id, cons: Constraint)
+           (using funcScope: String)
+           (using ctx: TypeCheckerContext[?]): (Option[SemType], TyExpr.Id) = {
+    // retrieve the type of the identifier
+    val kTy = ctx.typeOf(id.value)
+    (kTy.satisfies(cons, id.pos), TyExpr.Id(id.value, kTy))
+}
+
 /** Checks the type soundness of an lvalue. */
 def checkLValue(lvalue: LValue, cons: Constraint)
                (using funcScope: String)
                (using ctx: TypeCheckerContext[?]): (Option[SemType], TyExpr.LVal) = lvalue match {
-    case Id(value) =>
-        // retrieve the type of the identifier
-        val kTy = ctx.typeOf(value)
-        (kTy.satisfies(cons, lvalue.pos), TyExpr.Id(value, kTy))
+    case id @ Id(value) => checkId(id, cons)
     
     case ArrayElem(id, idx) =>
         // get the type of the array
-        val (baseTy, typedId) = checkLValue(id, Is(wrapArrayType(KType.Array(cons.ty, idx.length))))
+        val (baseTy, typedId) = checkId(id, Is(wrapArrayType(KType.Array(cons.ty, idx.length))))
         
         // check that all indices are integers
         val (idxTy, typedIdx) = idx.map { idx =>
