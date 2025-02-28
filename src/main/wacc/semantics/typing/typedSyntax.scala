@@ -50,12 +50,12 @@ object TyExpr {
     case object PairLit extends TyExpr(KType.Pair(?, ?))
 
     /** Typed l-values. */
-    abstract class LVal(ty: SemType) extends TyExpr(ty)
-    case class Id(value: String, semTy: SemType) extends LVal(semTy)
-    case class ArrayElem(lval: LVal, idx: List[TyExpr], semTy: SemType) extends LVal(semTy)
-    sealed trait TyPairElem
-    case class PairFst(lval: LVal, semTy: SemType) extends LVal(semTy) with TyPairElem
-    case class PairSnd(lval: LVal, semTy: SemType) extends LVal(semTy) with TyPairElem
+    sealed trait LVal extends TyExpr
+    case class Id(value: String, semTy: SemType) extends TyExpr(semTy) with LVal
+    case class ArrayElem(id: Id, idx: List[TyExpr], semTy: SemType) extends TyExpr(semTy) with LVal
+    sealed trait TyPairElem extends LVal { val lval: LVal }
+    case class PairFst(lval: LVal, semTy: SemType) extends TyExpr(semTy) with TyPairElem
+    case class PairSnd(lval: LVal, semTy: SemType) extends TyExpr(semTy) with TyPairElem
 
     case class ArrayLit(exprs: List[TyExpr], semTy: SemType) extends TyExpr(semTy)
     case class NewPair(fst: TyExpr, snd: TyExpr, fstTy: SemType, sndTy: SemType) extends TyExpr(KType.Pair(fstTy, sndTy))
@@ -77,5 +77,5 @@ enum TyStmt {
 }
 
 /** Typed function and program nodes. */
-case class TyFunc(name: String, params: Array[TyExpr.LVal], stmts: TyStmtList)
+case class TyFunc(name: String, params: Array[TyExpr.Id], stmts: TyStmtList)
 case class TyProg(funcs: List[TyFunc], stmts: TyStmtList)
