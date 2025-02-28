@@ -1,6 +1,6 @@
 package wacc.backend.formatter
 
-import java.io.File
+import java.io.{File, OutputStream}
 import os.*
 
 import wacc.backend.generator.*
@@ -21,38 +21,50 @@ type RegImmMemLabel = RegImmMem | Label | String
 def format(codeGen: CodeGenerator, file: File): Unit = {
     // create and open a generic stream for IO
     val outputPath = os.pwd / s"${file.getName.stripSuffix(".wacc")}.s"
-    val outputStream = os.write.outputStream(outputPath)
+    given outputStream: OutputStream = os.write.outputStream(outputPath)
 
     try {
-        format(codeGen).foreach { instr =>
-            outputStream.write(formatInstruction(instr).getBytes)
-            outputStream.write("\n".getBytes)
-        }
+        formatHeader
+        formatBlock(codeGen.data)
+        format(codeGen.ir)
+        formatWidgets(codeGen.dependencies)
     } finally {
         outputStream.close()
     }
 }
 
-def format(codeGen: CodeGenerator): List[Instruction] = {
-       List(IntelSyntax, Global("main"), SectionRoData)
-    ++ codeGen.data.flatMap(formatStrLabel) ++ List(Text) ++ codeGen.ir
-    ++ codeGen.dependencies.toList.flatMap(formatWidget)
+def format(instructions: List[Instruction])
+          (using outputStream: OutputStream) = instructions.foreach { instr =>
+    // perform writes using the output stream
+    // this saves memory as the text is not accumulated
+    outputStream.write(formatInstruction(instr).getBytes)
+    outputStream.write("\n".getBytes)
 }
 
-def formatStrLabel(strLabel: StrLabel): List[Instruction] = List(
-    DirInt(strLabel.name.length), strLabel.label, Asciz(strLabel.name)
-)
+def formatHeader(using outputStream: OutputStream) = {
+    format(List(IntelSyntax, Global("main")))
+}
 
-def formatWidget(widget: Widget): List[Instruction] =
-    (if (widget.directives.isEmpty) {
-        Nil
-    } else {
-        List(SectionRoData)
-        ++ widget.directives.flatMap(formatStrLabel)
-        ++ List(Text)
-    })
-    ++ List(widget.label)
-    ++ widget.instructions
+def formatBlock(directives: Set[StrLabel])
+               (using outputStream: OutputStream): Unit = if (!directives.isEmpty) {
+    format(List(SectionRoData))
+    directives.map(formatDirective)
+    format(List(Text))
+}
+
+def formatDirective(strLabel: StrLabel)
+                   (using outputStream: OutputStream): Unit = {
+    val StrLabel(label, name) = strLabel
+
+    format(List(DirInt(name.length), label, Asciz(name)))
+}
+
+def formatWidgets(widgets: Set[Widget])
+                 (using outputStream: OutputStream): Unit = widgets.foreach { widget =>
+    formatBlock(widget.directives)
+    format(List(widget.label))
+    format(widget.instructions)
+}
 
 def formatInstruction(instr: Instruction): String = {
     def format(opcode: String, operands: RegImmMemLabel*): String =
@@ -78,10 +90,6 @@ def formatInstruction(instr: Instruction): String = {
         case Mod(src)                 => format("idiv", src)
         case And(dest, src)           => format("and" , dest, src)
         case Or(dest, src)            => format("or"  , dest, src)
-
-        // TODO: remove these unused instructions
-        case Neg(dest, _)             => format("neg" , dest)
-        case Not(dest, _)             => format("not" , dest)
 
         case CMov(dest, src, cond)    => format(s"cmov${formatCompFlag(cond)}", dest, src)
         case Mov(dest, src)           => format("mov" , dest, src)

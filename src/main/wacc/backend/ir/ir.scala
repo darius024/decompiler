@@ -115,8 +115,6 @@ object instructions {
     // boolean operations
     case class And(dest: Register, src: RegImm) extends Instruction
     case class Or (dest: Register, src: RegImm) extends Instruction
-    case class Neg(dest: Register, src: RegImm) extends Instruction
-    case class Not(dest: Register, src: RegImm) extends Instruction
     case class Test(dest: Register, src1: RegImm) extends Instruction
 
     // move

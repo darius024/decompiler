@@ -18,7 +18,7 @@ def formatJumpFlag(flag: JumpFlag): String = flag match {
     case JumpFlag.Unconditional => "mp"
 }
 
-def sizePtr(dim: RegSize) = dim match {
+def sizePtr(size: RegSize) = size match {
     case RegSize.BYTE        => "byte"
     case RegSize.WORD        => "word"
     case RegSize.DOUBLE_WORD => "dword"
