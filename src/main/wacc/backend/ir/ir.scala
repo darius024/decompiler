@@ -26,7 +26,9 @@ import registers.*
   * r15:                     --- callee-saved
   */
 
+/** Register instances and sizes. */
 object registers {
+    /** Complete enumeration of allowed register sizes. */
     enum RegSize(val size: Int) {
         case QUAD_WORD   extends RegSize(8)
         case DOUBLE_WORD extends RegSize(4)
@@ -35,6 +37,7 @@ object registers {
     }
 
     abstract class Register(val size: RegSize)
+    /** Each register is represented as an unique object. */
     case class RAX(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
     case class RBX(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
     case class RCX(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
@@ -53,28 +56,19 @@ object registers {
     case class R15(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
     case class RIP(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
 
+    /** Temporary register used to translate from the first pass to the second. */
     case class TempReg(num: Int, val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    class Temporary {
-        private var number = 0
-
-        def next(size: RegSize = RegSize.QUAD_WORD): TempReg = {
-            number += 1
-            TempReg(number, size)
-        }
-    }
-
-    object initialValues {
-        final val CLEAR = 0
-    }
 }
 
+/** Immediate values that instructions use. */
 object immediate {
     sealed trait Immediate
 
-    // TODO: Add more types of immediates and safety-check the parameters
+    // TODO: add more types of immediates and safety-check the parameters
     case class Imm(value: Int) extends Immediate
 }
 
+/** Memory accesses that instructions use. */
 object memory {
     sealed trait MemoryAccess
 
@@ -82,6 +76,7 @@ object memory {
     case class MemRegAccess(base: Register, reg: Register, coeff: Int) extends MemoryAccess
 }
 
+/** Intermediate representation of the backend phase. */
 object instructions {
     type RegMem = Register | MemoryAccess
     type RegImm = Register | Immediate
@@ -139,6 +134,7 @@ object instructions {
     case object ConvertDoubleToQuad extends Instruction
 }
 
+/** Flags for the conditional instructions. */
 object flags {
     enum CompFlag {
         case E
@@ -155,6 +151,7 @@ object flags {
     }
 }
 
+/** Constants used during code generation. */
 object errorCodes {
     final val FAILURE = -1
     final val ARRAY_OUT_OF_BOUNDS = 1
@@ -182,4 +179,5 @@ object memoryOffsets {
 
 object constants {
     final val MAX_CALL_ARGS = 6
+    final val CHR = -128
 }

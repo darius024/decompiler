@@ -13,6 +13,10 @@ import registers.*
 import RegSize.*
 import widgets.*
 
+/** Formats the assembly instructions produced by the code generator.
+  * 
+  * Constructs the assembly file at the root level of the project and prints to it.
+  */
 def format(codeGen: CodeGenerator, file: File): Unit = {
     // create and open a generic stream for IO
     val outputPath = os.pwd / s"${file.getName.stripSuffix(".wacc")}.s"
@@ -31,7 +35,7 @@ def format(codeGen: CodeGenerator, file: File): Unit = {
 def formatIR(codeGen: CodeGenerator): List[Instruction] = {
        List(IntelSyntax, Global("main"), SectionRoData)
     ++ codeGen.data.flatMap(formatStrLabel) ++ List(Text) ++ codeGen.ir
-    ++ (codeGen.dependencies ++ codeGen.dependencies.flatMap(_.dependencies)).toList.flatMap(formatWidget)
+    ++ codeGen.dependencies.toList.flatMap(formatWidget)
 }
 
 def formatStrLabel(strLabel: StrLabel): List[Instruction] = List(

@@ -10,8 +10,9 @@ import registers.*
 import errors.*
 import widgets.*
 
+/** Provides in-built implementation of all the widget functions used. */
 object widgets {
-
+    // complete set of widgets
     val widgetSet: Set[Widget] = Set(
         ReadInt,
         ReadChar,
@@ -39,6 +40,13 @@ object widgets {
         ErrOutOfMemory,
     )
 
+    /** Widgets must provide implementations for their:
+      *
+      * - label: function name that is being called
+      * - directives: string literals used
+      * - instructions: function body of IR instructions
+      * - dependencies: what other widgets they each use
+      */
     sealed trait Widget {
         val label: Label
         val directives: List[StrLabel] = List.empty
@@ -298,10 +306,12 @@ object widgets {
     }
 }
 
-
+/** Widgets responsible to manage runtime errors. */
 object errors {
+    /** An error widget must in addition provide an error message. */
     sealed trait ErrorWidget extends Widget {
         def message: String
+        // error messages must always be printed
         override def dependencies: Set[Widget] = Set(PrintString)
     }
 
@@ -390,10 +400,12 @@ object errors {
     }
 }
 
+/** Common interface for generating runtime error messages. */
 object errorMessages {
     def generateError(message: String): String = s"fatal error: $message\n"
 }
 
+/** Pre-build libraries available during runtime. */ 
 object library {
     val exit   = Label("exit")
     val fflush = Label("fflush")
@@ -404,6 +416,7 @@ object library {
     val scanf  = Label("scanf")
 }
 
+/** Shared interface for handling storing an element into an array. */
 object arrStore {
     def instructions(size: Int): List[Instruction] = List(
         Push(RBX()),
@@ -420,6 +433,7 @@ object arrStore {
     )
 }
 
+/** Shared interface for handling loading an element from an array. */
 object arrLoad {
     def instructions(size: Int): List[Instruction] = List(
         Push(RBX()),
