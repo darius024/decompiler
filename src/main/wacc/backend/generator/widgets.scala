@@ -12,7 +12,7 @@ import widgets.*
 
 object widgets {
 
-    val widgets: Set[Widget] = Set(
+    val widgetSet: Set[Widget] = Set(
         ReadInt,
         ReadChar,
         PrintInt,
@@ -239,41 +239,49 @@ object widgets {
     case object ArrayStore1 extends Widget {
         val label = Label("_arrStore1")
         def instructions: List[Instruction] = arrStore.instructions(memoryOffsets.ARR_STORE1)
+        override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
     case object ArrayStore2 extends Widget {
         val label = Label("_arrStore2")
         def instructions: List[Instruction] = arrStore.instructions(memoryOffsets.ARR_STORE2)
+        override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
     case object ArrayStore4 extends Widget {
         val label = Label("_arrStore4")
         def instructions: List[Instruction] = arrStore.instructions(memoryOffsets.ARR_STORE4)
+        override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
     case object ArrayStore8 extends Widget {
         val label = Label("_arrStore8")
         def instructions: List[Instruction] = arrStore.instructions(memoryOffsets.ARR_STORE8)
+        override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
     case object ArrayLoad1 extends Widget {
         val label = Label("_arrLoad1")
         def instructions: List[Instruction] = arrLoad.instructions(memoryOffsets.ARR_LOAD1)
+        override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
     case object ArrayLoad2 extends Widget {
         val label = Label("_arrLoad2")
         def instructions: List[Instruction] = arrLoad.instructions(memoryOffsets.ARR_LOAD2)
+        override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
     
     case object ArrayLoad4 extends Widget {
         val label = Label("_arrLoad4")
         def instructions: List[Instruction] = arrLoad.instructions(memoryOffsets.ARR_LOAD4)
+        override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
     case object ArrayLoad8 extends Widget {
         val label = Label("_arrLoad8")
         def instructions: List[Instruction] = arrLoad.instructions(memoryOffsets.ARR_LOAD8)
+        override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
     case object ExitProg extends Widget {
@@ -294,7 +302,7 @@ object widgets {
 object errors {
     sealed trait ErrorWidget extends Widget {
         def message: String
-        override def dependencies: Set[Widget] = Set(widgets.PrintString)
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     case object ErrNull extends ErrorWidget {
