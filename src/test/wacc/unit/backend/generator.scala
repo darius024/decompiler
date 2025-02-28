@@ -5,20 +5,23 @@ import org.scalatest.matchers.should.Matchers.*
 
 import wacc.backend.generator.*
 import wacc.backend.ir.*
-import wacc.backend.ir.instructions.*
-import wacc.backend.ir.registers.*
-import wacc.backend.ir.immediate.*
+import immediate.*
+import instructions.*
+
 import wacc.semantics.typing.*
+import TyExpr.*
 import TyStmt.*
-import TyExpr.{IntLit, BoolLit, CharLit, StrLit, BinaryArithmetic, BinaryComp, BinaryBool, OpArithmetic, OpComp, OpBool}
+
+def emptyCodeGenerator: CodeGenerator =
+    new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
 
 /** Tests the code generator functionality. */
 class CodeGeneratorTests extends AnyFlatSpec {
 
-    "CodeGenerator" should "correctly generate code for integer literals" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    "CodeGenerator" should "generate code for integer literals" in {
+        given codeGen: CodeGenerator = emptyCodeGenerator
         val intExpr = IntLit(42)
-        generate(intExpr)(using codeGen)
+        generate(intExpr)
         
         val instructions = codeGen.ir
         instructions.length shouldBe 1
@@ -28,10 +31,10 @@ class CodeGeneratorTests extends AnyFlatSpec {
         }
     }
 
-    it should "correctly generate code for boolean literals" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    it should "generate code for boolean literals" in {
+        given codeGen: CodeGenerator = emptyCodeGenerator
         val boolExpr = BoolLit(true)
-        generate(boolExpr)(using codeGen)
+        generate(boolExpr)
         
         val instructions = codeGen.ir
         instructions.length shouldBe 1
@@ -41,10 +44,10 @@ class CodeGeneratorTests extends AnyFlatSpec {
         }
     }
 
-    it should "correctly generate code for character literals" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    it should "generate code for character literals" in {
+        given codeGen: CodeGenerator = emptyCodeGenerator
         val charExpr = CharLit('A')
-        generate(charExpr)(using codeGen)
+        generate(charExpr)
         
         val instructions = codeGen.ir
         instructions.length shouldBe 1
@@ -54,82 +57,82 @@ class CodeGeneratorTests extends AnyFlatSpec {
         }
     }
 
-    it should "correctly generate code for string literals" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    it should "generate code for string literals" in {
+        given codeGen: CodeGenerator = emptyCodeGenerator
         val strExpr = StrLit("Hello")
-        generate(strExpr)(using codeGen)
+        generate(strExpr)
         
         val instructions = codeGen.ir
         instructions.length shouldBe 1
         instructions.head shouldBe a[Lea]
     }
 
-    it should "correctly generate code for binary arithmetic operations" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    it should "generate code for binary arithmetic operations" in {
+        given codeGen: CodeGenerator = emptyCodeGenerator
         val addExpr = BinaryArithmetic(IntLit(5), IntLit(3), OpArithmetic.Add)
-        generate(addExpr)(using codeGen)
+        generate(addExpr)
         
         val instructions = codeGen.ir
-        instructions.length shouldBe 4 // Two moves for literals, one add, one overflow check
+        instructions.length shouldBe 4 // two moves for literals, one add, one overflow check
         instructions(2) shouldBe a[Add]
     }
 
-    it should "correctly generate code for binary comparison operations" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    it should "generate code for binary comparison operations" in {
+        given codeGen: CodeGenerator = emptyCodeGenerator
         val compExpr = BinaryComp(IntLit(5), IntLit(3), OpComp.GreaterThan)
-        generate(compExpr)(using codeGen)
+        generate(compExpr)
         
         val instructions = codeGen.ir
-        instructions.length shouldBe 4 // Two moves for literals, one compare, one set
+        instructions.length shouldBe 4 // two moves for literals, one compare, one set
         instructions(2) shouldBe a[Cmp]
         instructions(3) shouldBe a[SetComp]
     }
 
-    it should "correctly generate code for unary operations" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    it should "generate code for unary operations" in {
+        given codeGen: CodeGenerator = emptyCodeGenerator
         val negExpr = TyExpr.Neg(IntLit(5))
-        generate(negExpr)(using codeGen)
+        generate(negExpr)
         
         val instructions = codeGen.ir
-        instructions.length shouldBe 4 // Move literal, move 0, subtract, overflow check
+        instructions.length shouldBe 4 // move literal, move 0, subtract, overflow check
         instructions(2) shouldBe a[Sub]
     }
 
-    it should "correctly generate code for if statements" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    it should "generate code for if statements" in {
+        given codeGen: CodeGenerator = emptyCodeGenerator
         val ifStmt = If(BoolLit(true), List(Exit(IntLit(0))), List(Exit(IntLit(1))))
-        generate(ifStmt)(using codeGen)
+        generate(ifStmt)
         
         val instructions = codeGen.ir
-        instructions.exists(_.isInstanceOf[Jump]) shouldBe true
+        codeGen.ir.collectFirst { case _: Jump => succeed } getOrElse fail("Expected Jump instruction")
     }
 
-    it should "correctly generate code for while loops" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    it should "generate code for while loops" in {
+        given codeGen: CodeGenerator = emptyCodeGenerator
         val whileStmt = While(BoolLit(true), List(Exit(IntLit(0))))
-        generate(whileStmt)(using codeGen)
+        generate(whileStmt)
         
         val instructions = codeGen.ir
-        instructions.exists(_.isInstanceOf[Jump]) shouldBe true
-        instructions.count(_.isInstanceOf[Label]) shouldBe 2 // While body and condition labels
+        instructions.collectFirst { case _: Jump => succeed } getOrElse fail("Expected Jump instruction")
+        instructions.count { case _: Label => true; case _ => false } shouldBe 2
     }
 
-    it should "correctly handle short-circuit evaluation for boolean operations" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    it should "handle short-circuit evaluation for boolean operations" in {
+        given codeGen: CodeGenerator = emptyCodeGenerator
         val andExpr = BinaryBool(BoolLit(true), BoolLit(false), OpBool.And)
-        shortCircuit(andExpr)(using codeGen)
+        shortCircuit(andExpr)
         
         val instructions = codeGen.ir
         instructions.exists(_.isInstanceOf[JumpComp]) shouldBe true
     }
 
-    it should "correctly generate code for division operations with zero checks" in {
-        val codeGen = new CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
+    it should "generate code for division operations with zero checks" in {
+        given codeGen: CodeGenerator = emptyCodeGenerator
         val divExpr = BinaryArithmetic(IntLit(10), IntLit(2), OpArithmetic.Div)
-        generateDivMod(divExpr)(using codeGen)
+        generateDivMod(divExpr)
         
         val instructions = codeGen.ir
-        instructions.exists(_.isInstanceOf[Div]) shouldBe true
-        instructions.exists(_.isInstanceOf[Cmp]) shouldBe true // Zero check
+        instructions.collectFirst { case _: Div => succeed } getOrElse fail("Expected Div instruction")
+        instructions.collectFirst { case _: Cmp => succeed } getOrElse fail("Expected Cmp instruction for zero check")
     }
-} 
+}
