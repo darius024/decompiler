@@ -42,7 +42,7 @@ def compile(code):
 
 
 def map_dest(orig):
-    return orig.replace("examples", "refcompiled")
+    return orig.replace("examples", "examples-refcompiled")
 
 
 try:
