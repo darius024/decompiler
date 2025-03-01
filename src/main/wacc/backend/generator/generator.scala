@@ -289,7 +289,7 @@ def generate(expr: TyExpr)
         codeGen.addInstr(Sub(resultReg, temp))
 
         // check for overflow
-        codeGen.addInstr(Jump(ErrOverflow.label, JumpFlag.Overflow))
+        codeGen.addInstr(Jump(codeGen.getWidgetLabel(ErrOverflow), JumpFlag.Overflow))
         resultReg
     
     // array length operation
@@ -313,7 +313,7 @@ def generate(expr: TyExpr)
         // check if the value is in the valid character range
         codeGen.addInstr(Test(temp, Imm(constants.CHR)))
         codeGen.addInstr(Mov(RSI(), temp))
-        codeGen.addInstr(codeGen.getWidgetLabel(ErrBadChar))
+        codeGen.addInstr(JumpComp(codeGen.getWidgetLabel(ErrBadChar), CompFlag.NE))
         temp
 
     // literal values
@@ -398,9 +398,9 @@ def generateDivMod(expr: TyExpr.BinaryArithmetic)
 
     // select the appropriate result (quotient or remainder)
     val resultReg = codeGen.nextTemp(RegSize.DOUBLE_WORD)
-    val res = op match{
+    val res = op match {
         case TyExpr.OpArithmetic.Div => RAX(RegSize.DOUBLE_WORD)
-        case _1                      => RDX(RegSize.DOUBLE_WORD)
+        case _                       => RDX(RegSize.DOUBLE_WORD)
     }
     codeGen.addInstr(Mov(resultReg, res))
 
