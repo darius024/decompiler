@@ -68,7 +68,6 @@ class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruct
     def data: Set[StrLabel] = directives.result()
     def dependencies: Set[Widget] = widgets.usedWidgets
 
-
     final val registers: Array[Register] = Array(RDI(), RSI(), RDX(), RCX(), R8(), R9())
     private val varRegs: mutable.Map[String, Register] = mutable.Map.empty
 

@@ -467,7 +467,7 @@ def generateFstSnd(pairElem: TyExpr.TyPairElem)
 def generateArrayLit(exprs: List[TyExpr], semTy: SemType)
                      (using codeGen: CodeGenerator): TempReg = {
     // compute the size of the array
-    val elementSize = getTypeSize(semTy)
+    val elementSize = getTypeSize(getArrayType(semTy))
     val exprsLength = exprs.length
     // the array layout has a 4-byte length field followed by the elements
     val totalSize = RegSize.DOUBLE_WORD.size + elementSize.size * exprsLength
@@ -477,7 +477,7 @@ def generateArrayLit(exprs: List[TyExpr], semTy: SemType)
     codeGen.addInstr(Call(codeGen.getWidgetLabel(Malloc)))
 
     val arrayPtr = codeGen.nextTemp()
-    codeGen.addInstr(Mov(arrayPtr, RAX(RegSize.DOUBLE_WORD)))
+    codeGen.addInstr(Mov(arrayPtr, RAX()))
 
     // store the array length
     codeGen.addInstr(Add(arrayPtr, Imm(RegSize.DOUBLE_WORD.size)))
