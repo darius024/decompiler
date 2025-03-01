@@ -4,55 +4,75 @@ import wacc.backend.ir.*
 import flags.*
 import registers.*
 
-/** Prints a comparison flag. */
+/** 
+ * Formats a comparison flag for use in conditional instructions.
+ * These flags determine when conditional operations are executed.
+ */
 def formatCompFlag(flag: CompFlag): String = flag match {
-    case CompFlag.E  => "e"
-    case CompFlag.NE => "ne"
-    case CompFlag.G  => "g"
-    case CompFlag.GE => "ge"
-    case CompFlag.L  => "l"
-    case CompFlag.LE => "le"
+    case CompFlag.E  => "e"   // equal
+    case CompFlag.NE => "ne"  // not equal
+    case CompFlag.G  => "g"   // greater than (signed)
+    case CompFlag.GE => "ge"  // greater than or equal (signed)
+    case CompFlag.L  => "l"   // less than (signed)
+    case CompFlag.LE => "le"  // less than or equal (signed)
 }
 
-/** Prints a jump flag. */
+/** 
+ * Formats a jump flag for unconditional jumps or jumps on overflow.
+ */
 def formatJumpFlag(flag: JumpFlag): String = flag match {
-    case JumpFlag.Overflow      => "o"
-    case JumpFlag.Unconditional => "mp"
+    case JumpFlag.Overflow      => "o"   // jump if overflow
+    case JumpFlag.Unconditional => "mp"  // unconditional jump
 }
 
-/** Prints the size of a memory dereference. */
-def sizePtr(size: RegSize) = size match {
-    case RegSize.BYTE        => "byte"
-    case RegSize.WORD        => "word"
-    case RegSize.DOUBLE_WORD => "dword"
-    case RegSize.QUAD_WORD   => "qword"
+/** 
+ * Returns the size specifier string for memory access operations.
+ * This determines how many bytes are read/written in memory operations.
+ */
+def sizePtr(size: RegSize): String = size match {
+    case RegSize.BYTE        => "byte"   // 1 byte
+    case RegSize.WORD        => "word"   // 2 bytes
+    case RegSize.DOUBLE_WORD => "dword"  // 4 bytes
+    case RegSize.QUAD_WORD   => "qword"  // 8 bytes
 }
 
-/** Prints a parameter register: RAX, RBX, RCX, RDX. */
-def parameterRegister(reg: String, size: RegSize) = size match {
-    case RegSize.BYTE        => s"${reg}l"
-    case RegSize.WORD        => s"${reg}x"
-    case RegSize.DOUBLE_WORD => s"e${reg}x"
-    case RegSize.QUAD_WORD   => s"r${reg}x"
+/** 
+ * Formats a parameter register (RAX, RBX, RCX, RDX) according to its size.
+ * The register name changes based on how many bytes are being accessed.
+ */
+def parameterRegister(reg: String, size: RegSize): String = size match {
+    case RegSize.BYTE        => s"${reg}l"   // low byte (al, bl, cl, dl)
+    case RegSize.WORD        => s"${reg}x"   // 16-bit (ax, bx, cx, dx)
+    case RegSize.DOUBLE_WORD => s"e${reg}x"  // 32-bit (eax, ebx, ecx, edx)
+    case RegSize.QUAD_WORD   => s"r${reg}x"  // 64-bit (rax, rbx, rcx, rdx)
 }
 
-/** Prints a special register: RDI, RSI, RBP, RIP, RSP. */
-def specialRegister(reg: String, size: RegSize) = size match {
-    case RegSize.BYTE        => s"${reg}l"
-    case RegSize.WORD        => s"${reg}"
-    case RegSize.DOUBLE_WORD => s"e${reg}"
-    case RegSize.QUAD_WORD   => s"r${reg}"
+/** 
+ * Formats a special register (RDI, RSI, RBP, RIP, RSP) according to its size.
+ * The register name changes based on how many bytes are being accessed.
+ */
+def specialRegister(reg: String, size: RegSize): String = size match {
+    case RegSize.BYTE        => s"${reg}l"   // low byte
+    case RegSize.WORD        => s"${reg}"    // 16-bit
+    case RegSize.DOUBLE_WORD => s"e${reg}"   // 32-bit
+    case RegSize.QUAD_WORD   => s"r${reg}"   // 64-bit
 }
 
-/** Prints a numbered register. */
-def numberedRegister(reg: String, size: RegSize) = size match {
-    case RegSize.BYTE        => s"r${reg}b"
-    case RegSize.WORD        => s"r${reg}w"
-    case RegSize.DOUBLE_WORD => s"r${reg}d"
-    case RegSize.QUAD_WORD   => s"r${reg}"
+/** 
+ * Formats a numbered register (R8-R15) according to its size.
+ * The register name changes based on how many bytes are being accessed.
+ */
+def numberedRegister(reg: String, size: RegSize): String = size match {
+    case RegSize.BYTE        => s"r${reg}b"  // low byte
+    case RegSize.WORD        => s"r${reg}w"  // 16-bit
+    case RegSize.DOUBLE_WORD => s"r${reg}d"  // 32-bit
+    case RegSize.QUAD_WORD   => s"r${reg}"   // 64-bit
 }
 
-/** Replaces escaped characters from the string literals to be well printed. */
+/** 
+ * Escapes special characters in string literals for proper assembly output.
+ * Ensures that control characters are properly represented in the assembly.
+ */
 def formatString(name: String): String = name
     .replace("\u0000", "\\0")   // null character
     .replace("\b", "\\b")       // backspace
@@ -62,7 +82,10 @@ def formatString(name: String): String = name
     .replace("\r", "\\r")       // carriage return
     .replace("\\", "\\\\")      // backslash
 
-/** Ensures all operands match in size. */
+/** 
+ * Determines the appropriate size for operands in an instruction.
+ * Ensures that operands have compatible sizes.
+ */
 def matchSize(operands: Seq[RegImmMemLabel]): RegSize = operands.match {
     case Seq(reg1: Register, reg2: Register) =>
         sizeToReg(Seq(reg1.size.size, reg2.size.size).min)
@@ -71,7 +94,9 @@ def matchSize(operands: Seq[RegImmMemLabel]): RegSize = operands.match {
     case _                                   => RegSize.QUAD_WORD
 }
 
-/** Transforms the number of bytes into the corresponding type. */
+/** 
+ * Converts a byte count to the corresponding register size enum.
+ */
 def sizeToReg(size: Int): RegSize = size match {
     case 1 => RegSize.BYTE
     case 2 => RegSize.WORD

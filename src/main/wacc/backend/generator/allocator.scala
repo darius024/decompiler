@@ -9,6 +9,11 @@ import instructions.*
 import memory.*
 import registers.*
 
+/**
+ * Allocates physical registers to the temporary registers used in the IR.
+ * This is the second pass of code generation that transforms abstract registers
+ * into concrete machine registers.
+ */
 def allocate(codeGen: CodeGenerator): CodeGenerator = {
     given registers: mutable.Map[TempReg, Register] = mutable.Map.empty
 
@@ -20,6 +25,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
     // TODO: add the pushes and pops within the IR
 
     val newInstructions = instructions.map {
+        // track function entry and exit points for register saving
         case instr @ Push(RBP(_)) =>
             regMachine.updatePushPoint(instr)
             instr
@@ -27,6 +33,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             regMachine.updatePopPoint(instr)
             instr
 
+        // handle comparison operations
         case Cmp(dest: TempReg, src: RegImm) =>
             regMachine.nextRegister(dest)
             val srcReg = src match {
@@ -37,6 +44,8 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
         case instr @ SetComp(dest: TempReg, compFlag: CompFlag) =>
             regMachine.nextRegister(dest)
             instr
+            
+        // handle arithmetic operations
         case Add(dest: TempReg, src: RegImm) =>
             regMachine.nextRegister(dest)
             val srcReg = src match {
@@ -62,6 +71,8 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
                 case reg          => reg
             }
             Mul(dest, srcReg1, srcReg2)
+            
+        // handle logical operations
         case And(dest: TempReg, src: RegImm) =>
             regMachine.nextRegister(dest)
             val srcReg = src match {
@@ -83,6 +94,8 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
                 case reg          => reg
             }
             Test(dest, srcReg)
+            
+        // handle data movement operations
         case Mov(dest: RegMem, src: RegImmMem) =>
             val destReg = dest match {
                 case reg: TempReg => regMachine.nextRegister(reg)
@@ -101,6 +114,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             }
             Lea(destReg, MemAccess(srcReg, offset))
 
+        // pass through other instructions unchanged
         case instr => instr
     }
 
@@ -113,6 +127,9 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
     codeGen
 }
 
+/**
+ * Contains helper classes and constants for register allocation.
+ */
 object allocator {
     // TODO: use multiple registers
     private val paramRegisters = List(RDI(), RSI(), RDX(), RCX(), R8(), R9())
@@ -120,11 +137,18 @@ object allocator {
     private val calleeSaved: List[Register] = List(RBX(), R12(), R13(), R14(), R15())
     private val allRegisters = paramRegisters ++ callerSaved ++ calleeSaved
     
+    /**
+     * Manages the allocation of physical registers to temporary registers.
+     */
     class RegisterMachine {
+        // queue of available registers (initially all callee-saved registers)
         var availableRegisters: mutable.Queue[Register] = mutable.Queue.from(calleeSaved)
         var pushPoint: Option[Instruction] = None
         var toSave: List[Register] = List.empty
 
+        /**
+         * Allocates a physical register for a temporary register.
+         */
         def nextRegister(temp: TempReg)
                         (using regs: mutable.Map[TempReg, Register]): Register = {
             if (regs.contains(temp)) {
@@ -141,20 +165,25 @@ object allocator {
             }
         }
 
-        def updatePushPoint(instr: Instruction) = {
+        def updatePushPoint(instr: Instruction): Unit = {
             pushPoint = Some(instr)
         }
 
-        def updatePopPoint(instr: Instruction) = {
+        def updatePopPoint(instr: Instruction): Unit = {
             pushPoint = None
 
+            // save registers to stack at function entry
             toSave.foreach(Mov(MemAccess(RSP(), memoryOffsets.NO_OFFSET), _))
             toSave = List.empty
             availableRegisters = mutable.Queue.from(calleeSaved)
         }
 
+        /**
+         * Handles the case when we run out of registers.
+         * Currently returns a fixed register, but should implement spilling.
+         */
         def handleOutOfRegisters: Register = {
-            // TODO: correct this
+            // TODO: Implement proper register spilling
             RDI()
         }
     }

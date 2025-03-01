@@ -11,21 +11,33 @@ import instructions.*
 import registers.*
 import widgets.*
 
-/** Provides unique temporary registers for the first pass. */
+/**
+ * Provides unique temporary registers for the first pass of code generation.
+ */
 class Temporary {
     private var number = 0
 
+    /**
+     * Creates a new temporary register with a unique identifier.
+     * Optionally specifies the size of the register.
+     */
     def next(size: RegSize = RegSize.QUAD_WORD): TempReg = {
         number += 1
         TempReg(number, size)
     }
 }
 
-/** Keeps track of all the widgets that must be included in the final assembly file. */
+/**
+ * Tracks which runtime support functions (widgets) are used in the program.
+ * Ensures that only the necessary widgets are included in the final assembly.
+ */
 class WidgetManager {
     private val activeWidgets: mutable.Set[Widget] = mutable.Set.empty
 
-    /** Adds one widgets and its dependencies to the set. */
+    /**
+     * Adds a widget and all its dependencies to the active set.
+     * This ensures that all required runtime functions are included.
+     */
     def activate(widget: Widget): Unit = {
         activeWidgets += widget
         widget.dependencies.foreach { widget =>
@@ -33,7 +45,9 @@ class WidgetManager {
         }
     }
 
-    /** Returns the used widgets of the program. */
+    /**
+     * Returns the set of all widgets that have been activated.
+     */
     def usedWidgets: Set[Widget] = activeWidgets.toSet
 }
 
@@ -54,9 +68,8 @@ class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruct
     def data: Set[StrLabel] = directives.result()
     def dependencies: Set[Widget] = widgets.usedWidgets
 
-    // parameter registers for function calls
+
     final val registers: Array[Register] = Array(RDI(), RSI(), RDX(), RCX(), R8(), R9())
-    // tracks where variables are in the temporary registers
     private val varRegs: mutable.Map[String, Register] = mutable.Map.empty
 
     def addInstr(instruction: Instruction): Unit = {
@@ -90,15 +103,21 @@ class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruct
     }
 }
 
-/** Utility functions for parsing typed AST nodes. */
+/**
+ * Utility functions for working with semantic types and code generation.
+ */
 object utils {
-    /** Gets the base type of an array access. */
+    /**
+     * Gets the element type of an array.
+     */
     def getArrayType(semTy: SemType): SemType = semTy match {
         case KType.Array(elemType, _) => elemType
         case ty                       => ty
     }
 
-    /** Computes the size of a type in bytes. */
+    /**
+     * Determines the appropriate register size for a semantic type.
+     */
     def getTypeSize(semType: SemType): RegSize = semType match {
         case KType.Int  => RegSize.DOUBLE_WORD
         case KType.Bool => RegSize.BYTE
@@ -106,7 +125,9 @@ object utils {
         case _          => RegSize.QUAD_WORD
     }
 
-    /** Retrieves the right widget based on the size of the array elements. */
+    /**
+     * Gets the appropriate widget for loading array elements of a given size.
+     */
     def getArrayElementLoadWidget(elemSize: RegSize): Widget = elemSize match {
         case RegSize.BYTE        => ArrayLoad1
         case RegSize.WORD        => ArrayLoad2
@@ -114,7 +135,9 @@ object utils {
         case RegSize.QUAD_WORD   => ArrayLoad8  
     }
 
-    /** Retrieves the right widget based on the size of the array elements. */
+    /**
+     * Gets the appropriate widget for storing array elements of a given size.
+     */
     def getArrayElementStoreWidget(elemSize: RegSize): Widget = elemSize match {
         case RegSize.BYTE        => ArrayStore1
         case RegSize.WORD        => ArrayStore2
@@ -122,7 +145,9 @@ object utils {
         case RegSize.QUAD_WORD   => ArrayStore8 
     }
 
-    /** Converts an AST operation to the corresponding assembly flag. */
+    /**
+     * Converts a comparison operator to the corresponding assembly flag.
+     */
     def convertToJump(op: TyExpr.OpComp): CompFlag = op match {
         case TyExpr.OpComp.Equal        => CompFlag.E
         case TyExpr.OpComp.NotEqual     => CompFlag.NE
