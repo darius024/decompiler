@@ -16,19 +16,26 @@ import registers.*
  * into concrete machine registers.
  */
 def allocate(codeGen: CodeGenerator): CodeGenerator = {
-    given registers: mutable.Map[TempReg, Register] = mutable.Map.empty
+    given registers: mutable.Map[TempReg, RegMem] = mutable.Map.empty
 
     val instructions = codeGen.ir
-    val regMachine: RegisterMachine = RegisterMachine()
-    val newInstructions: mutable.ListBuffer[Instruction] = mutable.ListBuffer.empty[Instruction]
-    var scopeInstructions: mutable.ListBuffer[Instruction] = mutable.ListBuffer.empty[Instruction]
-    var framePointer: Int = 0
+    val regMachine: RegisterMachine = new RegisterMachine()
+    val newInstructions: mutable.Builder[Instruction, List[Instruction]] = List.newBuilder
+    given scopeInstructions: mutable.ListBuffer[Instruction] = mutable.ListBuffer.empty[Instruction]
 
     instructions.foreach {
         // track function entry and exit points for register saving
         case Push(RBP(_)) =>
             // do not add the instructions in the buffer yet
-            // it will be added after the registers have been saved
+            // the push will be added after the registers have been saved
+
+            // add the label to the instructions
+            newInstructions ++= scopeInstructions
+            // start a new empty scope
+            scopeInstructions.clear()
+
+            // initialize the RBP pointer
+            regMachine.initializeRBP
 
         case Pop(RBP(_)) =>
             // save all callee registers on the stack at the beginning of function
@@ -36,6 +43,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             val stackSize = calleeRegistersToSave.length * RegSize.QUAD_WORD.size
 
             // set up the frame pointer
+            Sub(RSP(), Imm(regMachine.rbpSize)) +=: scopeInstructions
             Mov(RBP(), RSP()) +=: scopeInstructions
 
             // prepend to the buffer in reverse order
@@ -44,10 +52,12 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
                 Mov(MemAccess(RSP(), ind * RegSize.QUAD_WORD.size), reg) +=: scopeInstructions
             }
             // set the frame and stack pointer
-            if (stackSize == 0) {
+            if (stackSize != 0) {
                 Sub(RSP(), Imm(stackSize)) +=: scopeInstructions
             }
             Push(RBP()) +=: scopeInstructions
+
+            // TODO: save rbp size here
 
             // restore all callee registers on the stack at the beginning of function
             for ((reg, index) <- calleeRegistersToSave.zipWithIndex) {
@@ -66,8 +76,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             scopeInstructions += Ret
             newInstructions ++= scopeInstructions
             // start a new empty scope
-            scopeInstructions =  mutable.ListBuffer.empty[Instruction]
-            framePointer = 0
+            scopeInstructions.clear()
 
         // handle comparison operations
         case Cmp(dest: Register, src: RegImm) =>
@@ -158,29 +167,53 @@ object allocator {
         // queue of available registers (initially all callee-saved registers)
         var availableRegisters: mutable.Queue[Register] = mutable.Queue.from(calleeSaved)
         var toSave: List[Register] = List.empty
+        var rbpSize = 0
+        private var usingParam = false
 
-        /**
-         * Allocates a physical register for a temporary register.
-         */
-        def nextRegister(reg: Register)
-                        (using regs: mutable.Map[TempReg, Register]): Register = reg match {
+        def nextRegisterMem(reg: RegMem)
+                           (using regs: mutable.Map[TempReg, RegMem]): RegMem = reg match {
             case temp: TempReg => if (regs.contains(temp)) {
                     regs(temp)
-                } else if (availableRegisters.isEmpty) {
-                    handleOutOfRegisters
                 } else {
-                    val reg = availableRegisters.dequeue()
-                    regs += temp -> reg
-                    toSave = reg :: toSave
-                    reg
+                    // if registers are not available, use the stack
+                    if (availableRegisters.isEmpty) {
+                        rbpSize = rbpSize + temp.size.size
+                        val mem = MemAccess(RBP(), -rbpSize)
+                        regs += temp -> mem
+                        mem
+                    } else {
+                        val reg = availableRegisters.dequeue()
+
+                        // if callee saved registers run out, use parameter registers
+                        if (availableRegisters.isEmpty && !usingParam) {
+                            availableRegisters = mutable.Queue.from(paramRegisters)
+                            usingParam = true
+                        }
+
+                        regs += temp -> reg
+                        toSave = reg :: toSave
+                        reg
+                    }
                 }
             case _             => reg
         }
 
-        def nextRegisterImm(regImm: RegImm)
-                           (using regs: mutable.Map[TempReg, Register]): RegImm = regImm match {
+        def nextRegister(reg: Register)(using scopeInstructions: mutable.ListBuffer[Instruction])
+                        (using regs: mutable.Map[TempReg, RegMem]): Register = nextRegisterMem(reg) match {
+            case reg: Register => reg
+            case mem           =>
+                scopeInstructions += Mov(RAX(), mem)
+                RAX()
+        }
+
+        def nextRegisterImm(regImm: RegImm)(using mutable.ListBuffer[Instruction])
+                           (using regs: mutable.Map[TempReg, RegMem]): RegImm = regImm match {
             case reg: Register => nextRegister(reg)
             case _             => regImm
+        }
+
+        def initializeRBP: Unit = {
+            rbpSize = 0
         }
 
         def getUsedRegisters: List[Register] = toSave

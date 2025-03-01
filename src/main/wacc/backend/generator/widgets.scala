@@ -304,6 +304,7 @@ object widgets {
             Pop(RBP()),
             Ret
         )
+        override def dependencies: Set[Widget] = Set(ErrOutOfMemory)
     }
 
     /**
@@ -338,6 +339,7 @@ object widgets {
             Pop(RBP()),
             Ret
         )
+        override def dependencies: Set[Widget] = Set(ErrNull)
     }
 
     /**
@@ -453,7 +455,7 @@ object errors {
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._errNull_str0"))),
-            Call(widgets.PrintString.label),
+            Call(PrintString.label),
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
@@ -469,7 +471,7 @@ object errors {
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._errOverflow_str0"))),
-            Call(widgets.PrintString.label),
+            Call(PrintString.label),
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
@@ -485,7 +487,7 @@ object errors {
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._errDivZero_str0"))),
-            Call(widgets.PrintString.label),
+            Call(PrintString.label),
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
@@ -520,7 +522,7 @@ object errors {
         def instructions: List[Instruction] = List(
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._errOutOfMemory_str0"))),
-            Call(widgets.PrintString.label),
+            Call(PrintString.label),
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
