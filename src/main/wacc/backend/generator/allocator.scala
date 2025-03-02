@@ -124,14 +124,14 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             
         // handle data movement operations
         case Mov(dest: RegMem, src: RegImmMem) =>
-            val destReg = dest match {
+            val destReg: RegMem = dest match {
                 case reg: Register          => regMachine.nextRegister(reg)
                 case MemAccess(reg, offset) => MemAccess(regMachine.nextRegister(reg), offset)
                 case _                      => dest
             }
-            val srcReg = src match {
+            val srcReg: RegImmMem = src match {
                 case regImm: RegImm => regMachine.nextRegisterImm(regImm)
-                case memAcc         => dest
+                case memAcc         => src
             }
             scopeInstructions += Mov(destReg, srcReg)
         case Lea(dest: TempReg, MemAccess(src, offset)) =>
