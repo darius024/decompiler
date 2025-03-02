@@ -348,5 +348,5 @@ def checkUnary(expr: Expr, argTy: SemType, cons: Constraint, pos: Position)
     val (_, typedExpr) = checkExpr(expr, Is(argTy))
     val typedUExpr = build(typedExpr)
 
-    (typedUExpr.ty.satisfies(cons, pos), typedExpr)
+    (typedUExpr.ty.satisfies(cons, pos), typedUExpr)
 }

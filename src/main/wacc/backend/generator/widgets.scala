@@ -85,6 +85,7 @@ object widgets {
         PrintInt,
         PrintChar,
         PrintString,
+        PrintPointer,
         PrintBool,
         PrintLn,
         Malloc,
@@ -130,14 +131,14 @@ object widgets {
             Push(RBP()),
             Mov(RBP(), RSP()),
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Sub(RSP(), Imm(RegSize.WORD.size)),
+            Sub(RSP(), Imm(memoryOffsets.STACK_READ)),
             Mov(MemAccess(RSP(), memoryOffsets.NO_OFFSET), RDI(RegSize.DOUBLE_WORD)),
             Lea(RSI(), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._readi_str0"))),
             Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.scanf),
             Mov(RAX(RegSize.DOUBLE_WORD), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
-            Add(RSP(), Imm(RegSize.WORD.size)),
+            Add(RSP(), Imm(memoryOffsets.STACK_READ)),
             Mov(RSP(), RBP()),
             Pop(RBP()),
             Ret
@@ -154,14 +155,14 @@ object widgets {
             Push(RBP()),
             Mov(RBP(), RSP()),
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Sub(RSP(), Imm(RegSize.WORD.size)),
+            Sub(RSP(), Imm(memoryOffsets.STACK_READ)),
             Mov(MemAccess(RSP(), memoryOffsets.NO_OFFSET), RDI(RegSize.BYTE)),
             Lea(RSI(), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._readc_str0"))),
             Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.scanf),
             Mov(RAX(RegSize.BYTE), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
-            Add(RSP(), Imm(RegSize.WORD.size)),
+            Add(RSP(), Imm(memoryOffsets.STACK_READ)),
             Mov(RSP(), RBP()),
             Pop(RBP()),
             Ret
@@ -225,6 +226,28 @@ object widgets {
             Mov(RDX(), RDI()),
             Mov(RSI(RegSize.DOUBLE_WORD), MemAccess(RDI(), memoryOffsets.ARRAY_LENGTH_OFFSET)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._prints_str0"))),
+            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Call(library.printf),
+            Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Call(library.fflush),
+            Mov(RSP(), RBP()),
+            Pop(RBP()),
+            Ret
+        )
+    }
+
+    /**
+     * Prints a pointer to standard output.
+     */
+    case object PrintPointer extends Widget {
+        val label = Label("_printp")
+        override val directives = Set(StrLabel(Label(".L._printp_str0"), asciz.pair))
+        def instructions: List[Instruction] = List(
+            Push(RBP()),
+            Mov(RBP(), RSP()),
+            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Mov(RSI(), RDI()),
+            Lea(RDI(), MemAccess(RIP(), Label(".L._printp_str0"))),
             Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
             Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
@@ -442,7 +465,6 @@ object errors {
         /** The error message to display */
         def message: String
         // all error widgets depend on the string printing widget
-        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     /**
@@ -459,6 +481,7 @@ object errors {
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     /**
@@ -475,6 +498,7 @@ object errors {
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     /**
@@ -491,6 +515,7 @@ object errors {
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     /**
@@ -510,6 +535,7 @@ object errors {
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     /**
@@ -526,6 +552,7 @@ object errors {
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     /**
@@ -545,5 +572,6 @@ object errors {
             Mov(RDI(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.exit)
         )
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 }

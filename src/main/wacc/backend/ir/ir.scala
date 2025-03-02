@@ -40,7 +40,7 @@ object registers {
         case BYTE        extends RegSize(1)  // 8-bit registers
     }
 
-    abstract class Register(val size: RegSize)
+    abstract class Register(var size: RegSize)
     
     /** Each register is represented as an unique object. */
     case class RAX(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
@@ -65,7 +65,14 @@ object registers {
      * Temporary register used during code generation.
      * These are replaced with real registers during register allocation.
      */
-    case class TempReg(num: Int, val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class TempReg(num: Int, val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim) {
+        override def equals(obj: Any): Boolean = obj match {
+            case that: TempReg => this.num == that.num
+            case _ => false
+        }
+
+        override def hashCode(): Int = num.hashCode()
+    }
 }
 
 /** Immediate values used in assembly instructions. */
@@ -214,6 +221,7 @@ object memoryOffsets {
     final val NULL = 0                   // null pointer value
     final val ARRAY_LENGTH_OFFSET = -4   // offset to array length field
     final val STACK_ALIGNMENT = -16      // stack alignment for function calls
+    final val STACK_READ = 16            // stack space for reads
     final val BOOL_PRINT_OFFSET = 24     // offset for printing booleans
     
     // array element access sizes
@@ -231,4 +239,5 @@ object memoryOffsets {
 object constants {
     final val MAX_CALL_ARGS = 6  // maximum number of arguments passed in registers
     final val CHR = -128         // character range check
+    final val BYTE = 8           // number of bits in a byte
 }

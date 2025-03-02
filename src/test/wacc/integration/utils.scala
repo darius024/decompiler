@@ -28,7 +28,7 @@ object utils {
         os.walk.stream(path).filter(os.isFile)
 
     /** Parse the header of the test file. */
-    def parseHeader(test: Path): (String, Seq[String], Int) = {
+    def parseHeader(test: Path): (Array[String], Seq[String], Int) = {
         // read the file to be able to fetch information from the header
         val lines = os.read.lines(test)
 
@@ -37,6 +37,7 @@ object utils {
             .find(_.startsWith("# Input:"))
             .map(_.stripPrefix("# Input: ").trim)
             .getOrElse("")
+            .split(" ")
 
         // find the output results
         val output = lines

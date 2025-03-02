@@ -66,10 +66,10 @@ class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruct
                     widgets: WidgetManager) {
     def ir: List[Instruction] = instructions.result()
     def data: Set[StrLabel] = directives.result()
-    def dependencies: Set[Widget] = widgets.usedWidgets
+    def dependencies: Set[Widget] = widgets.usedWidgets ++ widgets.usedWidgets.flatMap(_.dependencies)
 
     final val registers: Array[Register] = Array(RDI(), RSI(), RDX(), RCX(), R8(), R9())
-    private val varRegs: mutable.Map[String, Register] = mutable.Map.empty
+    val varRegs: mutable.Map[String, Register] = mutable.Map.empty
 
     def addInstr(instruction: Instruction): Unit = {
         instructions += instruction
@@ -145,6 +145,18 @@ object utils {
     }
 
     /**
+     * Gets the appropriate widget for printing elements of a given size.
+     */
+    def getPrintWidget(semTy: SemType): Widget = semTy match {
+        case KType.Int                  => PrintInt
+        case KType.Bool                 => PrintBool
+        case KType.Char                 => PrintChar
+        case KType.Str                  => PrintString
+        case KType.Array(KType.Char, 1) => PrintString
+        case _                          => PrintPointer
+    }
+
+    /**
      * Converts a comparison operator to the corresponding assembly flag.
      */
     def convertToJump(op: TyExpr.OpComp): CompFlag = op match {
@@ -154,5 +166,32 @@ object utils {
         case TyExpr.OpComp.GreaterEqual => CompFlag.GE
         case TyExpr.OpComp.LessThan     => CompFlag.L
         case TyExpr.OpComp.LessEqual    => CompFlag.LE
+    }
+
+    def changeRegisterSize(reg: Register, size: RegSize): Register = reg match {
+        case RAX(_) => RAX(size)
+        case RBX(_) => RBX(size)
+        case RCX(_) => RCX(size)
+        case RDX(_) => RDX(size)
+
+        // special purpose registers
+        case RDI(_) => RDI(size)
+        case RSI(_) => RSI(size)
+        case RBP(_) => RBP(size)
+        case RIP(_) => RIP(size)
+        case RSP(_) => RSP(size)
+
+        // extended registers (r8-r15)
+        case R8 (_) => R8(size)
+        case R9 (_) => R9(size)
+        case R10(_) => R10(size)
+        case R11(_) => R11(size)
+        case R12(_) => R12(size)
+        case R13(_) => R13(size)
+        case R14(_) => R14(size)
+        case R15(_) => R15(size)
+
+        // temporary register
+        case temp @ TempReg(num, _) => TempReg(num, size)
     }
 }

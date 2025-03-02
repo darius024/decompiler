@@ -128,12 +128,14 @@ def generate(stmt: TyStmt)
         codeGen.addInstr(Mov(RDI(), temp))
 
         // use the appropriate read widget based on the type
-        val widget = expr.ty match {
-            case KType.Int  => ReadInt
-            case KType.Char => ReadChar
-            case _          => ReadInt
+        val (widget, regSize) = expr.ty match {
+            case KType.Int  => (ReadInt , RegSize.DOUBLE_WORD)
+            case KType.Char => (ReadChar, RegSize.BYTE)
+            // TODO: remove this case
+            case _          => (ReadInt, RegSize.DOUBLE_WORD)
         }
         codeGen.addInstr(Call(codeGen.getWidgetLabel(widget)))
+        codeGen.addInstr(Mov(generate(expr), RAX(regSize)))
     
     // free heap-allocated memory
     case Free(expr: TyExpr) =>
@@ -175,13 +177,7 @@ def generate(stmt: TyStmt)
         codeGen.addInstr(Mov(RDI(), temp))
 
         // use the appropriate print widget based on the type
-        val widget = expr.ty match {
-            case KType.Int  => PrintInt
-            case KType.Bool => PrintBool
-            case KType.Char => PrintChar
-            case KType.Str  => PrintString
-            case _          => PrintInt
-        }
+        val widget = getPrintWidget(expr.ty)
         codeGen.addInstr(Call(codeGen.getWidgetLabel(widget)))
 
     // print a value followed by a newline
@@ -273,16 +269,16 @@ def generate(expr: TyExpr)
 
     // boolean NOT operation
     case TyExpr.Not(expr) => 
-        val temp = generate(expr) 
-        codeGen.addInstr(Cmp(temp, Imm(memoryOffsets.TRUE)))
-        codeGen.addInstr(SetComp(temp, CompFlag.NE))
+        val temp = generate(expr)
+        codeGen.addInstr(Cmp(changeRegisterSize(temp, RegSize.BYTE), Imm(memoryOffsets.TRUE)))
+        codeGen.addInstr(SetComp(RAX(RegSize.BYTE), CompFlag.NE))
 
         val resultReg = codeGen.nextTemp(RegSize.BYTE)
-        codeGen.addInstr(Mov(resultReg, temp))
+        codeGen.addInstr(Mov(resultReg, RAX(RegSize.BYTE)))
         resultReg
     
     // numeric negation
-    case TyExpr.Neg(expr) => 
+    case TyExpr.Neg(expr) =>
         val temp = generate(expr)
         val resultReg = codeGen.nextTemp(RegSize.DOUBLE_WORD)
         codeGen.addInstr(Mov(resultReg, Imm(memoryOffsets.NO_OFFSET)))
@@ -318,7 +314,7 @@ def generate(expr: TyExpr)
 
     // literal values
     case TyExpr.IntLit(value)  =>
-        val temp = codeGen.nextTemp()
+        val temp = codeGen.nextTemp(RegSize.DOUBLE_WORD)
         codeGen.addInstr(Mov(temp, Imm(value)))
         temp
     case TyExpr.BoolLit(value) =>
@@ -326,7 +322,7 @@ def generate(expr: TyExpr)
         codeGen.addInstr(Mov(temp, Imm(if (value) memoryOffsets.TRUE else memoryOffsets.FALSE)))
         temp
     case TyExpr.CharLit(value) =>
-        val temp = codeGen.nextTemp()
+        val temp = codeGen.nextTemp(RegSize.BYTE)
         codeGen.addInstr(Mov(temp, Imm(value.toInt)))
         temp
     case TyExpr.StrLit(value)  =>
@@ -337,7 +333,7 @@ def generate(expr: TyExpr)
         codeGen.addInstr(Lea(temp, MemAccess(RIP(), label)))
         temp
     case TyExpr.PairLit        =>
-        val temp = codeGen.nextTemp()
+        val temp = codeGen.nextTemp(RegSize.DOUBLE_WORD)
         codeGen.addInstr(Mov(temp, Imm(memoryOffsets.NULL)))
         temp
 
@@ -363,15 +359,15 @@ def generateCond(expr: TyExpr, label: Label)
     case TyExpr.BinaryComp(lhs, rhs, op) => {
         val lhsTemp = generate(lhs)
         val rhsTemp = generate(rhs)
-        codeGen.addInstr(Cmp(lhsTemp, rhsTemp))
+        codeGen.addInstr(Cmp(changeRegisterSize(lhsTemp, RegSize.BYTE), rhsTemp))
 
         val compType = convertToJump(op)
         codeGen.addInstr(JumpComp(label, compType))
     }
     // boolean literals and expressions
-    case _: TyExpr.BoolLit | _: TyExpr.BinaryBool => {
+    case tyExpr if tyExpr.ty == KType.Bool => {
         val temp = generate(expr)
-        codeGen.addInstr(Cmp(temp, Imm(memoryOffsets.TRUE)))
+        codeGen.addInstr(Cmp(changeRegisterSize(temp, RegSize.BYTE), Imm(memoryOffsets.TRUE)))
         codeGen.addInstr(JumpComp(label, CompFlag.E))
     }
     case _ =>
@@ -421,7 +417,7 @@ def generateNewPair(fst: TyExpr, snd: TyExpr, fstTy: SemType, sndTy: SemType)
     codeGen.addInstr(Call(codeGen.getWidgetLabel(Malloc)))
 
     // save the pair pointer
-    val pairPtr = codeGen.nextTemp()
+    val pairPtr = R11()
     codeGen.addInstr(Mov(pairPtr, RAX()))
 
     // store the first and second elements
@@ -430,7 +426,9 @@ def generateNewPair(fst: TyExpr, snd: TyExpr, fstTy: SemType, sndTy: SemType)
     val sndTemp = generate(snd)
     codeGen.addInstr(Mov(MemAccess(pairPtr, RegSize.QUAD_WORD.size), sndTemp))
 
-    pairPtr
+    val temp = codeGen.nextTemp()
+    codeGen.addInstr(Mov(temp, pairPtr))
+    temp
 }
 
 /**
@@ -476,7 +474,8 @@ def generateArrayLit(exprs: List[TyExpr], semTy: SemType)
     codeGen.addInstr(Mov(RDI(RegSize.DOUBLE_WORD), Imm(totalSize)))
     codeGen.addInstr(Call(codeGen.getWidgetLabel(Malloc)))
 
-    val arrayPtr = codeGen.nextTemp()
+    // use specific register for array operations
+    val arrayPtr = R11()
     codeGen.addInstr(Mov(arrayPtr, RAX()))
 
     // store the array length
@@ -489,7 +488,9 @@ def generateArrayLit(exprs: List[TyExpr], semTy: SemType)
         codeGen.addInstr(Mov(MemAccess(arrayPtr, i * elementSize.size), temp))
     }
 
-    arrayPtr
+    val temp = codeGen.nextTemp()
+    codeGen.addInstr(Mov(temp, arrayPtr))
+    temp
 }
 
 /**
@@ -566,14 +567,14 @@ def shortCircuit(expr: TyExpr.BinaryBool)
     // evaluate the left-hand side
     val label = codeGen.nextLabel(LabelType.AnyLabel)
     val lhsTemp = generate(lhs)
-    codeGen.addInstr(Cmp(lhsTemp, Imm(memoryOffsets.TRUE)))
+    codeGen.addInstr(Cmp(changeRegisterSize(lhsTemp, RegSize.BYTE), Imm(memoryOffsets.TRUE)))
 
     // skip the right-hand side if the result is already determined
     codeGen.addInstr(JumpComp(label, compFlag))
 
     // evaluate the right-hand side if needed
     val rhsTemp = generate(rhs)
-    codeGen.addInstr(Cmp(rhsTemp, Imm(memoryOffsets.TRUE)))
+    codeGen.addInstr(Cmp(changeRegisterSize(rhsTemp, RegSize.BYTE), Imm(memoryOffsets.TRUE)))
     codeGen.addInstr(label)
 
     // set the result based on the comparison
