@@ -71,7 +71,7 @@ object registers {
      * Temporary register used during code generation.
      * These are replaced with real registers during register allocation.
      */
-    case class TempReg(num: Int, val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim) {
+    case class TempReg(num: Int, val size: RegSize = RegSize.QUAD_WORD) extends Register {
         override def equals(obj: Any): Boolean = obj match {
             case that: TempReg => this.num == that.num
             case _ => false

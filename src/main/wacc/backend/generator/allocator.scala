@@ -141,7 +141,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
                 case _ :+ Mov(RAX(_), _) => RBX()
                 case _                   => RAX()
             }
-            val destReg = dest match {
+            val destReg: RegMem = dest match {
                 case reg: Register          => regMachine.nextRegister(reg, register)
                 case MemAccess(reg, offset) => MemAccess(regMachine.nextRegister(reg,register), offset)
                 case _                      => dest
@@ -214,7 +214,6 @@ object allocator {
                         mem
                     } else {
                         val reg = availableRegisters.dequeue()
-                        reg.size = temp.size
 
                         // if callee saved registers run out, use parameter registers
                         if (availableRegisters.isEmpty && !usingParameters) {
