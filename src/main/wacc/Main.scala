@@ -4,6 +4,7 @@ import java.io.File
 import parsley.{Success, Failure}
 import wacc.backend.*
 import wacc.frontend.*
+import wacc.backend.formatter.SyntaxStyle
 
 // entry point
 @main
@@ -32,7 +33,7 @@ def compile(file: File): (String, ExitCode) = {
     }
 
     // code generation and assembly formatter
-    formatter.format(generator.generate(typedAst), file)
+    formatter.format(generator.generate(typedAst), file, SyntaxStyle.ATT)
 
     ("Code compiled successfully.", ExitCode.Success)
 }

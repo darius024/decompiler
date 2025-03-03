@@ -33,25 +33,33 @@ object utils {
         val lines = os.read.lines(test)
 
         // find the possible input parameter
+        // Constants for header markers
+        val INPUT_MARKER = "# Input:"
+        val OUTPUT_MARKER = "# Output:"
+        val EXIT_MARKER = "# Exit:"
+        val COMMENT_PREFIX = "# "
+        val DEFAULT_EXIT_CODE = "0"
+        val HEADER_LINE_COUNT = 1
+
         val input = lines
-            .find(_.startsWith("# Input:"))
-            .map(_.stripPrefix("# Input: ").trim)
+            .find(_.startsWith(INPUT_MARKER))
+            .map(_.stripPrefix(s"$INPUT_MARKER ").trim)
             .getOrElse("")
 
         // find the output results
         val output = lines
-            .dropWhile(!_.startsWith("# Output:"))
-            .drop(1)
-            .takeWhile(_.startsWith("# "))
-            .map(_.stripPrefix("# ").trim)
+            .dropWhile(!_.startsWith(OUTPUT_MARKER))
+            .drop(HEADER_LINE_COUNT)
+            .takeWhile(_.startsWith(COMMENT_PREFIX))
+            .map(_.stripPrefix(COMMENT_PREFIX).trim)
         
         // find the possible exit code
         val exit = lines
-            .dropWhile(!_.startsWith("# Exit:"))
-            .drop(1)
+            .dropWhile(!_.startsWith(EXIT_MARKER))
+            .drop(HEADER_LINE_COUNT)
             .headOption
-            .map(_.stripPrefix("# ").trim)
-            .getOrElse("0")
+            .map(_.stripPrefix(COMMENT_PREFIX).trim)
+            .getOrElse(DEFAULT_EXIT_CODE)
 
         (input, output, exit.toInt)
     }

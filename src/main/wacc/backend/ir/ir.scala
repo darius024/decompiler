@@ -108,8 +108,10 @@ object instructions {
     /** Assembly directives that control the assembler behavior. */
     sealed trait Directive extends Instruction
 
-    /** Intel syntax directive (as opposed to AT&T syntax). */
+    /** Intel syntax directive. */
     case object IntelSyntax extends Directive
+    /** AT&T syntax directive. */
+    case object ATTSyntax extends Directive
     /** read-only data section directive. */
     case object SectionRoData extends Directive
     /** code section directive. */
