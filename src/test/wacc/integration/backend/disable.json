@@ -1,11 +1,13 @@
 {
     "valid": [
         "advanced",
-        "array",
-        "pairs",
         "runtimeErr",
         "scope",
         "function",
-        "while"
+        "array",
+        "pairs",
+        "while",
+        "IO",
+        "expressions"
     ]
 }

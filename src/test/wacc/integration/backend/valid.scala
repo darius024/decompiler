@@ -70,8 +70,8 @@ class ValidProgramTest extends AnyWordSpec {
                         process.waitFor()
                         
                         // the output should match the expected output
-                        if (!outputParameter.isEmpty) {
-                            process.stdout.trim mustBe outputParameter.mkString("\n")
+                        if (outputParameter.nonEmpty) {
+                            process.stdout.trim() must fullyMatch regex outputParameter.mkString("\n").replaceAll("#addrs#", ".*")
                         }
 
                         // the exit code should match

@@ -266,7 +266,7 @@ object allocator {
         def saveRegisters(using scopeInstructions: mutable.ListBuffer[Instruction]): Unit = {
             for (reg <- usedRegisters) {
                 if (paramRegisters.contains(reg)) {
-                    Push(changeRegisterSize(reg, RegSize.QUAD_WORD)) +=: scopeInstructions
+                    scopeInstructions += Push(changeRegisterSize(reg, RegSize.QUAD_WORD))
                 }
             }
         }
@@ -274,7 +274,7 @@ object allocator {
         def restoreRegisters(using scopeInstructions: mutable.ListBuffer[Instruction]): Unit = {
             for (reg <- usedRegisters.reverse) {
                 if (paramRegisters.contains(reg)) {
-                    Pop(changeRegisterSize(reg, RegSize.QUAD_WORD)) +=: scopeInstructions
+                    scopeInstructions += Pop(changeRegisterSize(reg, RegSize.QUAD_WORD))
                 }
             }
         }

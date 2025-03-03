@@ -425,7 +425,7 @@ def generateNewPair(fst: TyExpr, snd: TyExpr, fstTy: SemType, sndTy: SemType)
     val fstTemp = generate(fst)
     codeGen.addInstr(Mov(MemAccess(pairPtr), fstTemp))
     val sndTemp = generate(snd)
-    codeGen.addInstr(Mov(MemAccess(pairPtr, RegSize.QUAD_WORD.size), sndTemp))
+    codeGen.addInstr(Mov(MemAccess(pairPtr, RegSize.QUAD_WORD.size), changeRegisterSize(sndTemp, RegSize.QUAD_WORD)))
 
     val temp = codeGen.nextTemp()
     codeGen.addInstr(Mov(temp, pairPtr))
@@ -452,7 +452,7 @@ def generateFstSnd(pairElem: TyExpr.TyPairElem)
     }
 
     // load the element
-    val resultReg = codeGen.nextTemp()
+    val resultReg = codeGen.nextTemp(getTypeSize(pairElem.ty))
     codeGen.addInstr(Mov(RAX(), MemAccess(pairPtr, offset)))
     codeGen.addInstr(Mov(resultReg, RAX(getTypeSize(pairElem.ty))))
 
@@ -502,27 +502,27 @@ def generateArrayLit(exprs: List[TyExpr], semTy: SemType)
 def generateArrayElem(id: TyExpr.Id, idx: List[TyExpr], semTy: SemType)
                      (using codeGen: CodeGenerator): TempReg = {
     // handle nested array access
-    val (temp, size) = idx match {
+    val temp = idx match {
         case expr1 :: expr2 :: rest  =>
             // for multi-dimensional arrays, recursively access inner arrays
-            (generateArrayElem(id, expr2 :: rest, semTy), RegSize.QUAD_WORD)
+            generateArrayElem(id, expr2 :: rest, semTy)
         case expr :: Nil             =>
             // for single-dimensional arrays, compute the index
-            (generate(expr), getTypeSize(getArrayType(semTy)))
+            generate(expr)
             
         // TODO: remove this case
         case Nil                     =>
-            (TempReg(0), RegSize.QUAD_WORD)
+            TempReg(0)
     }
 
     // set up parameters for the array load widget
-    codeGen.addInstr(Mov(R10(size), temp))
+    codeGen.addInstr(Mov(R10(temp.size), temp))
     codeGen.addInstr(Mov(R9(), codeGen.getVar(id.value)))
-    codeGen.addInstr(Call(codeGen.getWidgetLabel(getArrayElementLoadWidget(size))))
+    codeGen.addInstr(Call(codeGen.getWidgetLabel(getArrayElementLoadWidget(temp.size))))
 
     // get the result
-    val resultReg = codeGen.nextTemp(size)
-    codeGen.addInstr(Mov(resultReg, R9(size)))
+    val resultReg = codeGen.nextTemp(temp.size)
+    codeGen.addInstr(Mov(resultReg, R9(temp.size)))
 
     resultReg
 }

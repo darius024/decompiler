@@ -110,8 +110,9 @@ object utils {
      * Gets the element type of an array.
      */
     def getArrayType(semTy: SemType): SemType = semTy match {
-        case KType.Array(elemType, _) => elemType
-        case ty                       => ty
+        case KType.Array(elemType, 1)     => elemType
+        case KType.Array(elemType, arity) => KType.Array(elemType, arity - 1)
+        case ty                           => ty
     }
 
     /**
