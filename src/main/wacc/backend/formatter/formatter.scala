@@ -53,7 +53,7 @@ def format(instructions: List[Instruction], syntax: SyntaxStyle)
 def formatHeader(syntax: SyntaxStyle) (using outputStream: OutputStream): Unit = {
     syntax match {
         case SyntaxStyle.Intel => format(List(IntelSyntax, Global("main")), syntax)
-        case SyntaxStyle.ATT => format(List(ATTSyntax, Global("main")), syntax)
+        case SyntaxStyle.ATT => format(List(Global("main")), syntax)
     }
 }
 
@@ -100,7 +100,7 @@ def formatInstruction(instr: Instruction, syntax: SyntaxStyle): String = {
 }
 
 def formatIntelInstruction(instr: Instruction): String = {
-        /** Helper function to format instructions with uniform spacing. */
+    /** Helper function to format instructions with uniform spacing. */
     def format(opcode: String, operands: RegImmMemLabel*): String = {
         val size = matchSize(operands)
         f"    $opcode%-6s ${operands.map(formatOperand(_, size, SyntaxStyle.Intel)).mkString(", ")}"
@@ -146,6 +146,8 @@ def formatIntelInstruction(instr: Instruction): String = {
         case SetComp(dest, flag)    => format(s"set${formatCompFlag(flag)}", dest)
         case JumpComp(label, flag)  => format(s"j${formatCompFlag(flag)}", label)
         case ConvertDoubleToQuad    => format("cdq")
+
+        case _                      => "" // no action required for AT&T headers
     }
 }
 
@@ -158,7 +160,6 @@ def formatATTInstruction(instr: Instruction): String = {
     
     instr match {
         // assembly directives
-        case ATTSyntax              => ".att_syntax"
         case SectionRoData          => ".section .rodata"
         case Text                   => ".text"
         case Label(name)            => s"$name:"
@@ -168,34 +169,36 @@ def formatATTInstruction(instr: Instruction): String = {
         case Asciz(name)            => format(".asciz", s"\"${formatString(name)}\"")
 
         // stack operations
-        case Push(reg)              => format(s"pushq", reg)
-        case Pop(reg)               => format(s"popq" , reg)
+        case Push(reg)              => format("pushq", reg)
+        case Pop(reg)               => format("popq" , reg)
 
         // arithmetic operations
-        case Add(dest, src)         => format(s"add${sizePtrATT(matchSize(List(dest)))}" , src, dest)
-        case Sub(dest, src)         => format(s"sub${sizePtrATT(matchSize(List(dest)))}" , src, dest)
-        case Mul(dest, src1, src2)  => format(s"imul${sizePtrATT(matchSize(List(dest)))}", src1, dest)
-        case Div(src)               => format(s"idivq", src)
-        case Mod(src)               => format(s"idivq", src)
-        case And(dest, src)         => format(s"and${sizePtrATT(matchSize(List(dest)))}" , src, dest)
-        case Or(dest, src)          => format(s"or${sizePtrATT(matchSize(List(dest)))}"  , src, dest)
+        case Add(dest, src)         => format(s"add${sizePtrATT(dest.size)}", src, dest)
+        case Sub(dest, src)         => format(s"sub${sizePtrATT(dest.size)}", src, dest)
+        case Mul(dest, src1, src2)  => format(s"imul${sizePtrATT(dest.size)}", src1, dest)
+        case Div(src)               => format("idivq", src)
+        case Mod(src)               => format("idivq", src)
+        case And(dest, src)         => format(s"and${sizePtrATT(dest.size)}", src, dest)
+        case Or(dest, src)          => format(s"or${sizePtrATT(dest.size)}", src, dest)
 
         // data movement
-        case CMov(dest, src, cond)  => format(s"cmov${formatCompFlag(cond)}${sizePtrATT(matchSize(List(dest)))}", src, dest)
-        case Mov(dest, src)         => format(s"mov${sizePtrATT(matchSize(List(dest)))}" , src, dest)
-        case Lea(dest, addr)        => format(s"lea${sizePtrATT(matchSize(List(dest)))}", addr, dest)
+        case CMov(dest, src, cond)  => format(s"cmov${formatCompFlag(cond)}${sizePtrATT(dest.size)}", src, dest)
+        case Mov(dest, src)         => format(s"mov${dest match { case reg: Register => sizePtrATT(reg.size); case _ => "q" }}", src, dest)
+        case Lea(dest, addr)        => format(s"lea${sizePtrATT(dest.size)}", addr, dest)
 
         // control flow
-        case Call(label)            => format("call" , label)
+        case Call(label)            => format("call", label)
         case Jump(label, flag)      => format(s"j${formatJumpFlag(flag)}", label)
         case Ret                    => format("ret")
 
         // comparison operations
-        case Cmp(src1, src2)        => format(s"cmp${sizePtrATT(matchSize(List(src1)))}", src2, src1)
-        case Test(src1, src2)       => format(s"test${sizePtrATT(matchSize(List(src1)))}", src2, src1)
-        case SetComp(dest, flag)    => format(s"set${formatCompFlag(flag)}${sizePtrATT(matchSize(List(dest)))}", dest)
+        case Cmp(src1, src2)        => format(s"cmp${sizePtrATT(src1.size)}", src2, src1)
+        case Test(src1, src2)       => format(s"test${sizePtrATT(src1.size)}", src2, src1)
+        case SetComp(dest, flag)    => format(s"set${formatCompFlag(flag)}${sizePtrATT(dest.size)}", dest)
         case JumpComp(label, flag)  => format(s"j${formatCompFlag(flag)}", label)
         case ConvertDoubleToQuad    => format("cltd")
+        
+        case _                      => "" // no action required for Intel or AT&T headers
     }
 }
 
