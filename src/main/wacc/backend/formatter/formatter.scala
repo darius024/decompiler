@@ -249,7 +249,7 @@ def formatMemAccessATT(mem: MemoryAccess, size: RegSize): String = mem match {
     case MemAccess(reg: Register, offset: Int) => 
         // Remove the % from the register as it's already included in formatRegister for AT&T
         val regStr = formatRegister(reg, SyntaxStyle.ATT)
-        if (offset == 0) s"${regStr}"
+        if (offset == 0) s"(${regStr})"
         else s"$offset(${regStr})"
     
     // RIP-relative addressing
