@@ -129,7 +129,7 @@ def check(stmt: Stmt, retTy: Option[SemType])
 
     case Free(expr) =>
         val (_, typedExpr) = checkExpr(expr, IsEither(KType.Array(?, AnyDimension), KType.Pair(?, ?)))
-        Some(TyStmt.Print(typedExpr))
+        Some(TyStmt.Free(typedExpr))
 
     case Return(expr) =>
         retTy match {

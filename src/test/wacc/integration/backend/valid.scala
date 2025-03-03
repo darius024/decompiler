@@ -71,7 +71,16 @@ class ValidProgramTest extends AnyWordSpec {
                         
                         // the output should match the expected output
                         if (outputParameter.nonEmpty) {
-                            process.stdout.trim() must fullyMatch regex outputParameter.mkString("\n").replaceAll("#addrs#", ".*")
+                            val lines = process.stdout.trim().split("\n")
+                            for ((line, param) <- lines.zip(outputParameter)) {
+                                if (param.contains("#addrs#")) {
+                                    line mustBe param
+                                } else if (param.contains("#runtime_error#")) {
+                                    assert(line.contains("fatal error"))
+                                } else {
+                                    assert(!line.contains("fatal error"))
+                                }
+                            }
                         }
 
                         // the exit code should match

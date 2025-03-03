@@ -1,13 +1,10 @@
 {
     "valid": [
         "advanced",
-        "runtimeErr",
         "scope",
         "function",
-        "array",
-        "pairs",
         "while",
-        "IO",
-        "expressions"
+        "array",
+        "pairs"
     ]
 }
