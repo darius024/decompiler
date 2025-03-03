@@ -89,7 +89,13 @@ def formatInstruction(instr: Instruction): String = {
     /** Helper function to format instructions with uniform spacing. */
     def format(opcode: String, operands: RegImmMemLabel*): String = {
         val size = matchSize(operands)
-        f"    $opcode%-6s ${operands.map(formatOperand(_, size)).mkString(", ")}"
+        operands match {
+            case Seq(reg1: Register, reg2: Register) if reg1.size.size > reg2.size.size => 
+                f"    $opcode%-6s ${List(formatOperand(reg1), formatOperand(reg2)).mkString(", ")}"
+            case _ =>
+                f"    $opcode%-6s ${operands.map(formatOperand(_, size)).mkString(", ")}"
+        }
+        // f"    $opcode%-6s ${operands.map(formatOperand(_, size)).mkString(", ")}"
     }
 
     instr match {
@@ -110,7 +116,7 @@ def formatInstruction(instr: Instruction): String = {
         // arithmetic operations
         case Add(dest, src)         => format("add" , dest, src)
         case Sub(dest, src)         => format("sub" , dest, src)
-        case Mul(dest, src1, src2)  => format("imul", dest, src1, src2)
+        case Mul(dest, src)         => format("imul", dest, src)
         case Div(src)               => format("idiv", src)
         case Mod(src)               => format("idiv", src)
         case And(dest, src)         => format("and" , dest, src)
@@ -118,7 +124,7 @@ def formatInstruction(instr: Instruction): String = {
 
         // data movement
         case CMov(dest, src, cond)  => format(s"cmov${formatCompFlag(cond)}", dest, src)
-        case Mov(dest, src)         => format("mov" , dest, src)
+        case Mov(dest, src)         => format(s"mov${flagSize(dest, src)}" , dest, src)
         case Lea(dest, addr)        => format("lea" , dest, addr)
 
         // control flow
@@ -144,8 +150,8 @@ def isExternalFunction(name: String): Boolean = {
 }
 
 /** Formats an operand according to its type (register, immediate, memory, or label). */
-def formatOperand(op: RegImmMemLabel, size: RegSize): String = op match {
-    case reg: Register     => formatRegister(reg, size)
+def formatOperand(op: RegImmMemLabel, size: RegSize = RegSize.QUAD_WORD): String = op match {
+    case reg: Register     => formatRegister(reg, reg.size)
     case imm: Immediate    => formatImmediate(imm)
     case mem: MemoryAccess => formatMemAccess(mem, size)
     case label: Label      => label.name

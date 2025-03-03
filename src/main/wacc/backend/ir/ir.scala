@@ -150,7 +150,7 @@ object instructions {
     /** subtract source from destination. */
     case class Sub(dest: Register, src: RegImm) extends Instruction
     /** multiply source1 by source2 and store in destination. */
-    case class Mul(dest: Register, src1: RegImm, src2: RegImm) extends Instruction
+    case class Mul(dest: Register, src: RegImm) extends Instruction
     /** compute remainder of division. */
     case class Mod(src: RegImm) extends Instruction
     /** divide by source. */
@@ -240,4 +240,5 @@ object constants {
     final val MAX_CALL_ARGS = 6  // maximum number of arguments passed in registers
     final val CHR = -128         // character range check
     final val BYTE = 8           // number of bits in a byte
+    final val SUCCESS = 0        // success exit code
 }

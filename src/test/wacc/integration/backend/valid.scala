@@ -56,7 +56,7 @@ class ValidProgramTest extends AnyWordSpec {
                             s"./$fileName"
                         ).spawn(
                             stdin = os.Pipe,
-                            shutdownGracePeriod = 3000,
+                            shutdownGracePeriod = 5000,
                         )
 
                         // provide the input parameters

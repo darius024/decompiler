@@ -2,6 +2,7 @@ package wacc.backend.formatter
 
 import wacc.backend.ir.*
 import flags.*
+import instructions.*
 import registers.*
 
 /** 
@@ -90,12 +91,20 @@ def formatString(name: String): String = name
  */
 def matchSize(operands: Seq[RegImmMemLabel]): RegSize = operands.match {
     case Seq(reg: Register, _, _)            => reg.size
-    case Seq(reg1: Register, reg2: Register) =>
-        sizeToReg(Seq(reg1.size.size, reg2.size.size).min)
+    case Seq(reg1: Register, reg2: Register) if reg1.size.size > reg2.size.size => reg2.size
     case Seq(reg: Register, _)               => reg.size
     case Seq(_, reg: Register)               => reg.size
     case Seq(reg: Register)                  => reg.size
     case _                                   => RegSize.QUAD_WORD
+}
+
+/** 
+ * Determines if a move instruction must zero out the destination register's value.
+ * Happens when a lower size register is moved into a higher size register.
+ */
+def flagSize(oper1: RegImmMem, oper2: RegImmMem): String = (oper1, oper2) match {
+    case (reg1: Register, reg2: Register) if reg1.size.size > reg2.size.size => "zx"
+    case _                                                                   => ""
 }
 
 /** 

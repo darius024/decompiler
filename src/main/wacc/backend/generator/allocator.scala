@@ -38,6 +38,10 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
 
             // initialize the RBP pointer
             regMachine.initializeRBP
+        
+        case Push(src) =>
+            val srcReg = regMachine.nextRegister(src)
+            scopeInstructions += Push(srcReg)
 
         case Pop(RBP(_)) =>
             // save all callee registers on the stack at the beginning of function
@@ -53,7 +57,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             // prepend to the buffer in reverse order
             for ((reg, index) <- calleeRegistersToSave.reverseIterator.zipWithIndex) {
                 val ind = calleeRegistersToSave.length - 1 - index
-                Mov(MemAccess(RSP(), ind * RegSize.QUAD_WORD.size), reg) +=: scopeInstructions
+                Mov(MemAccess(RSP(), ind * RegSize.QUAD_WORD.size), changeRegisterSize(reg, RegSize.QUAD_WORD)) +=: scopeInstructions
             }
             // set the frame and stack pointer
             if (stackSize != 0) {
@@ -65,7 +69,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
 
             // restore all callee registers on the stack at the beginning of function
             for ((reg, index) <- calleeRegistersToSave.zipWithIndex) {
-                scopeInstructions += Mov(reg, MemAccess(RSP(), index * RegSize.QUAD_WORD.size))
+                scopeInstructions += Mov(changeRegisterSize(reg, RegSize.QUAD_WORD), MemAccess(RSP(), index * RegSize.QUAD_WORD.size))
             }
             // set the frame and stack pointer
             if (stackSize != 0) {
@@ -74,6 +78,10 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
                 scopeInstructions += Mov(RSP(), RBP())
             }
             scopeInstructions += Pop(RBP())
+        
+        case Pop(src) =>
+            val srcReg = regMachine.nextRegister(src)
+            scopeInstructions += Pop(srcReg)
 
         case Ret =>
             // finish the current scope and append it to the global scope
@@ -87,7 +95,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             val destReg = regMachine.nextRegister(dest)
             val srcReg = regMachine.nextRegisterImm(src)
             scopeInstructions += Cmp(destReg, srcReg)
-            regMachine.switchToRAX
+            // regMachine.switchToRAX
         case SetComp(dest: Register, compFlag: CompFlag) =>
             val destReg = regMachine.nextRegister(dest)
             scopeInstructions += SetComp(destReg, compFlag)
@@ -95,52 +103,56 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
         // handle arithmetic operations
         case Add(dest: Register, src: RegImm) =>
             val destReg = regMachine.nextRegister(dest)
-            val srcReg = regMachine.nextRegisterImm(src)
+            val srcReg = regMachine.nextRegisterImm(src, RBX())
             scopeInstructions += Add(destReg, srcReg)
-            regMachine.switchToRAX
+            // regMachine.switchToRAX
         case Sub(dest: Register, src: RegImm) =>
             val destReg = regMachine.nextRegister(dest)
-            val srcReg = regMachine.nextRegisterImm(src)
+            val srcReg = regMachine.nextRegisterImm(src, RBX())
             scopeInstructions += Sub(destReg, srcReg)
-            regMachine.switchToRAX
-        case Mul(dest: Register, src1: RegImm, src2: RegImm) =>
+            // regMachine.switchToRAX
+        case Mul(dest: Register, src: RegImm) =>
             val destReg = regMachine.nextRegister(dest)
-            regMachine.switchToRAX
-            val srcReg1 = regMachine.nextRegisterImm(src1)
-            val srcReg2 = regMachine.nextRegisterImm(src2)
-            scopeInstructions += Mul(destReg, srcReg1, srcReg2)
-            regMachine.switchToRAX
+            // regMachine.switchToRAX
+            val srcReg = regMachine.nextRegisterImm(src)
+            // val srcReg2 = regMachine.nextRegisterImm(src2, RBX())
+            scopeInstructions += Mul(destReg, srcReg)
+            // regMachine.switchToRAX
         case Mod(src: Register) =>
             val srcReg = regMachine.nextRegister(src)
             scopeInstructions += Mod(srcReg)
-            regMachine.switchToRAX
+            // regMachine.switchToRAX
         case Div(src: Register) =>
             val srcReg = regMachine.nextRegister(src)
             scopeInstructions += Div(srcReg)
-            regMachine.switchToRAX
+            // regMachine.switchToRAX
             
         // handle logical operations
         case And(dest: TempReg, src: RegImm) =>
             val destReg = regMachine.nextRegister(dest)
-            val srcReg = regMachine.nextRegisterImm(src)
+            val srcReg = regMachine.nextRegisterImm(src, RBX())
             scopeInstructions += And(destReg, srcReg)
-            regMachine.switchToRAX
+            // regMachine.switchToRAX
         case Or (dest: TempReg, src: RegImm) =>
             val destReg = regMachine.nextRegister(dest)
-            val srcReg = regMachine.nextRegisterImm(src)
+            val srcReg = regMachine.nextRegisterImm(src, RBX())
             scopeInstructions += Or(destReg, srcReg)
-            regMachine.switchToRAX
+            // regMachine.switchToRAX
         case Test(dest: TempReg, src: RegImm) =>
             val destReg = regMachine.nextRegister(dest)
-            val srcReg = regMachine.nextRegisterImm(src)
+            val srcReg = regMachine.nextRegisterImm(src, RBX())
             scopeInstructions += Test(destReg, srcReg)
-            regMachine.switchToRAX
+            // regMachine.switchToRAX
             
         // handle data movement operations
         case Mov(dest: RegMem, src: RegImmMem) =>
+            val register = scopeInstructions match {
+                case _ :+ Mov(RAX(_), _) => RBX()
+                case _                   => RAX()
+            }
             val destReg = dest match {
-                case reg: Register          => regMachine.nextRegister(reg, true)
-                case MemAccess(reg, offset) => MemAccess(regMachine.nextRegister(reg), offset)
+                case reg: Register          => regMachine.nextRegister(reg, register)
+                case MemAccess(reg, offset) => MemAccess(regMachine.nextRegister(reg,register), offset)
                 case _                      => dest
             }
             val srcReg = src match {
@@ -155,17 +167,22 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             val destReg = regMachine.nextRegister(dest)
             val srcReg = regMachine.nextRegister(src)
             scopeInstructions += Lea(destReg, MemAccess(srcReg, offset))
-            regMachine.switchToRAX
+            // regMachine.switchToRAX
         case CMov(dest: Register, src: Register, cond: CompFlag) =>
             val destReg = regMachine.nextRegister(dest)
-            val srcReg = regMachine.nextRegister(src)
+            val srcReg = regMachine.nextRegister(src, RBX())
             scopeInstructions += CMov(destReg, srcReg, cond)
-            regMachine.switchToRAX
+            // regMachine.switchToRAX
 
         // pass through other instructions unchanged
         case instr =>
             scopeInstructions += instr
     }
+
+    // println("TEMPORARIES:\n")
+    // println(temporaries)
+    // println("REGISTERS:\n")
+    // println(registers)
 
     codeGen.instructions = newInstructions
     codeGen
@@ -192,19 +209,19 @@ object allocator {
         var useRAX = true
         private var usingParameters = false
 
-        def nextRegisterMem(reg: RegMem, isMove: Boolean = false)
+        def nextRegisterMem(reg: RegMem, regParam: Register = RAX())
                            (using temporaries: mutable.Map[String, Register])
                            (using scopeInstructions: mutable.ListBuffer[Instruction])
                            (using regs: mutable.Map[TempReg, RegMem]): RegMem = reg match {
-            case temp: TempReg => if (isMove) {
+            case temp: TempReg => {
                 val register = if (regs.contains(temp)) {
-                    // scopeInstructions += Mov(regs(temp), RAX(temp.size))
                     regs(temp)
                 } else if (temporaries.values.toList.contains(temp)) {
                     // if registers are not available, use the stack
                     val regMem: RegMem = if (availableRegisters.isEmpty) {
                         rbpSize = rbpSize + temp.size.size
-                        val mem = MemAccess(RBP(), -rbpSize)
+                        // TODO: implement proper RBP management
+                        val mem = RBX(temp.size) // MemAccess(RBP(), -rbpSize)
                         regs += temp -> mem
                         mem
                     } else {
@@ -217,53 +234,30 @@ object allocator {
                             usingParameters = true
                         }
 
-                        regs += temp -> reg
+                        regs += temp -> changeRegisterSize(reg, temp.size)
                         usedRegisters += reg
                         reg
                     }
-                    // scopeInstructions += Mov(regMem, RAX(temp.size))
                     regMem
                 } else {
-                    val register = if (regs.contains(temp)) {
+                    if (regs.contains(temp)) {
                         regs(temp)
                     } else {
-                        val reg = if (useRAX) RAX(temp.size) else RBX(temp.size)
-                        useRAX = false
-                        if (isMove) {
-                            if (moves % 2 == 1) useRAX = true
-                            moves += 1
-                        }
-                        reg
+                        regParam
                     }
-                    // regs += temp -> reg
-                    register
                 }
-                register
-            } else {
-                useRAX = true
-                val register = if (regs.contains(temp)) {
-                    regs(temp) match {
-                        case reg: Register => changeRegisterSize(reg, temp.size)
-                        case mem           => mem
-                    }
-                } else {
-                    val reg = if (useRAX) RAX(temp.size) else RBX(temp.size)
-                    if (isMove) {
-                        if (moves % 2 == 1) useRAX = true
-                        moves += 1
-                    }
-                    reg
+                register match {
+                    case reg: Register => changeRegisterSize(reg, temp.size)
+                    case mem           => mem
                 }
-                // regs += temp -> reg
-                register
             }
             case _             => useRAX = true; reg
         }
 
-        def nextRegister(reg: Register, isMove: Boolean = false)
+        def nextRegister(reg: Register, regParam: Register = RAX())
                         (using temporaries: mutable.Map[String, Register])
                         (using scopeInstructions: mutable.ListBuffer[Instruction])
-                        (using regs: mutable.Map[TempReg, RegMem]): Register = nextRegisterMem(reg, isMove) match {
+                        (using regs: mutable.Map[TempReg, RegMem]): Register = nextRegisterMem(reg, regParam) match {
             case reg: Register => reg
             case mem           =>
                 val reg = if (useRAX) RAX() else RBX()
@@ -274,11 +268,11 @@ object allocator {
                 reg
         }
 
-        def nextRegisterImm(regImm: RegImm)
+        def nextRegisterImm(regImm: RegImm, regParam: Register = RAX())
                            (using temporaries: mutable.Map[String, Register])
                            (using scopeInstructions: mutable.ListBuffer[Instruction])
                            (using regs: mutable.Map[TempReg, RegMem]): RegImm = regImm match {
-            case reg: Register => nextRegister(reg)
+            case reg: Register => nextRegister(reg, regParam)
             case _             => regImm
         }
 

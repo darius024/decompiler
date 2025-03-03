@@ -92,8 +92,8 @@ class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruct
         reg
     }
 
-    def getVar(name: String): Register = {
-        varRegs.getOrElse(name, addVar(name, nextTemp()))
+    def getVar(name: String, size: RegSize = RegSize.QUAD_WORD): Register = {
+        varRegs.getOrElse(name, addVar(name, nextTemp(size)))
     }
     
     def getWidgetLabel(widget: Widget): Label = {
@@ -193,5 +193,27 @@ object utils {
 
         // temporary register
         case temp @ TempReg(num, _) => TempReg(num, size)
+    }
+
+    def computeSize(expr: TyExpr): Int = expr match {
+        case TyExpr.BinaryComp(lhs, rhs, _) => Seq(computeSize(lhs), computeSize(rhs)).max + 1
+        case TyExpr.BinaryBool(lhs, rhs, _) => Seq(computeSize(lhs), computeSize(rhs)).max + 1
+        case TyExpr.BinaryArithmetic(lhs, rhs, _) => Seq(computeSize(lhs), computeSize(rhs)).max + 1
+        
+        case TyExpr.Not(expr) => computeSize(expr) + 1
+        case TyExpr.Neg(expr) => computeSize(expr) + 1
+        case TyExpr.Len(expr) => computeSize(expr) + 1
+        case TyExpr.Ord(expr) => computeSize(expr) + 1
+        case TyExpr.Chr(expr) => computeSize(expr) + 1
+        
+        // TODO: replace with higher priority
+        case TyExpr.ArrayElem(id, idx, semTy) => 10
+        case TyExpr.PairFst(lval, semTy) => 10
+        case TyExpr.PairSnd(lval, semTy) => 10
+        case TyExpr.ArrayLit(exprs, semTy) => 10
+        case TyExpr.NewPair(fst, snd, fstTy, sndTy) => 10
+        case TyExpr.Call(func, args, retTy, argTys) => 10
+
+        case _ => 1
     }
 }

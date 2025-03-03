@@ -61,7 +61,7 @@ def generate(label: Label, stmts: TyStmtList)
     
     // for main, set return value to 0
     if (label.name == "main") {
-        codeGen.addInstr(Mov(RAX(), Imm(0)))
+        codeGen.addInstr(Mov(RAX(), Imm(constants.SUCCESS)))
     }
 
     // function epilogue
@@ -78,8 +78,9 @@ def generate(stmt: TyStmt)
     // simple variable assignment
     case Assignment(id: TyExpr.Id, expr: TyExpr) => 
         val rhs = generate(expr)
-        val lhs = codeGen.getVar(id.value)
-        codeGen.addInstr(Mov(lhs, rhs))
+        val lhs = codeGen.getVar(id.value, rhs.size)
+        val size = getTypeSize(id.ty)
+        codeGen.addInstr(Mov(changeRegisterSize(lhs, size), changeRegisterSize(rhs, size)))
     
     // array element assignment
     case Assignment(TyExpr.ArrayElem(id, idx, semTy), expr: TyExpr) =>
@@ -97,11 +98,10 @@ def generate(stmt: TyStmt)
 
         // compute the expression value
         val rhs = generate(expr)
-        rhs.size = getTypeSize(expr.ty)
         codeGen.addInstr(Mov(RAX(rhs.size), rhs))
 
         // store the value in the array
-        codeGen.addInstr(Mov(R9(), codeGen.getVar(id.value)))
+        codeGen.addInstr(Mov(R9(), codeGen.getVar(id.value, rhs.size)))
         codeGen.addInstr(Call(codeGen.getWidgetLabel(getArrayElementStoreWidget(size))))
     
     // pair element assignment
@@ -126,7 +126,7 @@ def generate(stmt: TyStmt)
     // read input into a variable
     case Read(expr: TyExpr.LVal) =>
         val temp = generate(expr)
-        codeGen.addInstr(Mov(RDI(), temp))
+        codeGen.addInstr(Mov(RDI(temp.size), temp))
 
         // use the appropriate read widget based on the type
         val (widget, regSize) = expr.ty match {
@@ -163,19 +163,19 @@ def generate(stmt: TyStmt)
     // return from a function
     case Return(expr: TyExpr) =>
         val temp = generate(expr)
-        codeGen.addInstr(Mov(RAX(), temp))
+        codeGen.addInstr(Mov(RAX(temp.size), temp))
         codeGen.addInstr(Ret)
 
     // exit the program with a status code
     case Exit(expr: TyExpr) =>
         val temp = generate(expr)
-        codeGen.addInstr(Mov(RDI(), temp))
+        codeGen.addInstr(Mov(RDI(temp.size), temp))
         codeGen.addInstr(Call(codeGen.getWidgetLabel(ExitProg)))
 
     // print a value
     case Print(expr: TyExpr) =>
         val temp = generate(expr)
-        codeGen.addInstr(Mov(RDI(), temp))
+        codeGen.addInstr(Mov(RDI(temp.size), temp))
 
         // use the appropriate print widget based on the type
         val widget = getPrintWidget(expr.ty)
@@ -232,8 +232,7 @@ def generate(expr: TyExpr)
 
     // comparison operations
     case TyExpr.BinaryComp(lhs, rhs, op) =>
-        val lhsTemp = generate(lhs)
-        val rhsTemp = generate(rhs)
+        val (lhsTemp, rhsTemp) = generateBinary(lhs, rhs)
         codeGen.addInstr(Cmp(lhsTemp, rhsTemp))
 
         val compFlag = convertToJump(op)
@@ -252,17 +251,15 @@ def generate(expr: TyExpr)
 
     // other arithmetic operations
     case TyExpr.BinaryArithmetic(lhs, rhs, op) =>
-        val lhsTemp = generate(lhs)
-        val rhsTemp = generate(rhs)
+        val (lhsTemp, rhsTemp) = generateBinary(lhs, rhs)
 
         // generate the appropriate arithmetic instruction
         codeGen.addInstr(op match {
             case TyExpr.OpArithmetic.Add => Add(lhsTemp, rhsTemp)
             case TyExpr.OpArithmetic.Sub => Sub(lhsTemp, rhsTemp)
-            case TyExpr.OpArithmetic.Mul =>
-                val temp = codeGen.nextTemp(RegSize.DOUBLE_WORD)
-                Mul(temp, lhsTemp, rhsTemp)
-            case _ => Add(lhsTemp, rhsTemp)
+            case TyExpr.OpArithmetic.Mul => Mul(lhsTemp, rhsTemp)
+            // TODO: remove this case
+            case _                       => Add(lhsTemp, rhsTemp)
         })
         // check for overflow
         codeGen.addInstr(Jump(codeGen.getWidgetLabel(ErrOverflow), JumpFlag.Overflow))
@@ -309,7 +306,7 @@ def generate(expr: TyExpr)
         val temp = generate(expr)
         // check if the value is in the valid character range
         codeGen.addInstr(Test(temp, Imm(constants.CHR)))
-        codeGen.addInstr(Mov(RSI(), temp))
+        codeGen.addInstr(Mov(RSI(temp.size), temp))
         codeGen.addInstr(JumpComp(codeGen.getWidgetLabel(ErrBadChar), CompFlag.NE))
         temp
 
@@ -339,7 +336,7 @@ def generate(expr: TyExpr)
         temp
 
     // variable and memory access
-    case TyExpr.Id(value, semTy)                => codeGen.getVar(value)
+    case TyExpr.Id(value, semTy)                => codeGen.getVar(value, getTypeSize(semTy))
     case TyExpr.ArrayElem(id, idx, semTy)       => generateArrayElem(id, idx, semTy)
     case pairFst: TyExpr.PairFst                => generateFstSnd(pairFst)
     case pairSnd: TyExpr.PairSnd                => generateFstSnd(pairSnd)
@@ -358,14 +355,8 @@ def generateCond(expr: TyExpr, label: Label)
                 (using codeGen: CodeGenerator): Unit = expr match {
     // comparison operations
     case TyExpr.BinaryComp(lhs, rhs, op) => {
-        val lhsTemp = generate(lhs)
-        val rhsTemp = generate(rhs)
-
-        // TODO: use immediates for ints, chars and bools
-
-        val compareSize = getTypeSize(lhs.ty)
-
-        codeGen.addInstr(Cmp(changeRegisterSize(lhsTemp, compareSize), changeRegisterSize(rhsTemp, compareSize)))
+        val (lhsTemp, rhsTemp) = generateBinary(lhs, rhs)
+        codeGen.addInstr(Cmp(lhsTemp, rhsTemp))
 
         val compType = convertToJump(op)
         codeGen.addInstr(JumpComp(label, compType))
@@ -392,11 +383,15 @@ def generateDivMod(expr: TyExpr.BinaryArithmetic)
     codeGen.addInstr(Cmp(rhsTemp, Imm(memoryOffsets.DIV_ZERO)))
     codeGen.addInstr(JumpComp(codeGen.getWidgetLabel(ErrDivZero), CompFlag.E))
 
+    codeGen.addInstr(Push(changeRegisterSize(rhsTemp, RegSize.QUAD_WORD)))
+
     // compute the division
-    val lhsTemp = generate(lhs) 
-    codeGen.addInstr(Mov(RAX(), lhsTemp))
+    val lhsTemp = generate(lhs)
+    codeGen.addInstr(Mov(RAX(RegSize.DOUBLE_WORD), lhsTemp))
     codeGen.addInstr(ConvertDoubleToQuad)
-    codeGen.addInstr(Div(rhsTemp))
+
+    codeGen.addInstr(Pop(RBX()))
+    codeGen.addInstr(Div(RBX(RegSize.DOUBLE_WORD)))
 
     // select the appropriate result (quotient or remainder)
     val resultReg = codeGen.nextTemp(RegSize.DOUBLE_WORD)
@@ -589,4 +584,29 @@ def shortCircuit(expr: TyExpr.BinaryBool)
     codeGen.addInstr(SetComp(resultReg, CompFlag.E))
 
     resultReg
+}
+
+def generateBinary(lhs: TyExpr, rhs: TyExpr)
+                  (using codeGen: CodeGenerator): (Register, Register) = {
+    var (left, right) = (lhs, rhs)
+    
+    if (false) { // computeSize(lhs) < computeSize(rhs)) {
+        left = rhs
+        right = lhs
+    }
+
+    val leftReg = generate(left)
+    codeGen.addInstr(Push(changeRegisterSize(leftReg, RegSize.QUAD_WORD)))
+    val rightReg = generate(right)
+    codeGen.addInstr(Push(changeRegisterSize(rightReg, RegSize.QUAD_WORD)))
+
+    // TODO: do not hardcode this registers
+    val leftTemp = RAX()
+    val rightTemp = RBX()
+    val size = getTypeSize(rhs.ty)
+
+    codeGen.addInstr(Pop(rightTemp))
+    codeGen.addInstr(Pop(leftTemp))
+
+    (changeRegisterSize(leftTemp, size), changeRegisterSize(rightTemp, size))
 }
