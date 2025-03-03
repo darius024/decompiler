@@ -184,8 +184,8 @@ def formatATTInstruction(instr: Instruction): String = {
         case Add(dest, src)         => format(s"add${sizePtrATT(dest.size)}", src, dest)
         case Sub(dest, src)         => format(s"sub${sizePtrATT(dest.size)}", src, dest)
         case Mul(dest, src)         => format(s"imul${sizePtrATT(dest.size)}", src, dest)
-        case Div(src)               => format("idivq", src)
-        case Mod(src)               => format("idivq", src)
+        case Div(src)               => format("idivl", src)
+        case Mod(src)               => format("idivl" , src)
         case And(dest, src)         => format(s"and${sizePtrATT(dest.size)}", src, dest)
         case Or(dest, src)          => format(s"or${sizePtrATT(dest.size)}", src, dest)
 

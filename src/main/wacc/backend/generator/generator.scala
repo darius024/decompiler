@@ -33,7 +33,7 @@ def generate(prog: TyProg): CodeGenerator = {
 
         // map function parameters to registers according to calling convention
         params.zip(codeGen.registers).foreach { case (param, reg) =>
-            codeGen.addVar(param.value, reg)
+            codeGen.addVar(param.value, changeRegisterSize(reg, getTypeSize(param.semTy)))
         }
 
         generate(label, stmts, params)
