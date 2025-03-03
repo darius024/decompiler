@@ -64,7 +64,7 @@ class CodeGeneratorTests extends AnyFlatSpec {
         
         val instructions = codeGen.ir
         instructions.length shouldBe 1
-        instructions.head shouldBe a[Lea]
+        instructions.head.isInstanceOf[Lea] shouldBe true
     }
 
     it should "generate code for binary arithmetic operations" in {
@@ -100,7 +100,7 @@ class CodeGeneratorTests extends AnyFlatSpec {
         generate(ifStmt)
         
         val instructions = codeGen.ir
-        instructions.collectFirst { case _: Jump => succeed } getOrElse fail("Expected Jump instruction")
+        instructions.exists(_.isInstanceOf[Jump]) shouldBe true
     }
 
     it should "generate code for while loops" in {
@@ -109,8 +109,8 @@ class CodeGeneratorTests extends AnyFlatSpec {
         generate(whileStmt)
         
         val instructions = codeGen.ir
-        instructions.collectFirst { case _: Jump => succeed } getOrElse fail("Expected Jump instruction")
-        instructions.count { case _: Label => true; case _ => false } shouldBe 2
+        instructions.exists(_.isInstanceOf[Jump]) shouldBe true
+        instructions.count(_.isInstanceOf[Label]) shouldBe 2
     }
 
     it should "handle short-circuit evaluation for boolean operations" in {
@@ -122,10 +122,10 @@ class CodeGeneratorTests extends AnyFlatSpec {
         instructions.exists(_.isInstanceOf[JumpComp]) shouldBe true
     }
 
-    it should "generate code for division operations with zero checks" in {
+    it should "generate code for division operations" in {
         given codeGen: CodeGenerator = emptyCodeGenerator
         val divExpr = BinaryArithmetic(IntLit(10), IntLit(2), OpArithmetic.Div)
-        generateDivMod(divExpr)
+        generate(divExpr)
         
         val instructions = codeGen.ir
         instructions.collectFirst { case _: Div => succeed } getOrElse fail("Expected Div instruction")

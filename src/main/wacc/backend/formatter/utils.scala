@@ -30,18 +30,32 @@ def formatJumpFlag(flag: JumpFlag): String = flag match {
  * Returns the size specifier string for memory access operations.
  * This determines how many bytes are read/written in memory operations.
  */
-def sizePtr(size: RegSize): String = size match {
+def sizePtrIntel(size: RegSize): String = size match {
     case RegSize.BYTE        => "byte"   // 1 byte
     case RegSize.WORD        => "word"   // 2 bytes
     case RegSize.DOUBLE_WORD => "dword"  // 4 bytes
     case RegSize.QUAD_WORD   => "qword"  // 8 bytes
 }
 
+def sizePtrATT(size: RegSize): String = size match {
+    case RegSize.BYTE        => "b"
+    case RegSize.WORD        => "w"
+    case RegSize.DOUBLE_WORD => "l"
+    case RegSize.QUAD_WORD   => "q"
+}
+
 /** 
  * Formats a parameter register (RAX, RBX, RCX, RDX) according to its size.
  * The register name changes based on how many bytes are being accessed.
  */
-def parameterRegister(reg: String, size: RegSize): String = size match {
+def parameterRegister(reg: String, size: RegSize, syntax: SyntaxStyle): String = {
+    syntax match {
+        case SyntaxStyle.ATT   => s"%${getParameterRegisterIntel(reg, size)}"
+        case SyntaxStyle.Intel => getParameterRegisterIntel(reg, size)
+    }
+}
+
+def getParameterRegisterIntel(reg: String, size: RegSize): String = size match {
     case RegSize.BYTE        => s"${reg}l"   // low byte (al, bl, cl, dl)
     case RegSize.WORD        => s"${reg}x"   // 16-bit (ax, bx, cx, dx)
     case RegSize.DOUBLE_WORD => s"e${reg}x"  // 32-bit (eax, ebx, ecx, edx)
@@ -52,7 +66,14 @@ def parameterRegister(reg: String, size: RegSize): String = size match {
  * Formats a special register (RDI, RSI, RBP, RIP, RSP) according to its size.
  * The register name changes based on how many bytes are being accessed.
  */
-def specialRegister(reg: String, size: RegSize): String = size match {
+def specialRegister(reg: String, size: RegSize, syntax: SyntaxStyle): String = {
+    syntax match {
+        case SyntaxStyle.Intel => getSpecialRegisterIntel(reg, size)
+        case SyntaxStyle.ATT   => s"%${getSpecialRegisterIntel(reg, size)}"
+    }
+}
+
+def getSpecialRegisterIntel(reg: String, size: RegSize): String = size match {
     case RegSize.BYTE        => s"${reg}l"   // low byte
     case RegSize.WORD        => s"${reg}"    // 16-bit
     case RegSize.DOUBLE_WORD => s"e${reg}"   // 32-bit
@@ -63,7 +84,14 @@ def specialRegister(reg: String, size: RegSize): String = size match {
  * Formats a numbered register (R8-R15) according to its size.
  * The register name changes based on how many bytes are being accessed.
  */
-def numberedRegister(reg: String, size: RegSize): String = size match {
+def numberedRegister(reg: String, size: RegSize, syntax: SyntaxStyle): String = {
+    syntax match {
+        case SyntaxStyle.Intel => getNumberedRegisterIntel(reg, size)
+        case SyntaxStyle.ATT   => s"%${getNumberedRegisterIntel(reg, size)}"
+    }
+}
+
+def getNumberedRegisterIntel(reg: String, size: RegSize): String = size match {
     case RegSize.BYTE        => s"r${reg}b"  // low byte
     case RegSize.WORD        => s"r${reg}w"  // 16-bit
     case RegSize.DOUBLE_WORD => s"r${reg}d"  // 32-bit
