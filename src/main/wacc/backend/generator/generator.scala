@@ -36,33 +36,31 @@ def generate(prog: TyProg): CodeGenerator = {
             codeGen.addVar(param.value, reg)
         }
 
-        generate(label, stmts)
+        generate(label, stmts, params)
     }
 
     // generate code for the main program
-    generate(codeGen.nextLabel(LabelType.Main), stmts)
+    generateMain(stmts)
 
     // perform register allocation in the second pass
     allocate(codeGen)
 }
 
 /**
- * Generates IR instructions for a function or the main program.
+ * Generates IR instructions for the main program.
  * Sets up the function prologue and epilogue.
  */
-def generate(label: Label, stmts: TyStmtList)
-            (using codeGen: CodeGenerator): Unit = {    
+def generateMain(stmts: TyStmtList)
+                (using codeGen: CodeGenerator): Unit = {    
     // function prologue
-    codeGen.addInstr(label)
+    codeGen.addInstr(codeGen.nextLabel(LabelType.Main))
     codeGen.addInstr(Push(RBP()))
 
     // generate code for the function body
-    stmts.map(generate)
+    stmts.map(generate(_, false))
     
-    // for main, set return value to 0
-    if (label.name == "main") {
-        codeGen.addInstr(Mov(RAX(), Imm(constants.SUCCESS)))
-    }
+    // set exit code to success
+    codeGen.addInstr(Mov(RAX(), Imm(constants.SUCCESS)))
 
     // function epilogue
     codeGen.addInstr(Pop(RBP()))
@@ -70,10 +68,26 @@ def generate(label: Label, stmts: TyStmtList)
 }
 
 /**
+ * Generates IR instructions for the main program.
+ * Sets up the function prologue and epilogue.
+ */
+def generate(label: Label, stmts: TyStmtList, params: Array[TyExpr.Id])
+            (using codeGen: CodeGenerator): Unit = {    
+    // function prologue
+    codeGen.addInstr(label)
+    codeGen.addInstr(Push(RBP()))
+
+    // generate code for the function body
+    stmts.foreach { stmt =>
+        generate(stmt)
+    }
+}
+
+/**
  * Generates IR instructions for a statement.
  * Handles different statement types like assignments, conditionals, loops, etc.
  */
-def generate(stmt: TyStmt)
+def generate(stmt: TyStmt, inFunction: Boolean = true)
             (using codeGen: CodeGenerator): Unit = stmt match {
     // simple variable assignment
     case Assignment(id: TyExpr.Id, expr: TyExpr) => 
@@ -125,6 +139,7 @@ def generate(stmt: TyStmt)
 
     // read input into a variable
     case Read(expr: TyExpr.LVal) =>
+        if (inFunction) codeGen.registers.foreach { reg => codeGen.addInstr(Push(reg)) }
         val temp = generate(expr)
         codeGen.addInstr(Mov(RDI(temp.size), temp))
 
@@ -137,9 +152,11 @@ def generate(stmt: TyStmt)
         }
         codeGen.addInstr(Call(codeGen.getWidgetLabel(widget)))
         codeGen.addInstr(Mov(generate(expr), RAX(regSize)))
+        if (inFunction) codeGen.registers.reverse.foreach { reg => codeGen.addInstr(Pop(reg)) }
     
     // free heap-allocated memory
     case Free(expr: TyExpr) =>
+        if (inFunction) codeGen.registers.foreach { reg => codeGen.addInstr(Push(reg)) }
         val temp = generate(expr)
         // handle different types of pointers
         expr.ty match {
@@ -157,11 +174,14 @@ def generate(stmt: TyStmt)
                 codeGen.addInstr(Mov(RDI(), temp))
                 codeGen.addInstr(Call(codeGen.getWidgetLabel(FreeProg)))
         }
-
+        if (inFunction) codeGen.registers.reverse.foreach { reg => codeGen.addInstr(Pop(reg)) }
+        
     // return from a function
     case Return(expr: TyExpr) =>
         val temp = generate(expr)
         codeGen.addInstr(Mov(RAX(temp.size), temp))
+        // function epilogue
+        codeGen.addInstr(Pop(RBP()))
         codeGen.addInstr(Ret)
 
     // exit the program with a status code
@@ -172,17 +192,21 @@ def generate(stmt: TyStmt)
 
     // print a value
     case Print(expr: TyExpr) =>
+        if (inFunction) codeGen.registers.foreach { reg => codeGen.addInstr(Push(reg)) }
         val temp = generate(expr)
         codeGen.addInstr(Mov(RDI(temp.size), temp))
 
         // use the appropriate print widget based on the type
         val widget = getPrintWidget(expr.ty)
         codeGen.addInstr(Call(codeGen.getWidgetLabel(widget)))
+        if (inFunction) codeGen.registers.reverse.foreach { reg => codeGen.addInstr(Pop(reg)) }
 
     // print a value followed by a newline
     case Println(expr: TyExpr) =>
-        generate(Print(expr))
+        if (inFunction) codeGen.registers.foreach { reg => codeGen.addInstr(Push(reg)) }
+        generate(Print(expr), false)
         codeGen.addInstr(Call(codeGen.getWidgetLabel(PrintLn)))
+        if (inFunction) codeGen.registers.reverse.foreach { reg => codeGen.addInstr(Pop(reg)) }
 
     // if-then-else statement
     case If(cond: TyExpr, thenStmts: TyStmtList, elseStmts: TyStmtList) =>
@@ -192,11 +216,11 @@ def generate(stmt: TyStmt)
         // generate condition and jump to then branch if true
         generateCond(cond, ifLabel)
         // generate else branch
-        elseStmts.map(generate)
+        elseStmts.map(generate(_, inFunction))
         codeGen.addInstr(Jump(endIfLabel, JumpFlag.Unconditional))
         // generate then branch
         codeGen.addInstr(ifLabel)
-        thenStmts.map(generate)
+        thenStmts.map(generate(_, inFunction))
         codeGen.addInstr(endIfLabel)
     
     // while loop
@@ -208,14 +232,14 @@ def generate(stmt: TyStmt)
         codeGen.addInstr(Jump(whileCondLabel, JumpFlag.Unconditional))
         // generate loop body
         codeGen.addInstr(whileBodyLabel)
-        doStmts.map(generate)
+        doStmts.map(generate(_, inFunction))
         // generate condition check
         codeGen.addInstr(whileCondLabel)
         generateCond(cond, whileBodyLabel)
     
     // block of statements
     case Block(stmts: TyStmtList) =>
-        stmts.map(generate)
+        stmts.map(generate(_, inFunction))
 }
 
 /**
@@ -499,22 +523,6 @@ def generateArrayLit(exprs: List[TyExpr], semTy: SemType)
  */
 def generateArrayElem(id: TyExpr.Id, idx: List[TyExpr], semTy: SemType)
                      (using codeGen: CodeGenerator): TempReg = {
-    // handle nested array access
-    // val temp = idx.reverse match {
-    //     case expr1 :: expr2 :: rest =>
-    //         // for multi-dimensional arrays, recursively access inner arrays
-    //         generateArrayElem(id, (expr2 :: rest).reverse, semTy, true)
-    //         generate(expr1)
-        
-    //     case expr :: Nil             =>
-    //         // for single-dimensional arrays, compute the index
-    //         generate(expr)
-            
-    //     // TODO: remove this case
-    //     case Nil                     =>
-    //         TempReg(0)
-    // }
-
     var arrayReg = codeGen.getVar(id.value)
     var arrayTy = semTy
     var elementSize = RegSize.QUAD_WORD
@@ -545,12 +553,13 @@ def generateCall(func: String, args: List[TyExpr], retTy: SemType)
                 (using codeGen: CodeGenerator): TempReg = {
     // pass arguments according to the calling convention
     args.zipWithIndex.foreach { case (arg, ind) =>
+        val temp = generate(arg)
         val instr = if (ind < constants.MAX_CALL_ARGS) {
             // first 6 arguments go in registers
-            Mov(codeGen.registers(ind), generate(arg))
+            Mov(changeRegisterSize(codeGen.registers(ind), temp.size), temp)
         } else {
             // additional arguments go on the stack
-            Push(generate(arg))
+            Push(changeRegisterSize(temp, RegSize.QUAD_WORD))
         }
         codeGen.addInstr(instr)
     }

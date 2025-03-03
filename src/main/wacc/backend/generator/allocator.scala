@@ -26,6 +26,10 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
     given scopeInstructions: mutable.ListBuffer[Instruction] = mutable.ListBuffer.empty[Instruction]
 
     instructions.foreach {
+        case Label("main") =>
+            scopeInstructions += Label("main")
+            regMachine.inMain
+
         // track function entry and exit points for register saving
         case Push(RBP(_)) =>
             // do not add the instructions in the buffer yet
@@ -146,7 +150,6 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
                 case regImm: RegImm => regMachine.nextRegisterImm(regImm)
                 case MemAccess(reg, offset) => MemAccess(regMachine.nextRegister(reg), offset)
                 case _                      => src
-
             }
             scopeInstructions += Mov(destReg, srcReg)
             
@@ -179,9 +182,9 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
  */
 object allocator {
     // parameter registers used for function calls
-    val paramRegisters = Set(RDX(), RCX(), RSI(), RDI(), R8(), R9())
+    val paramRegisters = List(RDX(), RCX(), RSI(), RDI(), R8(), R9())
     // callee-saved registers that need to be preserved across function calls
-    private val calleeSaved: List[Register] = List(R12(), R13(), R14(), R15(), RDX(), RCX(), RSI(), RDI(), R8(), R9())
+    private val calleeSaved: List[Register] = List(R12(), R13(), R14(), R15())
     
     /**
      * Manages the allocation of physical registers to temporary registers.
@@ -192,6 +195,7 @@ object allocator {
         var usedRegisters: mutable.ListBuffer[Register] = mutable.ListBuffer.empty[Register]
         var rbpSize = 0
         private var usingParameters = false
+        var inFunction = true
 
         def nextRegisterMem(reg: RegMem, regParam: Register = RAX())
                            (using temporaries: mutable.Map[String, Register])
@@ -277,6 +281,10 @@ object allocator {
                     scopeInstructions += Pop(changeRegisterSize(reg, RegSize.QUAD_WORD))
                 }
             }
+        }
+
+        def inMain: Unit = {
+            paramRegisters.reverse.map(availableRegisters.append(_))
         }
     }
 }

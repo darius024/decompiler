@@ -1,10 +1,10 @@
 {
     "valid": [
         "advanced",
-        "scope",
+        "scope",   
         "function",
         "while",
-        "array",
-        "pairs"
+        "pairs",
+        "array"
     ]
 }

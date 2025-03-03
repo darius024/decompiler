@@ -74,11 +74,11 @@ class ValidProgramTest extends AnyWordSpec {
                             val lines = process.stdout.trim().split("\n")
                             for ((line, param) <- lines.zip(outputParameter)) {
                                 if (param.contains("#addrs#")) {
-                                    line mustBe param
+                                    assert(!line.contains("fatal error"))
                                 } else if (param.contains("#runtime_error#")) {
                                     assert(line.contains("fatal error"))
                                 } else {
-                                    assert(!line.contains("fatal error"))
+                                    line mustBe param
                                 }
                             }
                         }
