@@ -146,7 +146,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
                 case MemAccess(reg, offset) => MemAccess(regMachine.nextRegister(reg,register), offset)
                 case _                      => dest
             }
-            val srcReg = src match {
+            val srcReg: RegImmMem = src match {
                 case regImm: RegImm => regMachine.nextRegisterImm(regImm)
                 case MemAccess(reg, offset) => MemAccess(regMachine.nextRegister(reg), offset)
                 case _                      => src
