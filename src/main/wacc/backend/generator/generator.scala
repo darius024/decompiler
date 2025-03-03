@@ -97,7 +97,8 @@ def generate(stmt: TyStmt)
 
         // compute the expression value
         val rhs = generate(expr)
-        codeGen.addInstr(Mov(RAX(), rhs))
+        rhs.size = getTypeSize(expr.ty)
+        codeGen.addInstr(Mov(RAX(rhs.size), rhs))
 
         // store the value in the array
         codeGen.addInstr(Mov(R9(), codeGen.getVar(id.value)))
@@ -359,7 +360,12 @@ def generateCond(expr: TyExpr, label: Label)
     case TyExpr.BinaryComp(lhs, rhs, op) => {
         val lhsTemp = generate(lhs)
         val rhsTemp = generate(rhs)
-        codeGen.addInstr(Cmp(changeRegisterSize(lhsTemp, RegSize.BYTE), rhsTemp))
+
+        // TODO: use immediates for ints, chars and bools
+
+        val compareSize = getTypeSize(lhs.ty)
+
+        codeGen.addInstr(Cmp(changeRegisterSize(lhsTemp, compareSize), changeRegisterSize(rhsTemp, compareSize)))
 
         val compType = convertToJump(op)
         codeGen.addInstr(JumpComp(label, compType))
@@ -480,7 +486,8 @@ def generateArrayLit(exprs: List[TyExpr], semTy: SemType)
 
     // store the array length
     codeGen.addInstr(Add(arrayPtr, Imm(RegSize.DOUBLE_WORD.size)))
-    codeGen.addInstr(Mov(MemAccess(arrayPtr, -RegSize.DOUBLE_WORD.size), Imm(exprsLength)))
+    codeGen.addInstr(Mov(RAX(RegSize.DOUBLE_WORD), Imm(exprsLength)))
+    codeGen.addInstr(Mov(MemAccess(arrayPtr, -RegSize.DOUBLE_WORD.size), RAX(RegSize.DOUBLE_WORD)))
 
     // store the array elements
     exprs.zipWithIndex.foreach { case (expr, i) =>

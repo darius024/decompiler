@@ -68,7 +68,7 @@ object arrLoad {
         CMov(RSI(), R10(), CompFlag.GE),
         JumpComp(ErrOutOfBounds.label, CompFlag.GE),
         // load the element
-        Mov(RAX(), MemRegAccess(R9(), R10(), size)),
+        Mov(R9(RegSize.DOUBLE_WORD), MemRegAccess(R9(), R10(), size)),
         Pop(RBX()),
         Ret
     )
