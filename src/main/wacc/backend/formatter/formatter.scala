@@ -183,7 +183,7 @@ def formatATTInstruction(instr: Instruction): String = {
         // arithmetic operations
         case Add(dest, src)         => format(s"add${sizePtrATT(dest.size)}", src, dest)
         case Sub(dest, src)         => format(s"sub${sizePtrATT(dest.size)}", src, dest)
-        case Mul(dest, src1, src2)  => format(s"imul${sizePtrATT(dest.size)}", src1, dest)
+        case Mul(dest, src)         => format(s"imul${sizePtrATT(dest.size)}", src, dest)
         case Div(src)               => format("idivq", src)
         case Mod(src)               => format("idivq", src)
         case And(dest, src)         => format(s"and${sizePtrATT(dest.size)}", src, dest)

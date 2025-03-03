@@ -33,7 +33,7 @@ def compile(file: File): (String, ExitCode) = {
     }
 
     // code generation and assembly formatter
-    formatter.format(generator.generate(typedAst), file, SyntaxStyle.ATT)
+    formatter.format(generator.generate(typedAst), file, SyntaxStyle.Intel)
 
     ("Code compiled successfully.", ExitCode.Success)
 }
