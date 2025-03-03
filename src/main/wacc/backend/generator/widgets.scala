@@ -46,7 +46,7 @@ object arrStore {
         CMov(RSI(), R10(), CompFlag.GE),
         JumpComp(ErrOutOfBounds.label, CompFlag.GE),
         // store the element
-        Mov(R9(RegSize.DOUBLE_WORD), MemRegAccess(R9(), R10(), size)),
+        Mov(MemRegAccess(R9(), R10(), size), RAX(RegSize.DOUBLE_WORD)),
         Pop(RBX()),
         Ret
     )
