@@ -71,7 +71,14 @@ object registers {
      * Temporary register used during code generation.
      * These are replaced with real registers during register allocation.
      */
-    case class TempReg(num: Int, val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class TempReg(num: Int, val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim) {
+        override def equals(obj: Any): Boolean = obj match {
+            case that: TempReg => this.num == that.num
+            case _ => false
+        }
+
+        override def hashCode(): Int = num.hashCode()
+    }
 }
 
 /** Immediate values used in assembly instructions. */
@@ -159,7 +166,7 @@ object instructions {
     /** subtract source from destination. */
     case class Sub[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
     /** multiply source1 by source2 and store in destination. */
-    case class Mul[S <: RegSize] (dest: Register & SizedAs[S], src1: RegImm & SizedAs[S], src2: RegImm & SizedAs[S]) extends Instruction
+    case class Mul[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
     /** compute remainder of division. */
     case class Mod(src: RegImm) extends Instruction
     /** divide by source. */
@@ -232,6 +239,7 @@ object memoryOffsets {
     final val NULL = 0                   // null pointer value
     final val ARRAY_LENGTH_OFFSET = -4   // offset to array length field
     final val STACK_ALIGNMENT = -16      // stack alignment for function calls
+    final val STACK_READ = 16            // stack space for reads
     final val BOOL_PRINT_OFFSET = 24     // offset for printing booleans
     
     // array element access sizes
@@ -249,4 +257,6 @@ object memoryOffsets {
 object constants {
     final val MAX_CALL_ARGS = 6  // maximum number of arguments passed in registers
     final val CHR = -128         // character range check
+    final val BYTE = 8           // number of bits in a byte
+    final val SUCCESS = 0        // success exit code
 }

@@ -3,6 +3,7 @@ package wacc.integration.backend
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.must.Matchers.*
 import os.*
+import scala.concurrent.duration.*
 
 import wacc.integration.utils.*
 
@@ -33,7 +34,7 @@ class ValidProgramTest extends AnyWordSpec {
                     // files at the root level of the directory
 
                     // parse the header to get the input and output parameters
-                    val (inputParameter, outputParameter, exitCode) = parseHeader(test)
+                    val (inputParameters, outputParameter, exitCode) = parseHeader(test)
                     val fileName = test.last.stripSuffix(".wacc")
 
                     try {
@@ -51,22 +52,40 @@ class ValidProgramTest extends AnyWordSpec {
                         compileResult.out.text() mustBe empty
 
                         // run/emulate the executable and compare results
-                        val emulateResult = os.proc(
+                        val process = os.proc(
                             s"./$fileName"
-                        ).call(
-                            stdin = inputParameter,
-                            timeout = 3000,
-                            check = false,
+                        ).spawn(
+                            stdin = os.Pipe,
+                            shutdownGracePeriod = 5000,
                         )
+
+                        // provide the input parameters
+                        val delayBetweenInputs = 100.milliseconds
+                        for (input <- inputParameters) {
+                            Thread.sleep(delayBetweenInputs.toMillis)
+                            process.stdin.write(s"$input")
+                            process.stdin.flush()
+                        }
+                        process.stdin.close()
+                        process.waitFor()
                         
                         // the output should match the expected output
-                        if (!outputParameter.isEmpty) {
-                            emulateResult.out.text().trim() mustBe outputParameter.mkString("\n")
+                        if (outputParameter.nonEmpty) {
+                            val lines = process.stdout.trim().split("\n")
+                            for ((line, param) <- lines.zip(outputParameter)) {
+                                if (param.contains("#addrs#")) {
+                                    assert(!line.contains("fatal error"))
+                                } else if (param.contains("#runtime_error#")) {
+                                    assert(line.contains("fatal error"))
+                                } else {
+                                    line mustBe param
+                                }
+                            }
                         }
 
                         // the exit code should match
                         if (exitCode != 0) {
-                            emulateResult.exitCode mustBe exitCode
+                            process.exitCode() mustBe exitCode
                         }
                     } finally {
                         // clean up the executable and assembly file

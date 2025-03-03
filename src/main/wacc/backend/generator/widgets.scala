@@ -34,7 +34,7 @@ object library {
  * Shared implementation for storing elements into arrays.
  */
 object arrStore {
-    def instructions(size: Int): List[Instruction] = List(
+    def instructions(regSize: RegSize): List[Instruction] = List(
         Push(RBX()),
         // check for negative index
         Test(R10(RegSize.DOUBLE_WORD), R10(RegSize.DOUBLE_WORD)),
@@ -46,7 +46,7 @@ object arrStore {
         CMov(RSI(), R10(), CompFlag.GE),
         JumpComp(ErrOutOfBounds.label, CompFlag.GE),
         // store the element
-        Mov(R9(RegSize.DOUBLE_WORD), MemRegAccess(R9(), R10(), size)),
+        Mov(MemRegAccess(R9(), R10(), regSize.size), RAX(regSize)),
         Pop(RBX()),
         Ret
     )
@@ -56,7 +56,7 @@ object arrStore {
  * Shared implementation for loading elements from arrays.
  */
 object arrLoad {
-    def instructions(size: Int): List[Instruction] = List(
+    def instructions(regSize: RegSize): List[Instruction] = List(
         Push(RBX()),
         // check for negative index
         Test(R10(RegSize.DOUBLE_WORD), R10(RegSize.DOUBLE_WORD)),
@@ -68,7 +68,7 @@ object arrLoad {
         CMov(RSI(), R10(), CompFlag.GE),
         JumpComp(ErrOutOfBounds.label, CompFlag.GE),
         // load the element
-        Mov(RAX(), MemRegAccess(R9(), R10(), size)),
+        Mov(R9(regSize), MemRegAccess(R9(), R10(), regSize.size)),
         Pop(RBX()),
         Ret
     )
@@ -85,6 +85,7 @@ object widgets {
         PrintInt,
         PrintChar,
         PrintString,
+        PrintPointer,
         PrintBool,
         PrintLn,
         Malloc,
@@ -130,14 +131,14 @@ object widgets {
             Push(RBP()),
             Mov(RBP(), RSP()),
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Sub(RSP(), Imm(RegSize.WORD.size)),
+            Sub(RSP(), Imm(memoryOffsets.STACK_READ)),
             Mov(MemAccess(RSP(), memoryOffsets.NO_OFFSET), RDI(RegSize.DOUBLE_WORD)),
             Lea(RSI(), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._readi_str0"))),
             Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.scanf),
             Mov(RAX(RegSize.DOUBLE_WORD), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
-            Add(RSP(), Imm(RegSize.WORD.size)),
+            Add(RSP(), Imm(memoryOffsets.STACK_READ)),
             Mov(RSP(), RBP()),
             Pop(RBP()),
             Ret
@@ -154,14 +155,14 @@ object widgets {
             Push(RBP()),
             Mov(RBP(), RSP()),
             And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Sub(RSP(), Imm(RegSize.WORD.size)),
+            Sub(RSP(), Imm(memoryOffsets.STACK_READ)),
             Mov(MemAccess(RSP(), memoryOffsets.NO_OFFSET), RDI(RegSize.BYTE)),
             Lea(RSI(), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._readc_str0"))),
             Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.scanf),
             Mov(RAX(RegSize.BYTE), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
-            Add(RSP(), Imm(RegSize.WORD.size)),
+            Add(RSP(), Imm(memoryOffsets.STACK_READ)),
             Mov(RSP(), RBP()),
             Pop(RBP()),
             Ret
@@ -225,6 +226,28 @@ object widgets {
             Mov(RDX(), RDI()),
             Mov(RSI(RegSize.DOUBLE_WORD), MemAccess(RDI(), memoryOffsets.ARRAY_LENGTH_OFFSET)),
             Lea(RDI(), MemAccess(RIP(), Label(".L._prints_str0"))),
+            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Call(library.printf),
+            Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Call(library.fflush),
+            Mov(RSP(), RBP()),
+            Pop(RBP()),
+            Ret
+        )
+    }
+
+    /**
+     * Prints a pointer to standard output.
+     */
+    case object PrintPointer extends Widget {
+        val label = Label("_printp")
+        override val directives = Set(StrLabel(Label(".L._printp_str0"), asciz.pair))
+        def instructions: List[Instruction] = List(
+            Push(RBP()),
+            Mov(RBP(), RSP()),
+            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Mov(RSI(), RDI()),
+            Lea(RDI(), MemAccess(RIP(), Label(".L._printp_str0"))),
             Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
             Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
@@ -347,7 +370,7 @@ object widgets {
      */
     case object ArrayStore1 extends Widget {
         val label = Label("_arrStore1")
-        def instructions: List[Instruction] = arrStore.instructions(memoryOffsets.ARR_STORE1)
+        def instructions: List[Instruction] = arrStore.instructions(RegSize.BYTE)
         override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
@@ -356,7 +379,7 @@ object widgets {
      */
     case object ArrayStore2 extends Widget {
         val label = Label("_arrStore2")
-        def instructions: List[Instruction] = arrStore.instructions(memoryOffsets.ARR_STORE2)
+        def instructions: List[Instruction] = arrStore.instructions(RegSize.WORD)
         override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
@@ -365,7 +388,7 @@ object widgets {
      */
     case object ArrayStore4 extends Widget {
         val label = Label("_arrStore4")
-        def instructions: List[Instruction] = arrStore.instructions(memoryOffsets.ARR_STORE4)
+        def instructions: List[Instruction] = arrStore.instructions(RegSize.DOUBLE_WORD)
         override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
@@ -374,7 +397,7 @@ object widgets {
      */
     case object ArrayStore8 extends Widget {
         val label = Label("_arrStore8")
-        def instructions: List[Instruction] = arrStore.instructions(memoryOffsets.ARR_STORE8)
+        def instructions: List[Instruction] = arrStore.instructions(RegSize.QUAD_WORD)
         override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
@@ -383,7 +406,7 @@ object widgets {
      */
     case object ArrayLoad1 extends Widget {
         val label = Label("_arrLoad1")
-        def instructions: List[Instruction] = arrLoad.instructions(memoryOffsets.ARR_LOAD1)
+        def instructions: List[Instruction] = arrLoad.instructions(RegSize.BYTE)
         override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
@@ -392,7 +415,7 @@ object widgets {
      */
     case object ArrayLoad2 extends Widget {
         val label = Label("_arrLoad2")
-        def instructions: List[Instruction] = arrLoad.instructions(memoryOffsets.ARR_LOAD2)
+        def instructions: List[Instruction] = arrLoad.instructions(RegSize.WORD)
         override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
     
@@ -401,7 +424,7 @@ object widgets {
      */
     case object ArrayLoad4 extends Widget {
         val label = Label("_arrLoad4")
-        def instructions: List[Instruction] = arrLoad.instructions(memoryOffsets.ARR_LOAD4)
+        def instructions: List[Instruction] = arrLoad.instructions(RegSize.DOUBLE_WORD)
         override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
@@ -410,7 +433,7 @@ object widgets {
      */
     case object ArrayLoad8 extends Widget {
         val label = Label("_arrLoad8")
-        def instructions: List[Instruction] = arrLoad.instructions(memoryOffsets.ARR_LOAD8)
+        def instructions: List[Instruction] = arrLoad.instructions(RegSize.QUAD_WORD)
         override def dependencies: Set[Widget] = Set(ErrOutOfBounds)
     }
 
@@ -442,7 +465,6 @@ object errors {
         /** The error message to display */
         def message: String
         // all error widgets depend on the string printing widget
-        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     /**
@@ -459,6 +481,7 @@ object errors {
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     /**
@@ -475,6 +498,7 @@ object errors {
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     /**
@@ -491,6 +515,7 @@ object errors {
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     /**
@@ -510,6 +535,7 @@ object errors {
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     /**
@@ -526,6 +552,7 @@ object errors {
             Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 
     /**
@@ -542,8 +569,9 @@ object errors {
             Call(library.printf),
             Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
-            Mov(RDI(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
+        override def dependencies: Set[Widget] = Set(PrintString)
     }
 }

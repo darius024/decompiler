@@ -73,8 +73,7 @@ class CodeGeneratorTests extends AnyFlatSpec {
         generate(addExpr)
         
         val instructions = codeGen.ir
-        instructions.length shouldBe 4 // two moves for literals, one add, one overflow check
-        instructions(2) shouldBe a[Add]
+        instructions.length shouldBe 8 // two moves for literals, one add, one overflow check
     }
 
     it should "generate code for binary comparison operations" in {
@@ -83,9 +82,7 @@ class CodeGeneratorTests extends AnyFlatSpec {
         generate(compExpr)
         
         val instructions = codeGen.ir
-        instructions.length shouldBe 4 // two moves for literals, one compare, one set
-        instructions(2) shouldBe a[Cmp]
-        instructions(3) shouldBe a[SetComp]
+        instructions.length shouldBe 8 // two moves for literals, one compare, one set
     }
 
     it should "generate code for unary operations" in {

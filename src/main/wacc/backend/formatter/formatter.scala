@@ -89,7 +89,13 @@ def formatInstruction(instr: Instruction): String = {
     /** Helper function to format instructions with uniform spacing. */
     def format(opcode: String, operands: RegImmMemLabel*): String = {
         val size = matchSize(operands)
-        f"    $opcode%-6s ${operands.map(formatOperand(_, size)).mkString(", ")}"
+        operands match {
+            case Seq(reg1: Register, reg2: Register) if reg1.size.size > reg2.size.size => 
+                f"    $opcode%-6s ${List(formatOperand(reg1), formatOperand(reg2)).mkString(", ")}"
+            case _ =>
+                f"    $opcode%-6s ${operands.map(formatOperand(_, size)).mkString(", ")}"
+        }
+        // f"    $opcode%-6s ${operands.map(formatOperand(_, size)).mkString(", ")}"
     }
 
     instr match {
@@ -110,7 +116,7 @@ def formatInstruction(instr: Instruction): String = {
         // arithmetic operations
         case Add(dest, src)         => format("add" , dest, src)
         case Sub(dest, src)         => format("sub" , dest, src)
-        case Mul(dest, src1, src2)  => format("imul", dest, src1, src2)
+        case Mul(dest, src)         => format("imul", dest, src)
         case Div(src)               => format("idiv", src)
         case Mod(src)               => format("idiv", src)
         case And(dest, src)         => format("and" , dest, src)
@@ -118,11 +124,13 @@ def formatInstruction(instr: Instruction): String = {
 
         // data movement
         case CMov(dest, src, cond)  => format(s"cmov${formatCompFlag(cond)}", dest, src)
-        case Mov(dest, src)         => format("mov" , dest, src)
+        case Mov(dest, src)         => format(s"mov${flagSize(dest, src)}" , dest, src)
         case Lea(dest, addr)        => format("lea" , dest, addr)
 
         // control flow
-        case Call(label)            => format("call" , label)
+        case Call(label)            =>
+            val labelName = if (isExternalFunction(label.name)) s"${label.name}@plt" else label.name
+            format("call", labelName)
         case Jump(label, flag)      => format(s"j${formatJumpFlag(flag)}", label)
         case Ret                    => format("ret\n")
 
@@ -135,9 +143,15 @@ def formatInstruction(instr: Instruction): String = {
     }
 }
 
+/** Checks if a function is an external C library function that needs @plt suffix. */
+def isExternalFunction(name: String): Boolean = {
+    val externalFunctions = Set("exit", "fflush", "free", "malloc", "printf", "puts", "scanf")
+    externalFunctions.contains(name)
+}
+
 /** Formats an operand according to its type (register, immediate, memory, or label). */
-def formatOperand(op: RegImmMemLabel, size: RegSize): String = op match {
-    case reg: Register     => formatRegister(reg)
+def formatOperand(op: RegImmMemLabel, size: RegSize = RegSize.QUAD_WORD): String = op match {
+    case reg: Register     => formatRegister(reg, reg.size)
     case imm: Immediate    => formatImmediate(imm)
     case mem: MemoryAccess => formatMemAccess(mem, size)
     case label: Label      => label.name
@@ -155,44 +169,44 @@ def formatImmediate(imm: Immediate): String = imm match {
  */
 def formatMemAccess(mem: MemoryAccess, size: RegSize): String = mem match {
     case MemAccess(reg: Register, offset: Int) => 
-        val operand = if (offset == 0) s"[${formatRegister(reg)}]" else s"[${formatRegister(reg)} ${if offset > 0 then "+" else ""} $offset]"
+        val operand = if (offset == 0) s"[${formatRegister(reg, reg.size)}]" else s"[${formatRegister(reg, reg.size)} ${if offset > 0 then "+" else ""} $offset]"
         s"${sizePtr(size)} ptr $operand"
     
     // RIP-relative addressing doesn't require size specifier
     case MemAccess(reg @ RIP(_), offset: Label) =>
-        s"[${formatRegister(reg)} + ${offset.name}]"
+        s"[${formatRegister(reg, reg.size)} + ${offset.name}]"
     case MemAccess(reg: Register, offset: Label) =>
-        s"${sizePtr(size)} ptr [${formatRegister(reg)} + ${offset.name}]"
+        s"${sizePtr(size)} ptr [${formatRegister(reg, reg.size)} + ${offset.name}]"
     
     // base + index*scale addressing mode
     case MemRegAccess(base, reg, coeff) =>
-        s"${sizePtr(size)} ptr [${formatRegister(base)} + ${formatRegister(reg)} * $coeff]"
+        s"${sizePtr(size)} ptr [${formatRegister(base, base.size)} + ${formatRegister(reg, reg.size)} * $coeff]"
 }
 
 /** Formats a register name according to its size. */
-def formatRegister(reg: Register): String = reg match {
+def formatRegister(reg: Register, size: RegSize): String = reg match {
     // general purpose registers
-    case RAX(size) => parameterRegister("a", size)
-    case RBX(size) => parameterRegister("b", size)
-    case RCX(size) => parameterRegister("c", size)
-    case RDX(size) => parameterRegister("d", size)
+    case RAX(_) => parameterRegister("a", size)
+    case RBX(_) => parameterRegister("b", size)
+    case RCX(_) => parameterRegister("c", size)
+    case RDX(_) => parameterRegister("d", size)
 
     // special purpose registers
-    case RDI(size) => specialRegister("di", size)
-    case RSI(size) => specialRegister("si", size)
-    case RBP(size) => specialRegister("bp", size)
-    case RIP(size) => specialRegister("ip", size)
-    case RSP(size) => specialRegister("sp", size)
+    case RDI(_) => specialRegister("di", size)
+    case RSI(_) => specialRegister("si", size)
+    case RBP(_) => specialRegister("bp", size)
+    case RIP(_) => specialRegister("ip", size)
+    case RSP(_) => specialRegister("sp", size)
 
     // extended registers (r8-r15)
-    case R8 (size) => numberedRegister("8" , size)
-    case R9 (size) => numberedRegister("9" , size)
-    case R10(size) => numberedRegister("10", size)
-    case R11(size) => numberedRegister("11", size)
-    case R12(size) => numberedRegister("12", size)
-    case R13(size) => numberedRegister("13", size)
-    case R14(size) => numberedRegister("14", size)
-    case R15(size) => numberedRegister("15", size)
+    case R8 (_) => numberedRegister("8" , size)
+    case R9 (_) => numberedRegister("9" , size)
+    case R10(_) => numberedRegister("10", size)
+    case R11(_) => numberedRegister("11", size)
+    case R12(_) => numberedRegister("12", size)
+    case R13(_) => numberedRegister("13", size)
+    case R14(_) => numberedRegister("14", size)
+    case R15(_) => numberedRegister("15", size)
 
     // TODO: temporary register (to be removed in future)
     case TempReg(num, size) => "TEMP_REG"
