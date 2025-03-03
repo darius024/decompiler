@@ -65,8 +65,6 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             }
             Push(RBP()) +=: scopeInstructions
 
-            // TODO: subtract RBP size growth from RSP here
-
             // restore all callee registers on the stack at the beginning of function
             for ((reg, index) <- calleeRegistersToSave.zipWithIndex) {
                 scopeInstructions += Mov(changeRegisterSize(reg, RegSize.QUAD_WORD), MemAccess(RSP(), index * RegSize.QUAD_WORD.size))
@@ -95,7 +93,6 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             val destReg = regMachine.nextRegister(dest)
             val srcReg = regMachine.nextRegisterImm(src)
             scopeInstructions += Cmp(destReg, srcReg)
-            // regMachine.switchToRAX
         case SetComp(dest: Register, compFlag: CompFlag) =>
             val destReg = regMachine.nextRegister(dest)
             scopeInstructions += SetComp(destReg, compFlag)
@@ -105,44 +102,34 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             val destReg = regMachine.nextRegister(dest)
             val srcReg = regMachine.nextRegisterImm(src, RBX())
             scopeInstructions += Add(destReg, srcReg)
-            // regMachine.switchToRAX
         case Sub(dest: Register, src: RegImm) =>
             val destReg = regMachine.nextRegister(dest)
             val srcReg = regMachine.nextRegisterImm(src, RBX())
             scopeInstructions += Sub(destReg, srcReg)
-            // regMachine.switchToRAX
         case Mul(dest: Register, src: RegImm) =>
             val destReg = regMachine.nextRegister(dest)
-            // regMachine.switchToRAX
             val srcReg = regMachine.nextRegisterImm(src)
-            // val srcReg2 = regMachine.nextRegisterImm(src2, RBX())
             scopeInstructions += Mul(destReg, srcReg)
-            // regMachine.switchToRAX
         case Mod(src: Register) =>
             val srcReg = regMachine.nextRegister(src)
             scopeInstructions += Mod(srcReg)
-            // regMachine.switchToRAX
         case Div(src: Register) =>
             val srcReg = regMachine.nextRegister(src)
             scopeInstructions += Div(srcReg)
-            // regMachine.switchToRAX
             
         // handle logical operations
         case And(dest: TempReg, src: RegImm) =>
             val destReg = regMachine.nextRegister(dest)
             val srcReg = regMachine.nextRegisterImm(src, RBX())
             scopeInstructions += And(destReg, srcReg)
-            // regMachine.switchToRAX
         case Or (dest: TempReg, src: RegImm) =>
             val destReg = regMachine.nextRegister(dest)
             val srcReg = regMachine.nextRegisterImm(src, RBX())
             scopeInstructions += Or(destReg, srcReg)
-            // regMachine.switchToRAX
         case Test(dest: TempReg, src: RegImm) =>
             val destReg = regMachine.nextRegister(dest)
             val srcReg = regMachine.nextRegisterImm(src, RBX())
             scopeInstructions += Test(destReg, srcReg)
-            // regMachine.switchToRAX
             
         // handle data movement operations
         case Mov(dest: RegMem, src: RegImmMem) =>
@@ -167,22 +154,21 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             val destReg = regMachine.nextRegister(dest)
             val srcReg = regMachine.nextRegister(src)
             scopeInstructions += Lea(destReg, MemAccess(srcReg, offset))
-            // regMachine.switchToRAX
         case CMov(dest: Register, src: Register, cond: CompFlag) =>
             val destReg = regMachine.nextRegister(dest)
             val srcReg = regMachine.nextRegister(src, RBX())
             scopeInstructions += CMov(destReg, srcReg, cond)
-            // regMachine.switchToRAX
+
+        case Call(label) =>
+            // save all callee-saved registers on stack
+            regMachine.saveRegisters
+            scopeInstructions += Call(label)
+            regMachine.restoreRegisters
 
         // pass through other instructions unchanged
         case instr =>
             scopeInstructions += instr
     }
-
-    // println("TEMPORARIES:\n")
-    // println(temporaries)
-    // println("REGISTERS:\n")
-    // println(registers)
 
     codeGen.instructions = newInstructions
     codeGen
@@ -193,9 +179,9 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
  */
 object allocator {
     // parameter registers used for function calls
-    private val paramRegisters = List(RDX(), RCX(), RSI(), RDI(), R8(), R9())
+    val paramRegisters = Set(RDX(), RCX(), RSI(), RDI(), R8(), R9())
     // callee-saved registers that need to be preserved across function calls
-    private val calleeSaved: List[Register] = List(R12(), R13(), R14(), R15())
+    private val calleeSaved: List[Register] = List(R12(), R13(), R14(), R15(), RDX(), RCX(), RSI(), RDI(), R8(), R9())
     
     /**
      * Manages the allocation of physical registers to temporary registers.
@@ -205,8 +191,6 @@ object allocator {
         var availableRegisters: mutable.Queue[Register] = mutable.Queue.from(calleeSaved)
         var usedRegisters: mutable.ListBuffer[Register] = mutable.ListBuffer.empty[Register]
         var rbpSize = 0
-        var moves = 0
-        var useRAX = true
         private var usingParameters = false
 
         def nextRegisterMem(reg: RegMem, regParam: Register = RAX())
@@ -251,7 +235,7 @@ object allocator {
                     case mem           => mem
                 }
             }
-            case _             => useRAX = true; reg
+            case _             => reg
         }
 
         def nextRegister(reg: Register, regParam: Register = RAX())
@@ -259,13 +243,8 @@ object allocator {
                         (using scopeInstructions: mutable.ListBuffer[Instruction])
                         (using regs: mutable.Map[TempReg, RegMem]): Register = nextRegisterMem(reg, regParam) match {
             case reg: Register => reg
-            case mem           =>
-                val reg = if (useRAX) RAX() else RBX()
-                useRAX = false
-
-                // TODO: might need to memory to register-memory as well
-                // scopeInstructions += Mov(reg, mem)
-                reg
+            // TODO: handle memory accesses
+            case mem           => RAX()
         }
 
         def nextRegisterImm(regImm: RegImm, regParam: Register = RAX())
@@ -284,12 +263,20 @@ object allocator {
 
         def getUsedRegisters: List[Register] = usedRegisters.toList
 
-        def switchToRBX: Unit = {
-            useRAX = false
+        def saveRegisters(using scopeInstructions: mutable.ListBuffer[Instruction]): Unit = {
+            for (reg <- usedRegisters) {
+                if (paramRegisters.contains(reg)) {
+                    Push(changeRegisterSize(reg, RegSize.QUAD_WORD)) +=: scopeInstructions
+                }
+            }
         }
 
-        def switchToRAX: Unit = {
-            useRAX = true
+        def restoreRegisters(using scopeInstructions: mutable.ListBuffer[Instruction]): Unit = {
+            for (reg <- usedRegisters.reverse) {
+                if (paramRegisters.contains(reg)) {
+                    Pop(changeRegisterSize(reg, RegSize.QUAD_WORD)) +=: scopeInstructions
+                }
+            }
         }
     }
 }
