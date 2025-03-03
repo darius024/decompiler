@@ -24,13 +24,15 @@ enum LabelType {
  * Generates unique labels for different parts of the program.
  */
 class Labeller {
+    private final val INITIAL = -1
+    
     // counters for different label types
-    private var ifCount        = 0
-    private var endIfCount     = 0
-    private var whileBodyCount = 0
-    private var whileCondCount = 0
-    private var labelCount     = 0
-    private var strCount       = 0
+    private var ifCount        = INITIAL
+    private var endIfCount     = INITIAL
+    private var whileBodyCount = INITIAL
+    private var whileCondCount = INITIAL
+    private var labelCount     = INITIAL
+    private var strCount       = INITIAL
 
     /**
      * Creates a new label of the specified type with a unique name.
