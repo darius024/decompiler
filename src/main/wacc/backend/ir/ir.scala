@@ -40,47 +40,64 @@ object registers {
         case BYTE        extends RegSize(1)  // 8-bit registers
     }
 
-    abstract class Register(val size: RegSize)
+    trait SizedAs[S <: RegSize] {
+        val size: RegSize
+    }   
+
+    sealed trait Register extends SizedAs[RegSize] {
+        val size: RegSize
+    }
     
     /** Each register is represented as an unique object. */
-    case class RAX(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class RBX(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class RCX(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class RDX(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class RSI(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class RDI(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class RSP(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class RBP(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class RIP(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class R8 (val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class R9 (val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class R10(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class R11(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class R12(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class R13(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class R14(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
-    case class R15(val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class RAX(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class RBX(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class RCX(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class RDX(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class RSI(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class RDI(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class RSP(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class RBP(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class RIP(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class R8 (val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class R9 (val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class R10(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class R11(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class R12(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class R13(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class R14(val size: RegSize = RegSize.QUAD_WORD) extends Register
+    case class R15(val size: RegSize = RegSize.QUAD_WORD) extends Register
 
     /** 
      * Temporary register used during code generation.
      * These are replaced with real registers during register allocation.
      */
-    case class TempReg(num: Int, val dim: RegSize = RegSize.QUAD_WORD) extends Register(dim)
+    case class TempReg(num: Int, val size: RegSize = RegSize.QUAD_WORD) extends Register {
+        override def equals(obj: Any): Boolean = obj match {
+            case that: TempReg => this.num == that.num
+            case _ => false
+        }
+
+        override def hashCode(): Int = num.hashCode()
+    }
 }
 
 /** Immediate values used in assembly instructions. */
 object immediate {
     /** Base trait for all immediate values. */
-    sealed trait Immediate
-
+    sealed trait Immediate extends SizedAs[RegSize]
     /** integer immediate value. */
-    case class Imm(value: Int) extends Immediate
+    case class Imm(value: Int) extends Immediate {
+        val size = RegSize.DOUBLE_WORD
+    }
 }
 
 /** Memory access expressions for assembly instructions. */
 object memory {
     /** Base trait for all memory access expressions. */
-    sealed trait MemoryAccess { val base: Register }
+    sealed trait MemoryAccess extends SizedAs[RegSize] { 
+        val base: Register 
+        val size: RegSize = base.size
+    }
 
     /** 
      * Base register + offset memory access.
@@ -108,8 +125,10 @@ object instructions {
     /** Assembly directives that control the assembler behavior. */
     sealed trait Directive extends Instruction
 
-    /** Intel syntax directive (as opposed to AT&T syntax). */
+    /** Intel syntax directive. */
     case object IntelSyntax extends Directive
+    /** AT&T syntax directive. */
+    case object ATTSyntax extends Directive
     /** read-only data section directive. */
     case object SectionRoData extends Directive
     /** code section directive. */
@@ -127,23 +146,29 @@ object instructions {
 
     /** Stack operations */
     /** push a value onto the stack. */
-    case class Push(reg: Register) extends Instruction
+    case class Push(reg: Register) extends Instruction {
+        require(reg.size == RegSize.QUAD_WORD)
+    }
     /** pop a value from the stack. */
-    case class Pop(reg: Register) extends Instruction
+    case class Pop(reg: Register) extends Instruction {
+        require(reg.size == RegSize.QUAD_WORD)
+    }
 
     /** Comparison operations */
     /** compare two values. */
-    case class Cmp(dest: Register, src: RegImm) extends Instruction
+    case class Cmp[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
     /** set a register based on a comparison result. */
-    case class SetComp(dest: Register, compFlag: CompFlag) extends Instruction
+    case class SetComp(dest: Register, compFlag: CompFlag) extends Instruction {
+        require(dest.size == RegSize.BYTE)
+    }
 
     /** Arithmetic operations */
     /** add source to destination. */
-    case class Add(dest: Register, src: RegImm) extends Instruction
+    case class Add[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
     /** subtract source from destination. */
-    case class Sub(dest: Register, src: RegImm) extends Instruction
+    case class Sub[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
     /** multiply source1 by source2 and store in destination. */
-    case class Mul(dest: Register, src1: RegImm, src2: RegImm) extends Instruction
+    case class Mul[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
     /** compute remainder of division. */
     case class Mod(src: RegImm) extends Instruction
     /** divide by source. */
@@ -151,19 +176,21 @@ object instructions {
 
     /** Logical operations */
     /** bitwise AND of destination and source. */
-    case class And(dest: Register, src: RegImm) extends Instruction
+    case class And [S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
     /** bitwise OR of destination and source. */
-    case class Or (dest: Register, src: RegImm) extends Instruction
+    case class Or  [S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
     /** bitwise AND test (sets flags but doesn't store result). */
-    case class Test(dest: Register, src1: RegImm) extends Instruction
+    case class Test[S <: RegSize] (dest: Register & SizedAs[S], src1: RegImm & SizedAs[S]) extends Instruction
 
     /** Data movement */
     /** move data from source to destination. */
-    case class Mov(dest: RegMem, src: RegImmMem) extends Instruction
+    case class Mov[S <: RegSize] (dest: RegMem & SizedAs[S], src: RegImmMem & SizedAs[S]) extends Instruction
     /** load effective address. */
-    case class Lea(dest: Register, addr: MemAccess) extends Instruction
+    case class Lea(dest: Register, addr: MemAccess) extends Instruction {
+        require(dest.size == RegSize.QUAD_WORD)
+    }
     /** conditional move based on flag. */
-    case class CMov(dest: Register, src: Register, cond: CompFlag) extends Instruction
+    case class CMov[S <: RegSize] (dest: Register & SizedAs[S], src: Register & SizedAs[S], cond: CompFlag) extends Instruction 
 
     /** Control flow */
     /** return from function. */
@@ -214,6 +241,7 @@ object memoryOffsets {
     final val NULL = 0                   // null pointer value
     final val ARRAY_LENGTH_OFFSET = -4   // offset to array length field
     final val STACK_ALIGNMENT = -16      // stack alignment for function calls
+    final val STACK_READ = 16            // stack space for reads
     final val BOOL_PRINT_OFFSET = 24     // offset for printing booleans
     
     // array element access sizes
@@ -231,4 +259,6 @@ object memoryOffsets {
 object constants {
     final val MAX_CALL_ARGS = 6  // maximum number of arguments passed in registers
     final val CHR = -128         // character range check
+    final val BYTE = 8           // number of bits in a byte
+    final val SUCCESS = 0        // success exit code
 }
