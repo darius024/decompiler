@@ -3,8 +3,16 @@
         "advanced",
         "scope",   
         "pairs",
-        "function",
         "while",
-        "array"
+        "array",
+        "function",
+
+        "basic",
+        "if",
+        "sequence",
+        "variables",
+        "IO",
+        "runtimeErr",
+        "expressions"
     ]
 }

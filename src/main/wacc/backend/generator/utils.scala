@@ -71,6 +71,9 @@ class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruct
 
     final val registers: Array[Register] = Array(RDI(), RSI(), RDX(), RCX(), R8(), R9())
     val varRegs: mutable.Map[String, RegMem] = mutable.Map.empty
+    final val numRegisters: mutable.Map[Label, Int] = mutable.Map.empty
+    var currLabel: Label = Label("main")
+    var inMain: Boolean = false
 
     def addInstr(instruction: Instruction): Unit = {
         instructions += instruction
@@ -88,8 +91,16 @@ class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruct
         temp.next(size)
     }
 
-    def addVar(name: String, regMem: RegMem): RegMem = {
+    def enterScope(label: Label): Unit = {
+        numRegisters(label) = 1
+        currLabel = label
+    }
+
+    def addVar(name: String, regMem: RegMem, param: Boolean = false): RegMem = {
         varRegs += name -> regMem
+        if (!param) {
+            numRegisters(currLabel) = numRegisters(currLabel) + 1
+        }
         regMem
     }
 

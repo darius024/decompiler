@@ -5,6 +5,7 @@ import org.scalatest.matchers.should.Matchers.*
 
 import wacc.backend.generator.*
 import errors.*
+import wacc.backend.ir.instructions.*
 import widgets.*
 
 import wacc.semantics.scoping.semanticTypes.*
@@ -17,6 +18,7 @@ class WidgetTests extends AnyFlatSpec {
 
     "Widget system" should "have widget for integer read operations" in {
         given codeGen: CodeGenerator = emptyCodeGenerator
+        codeGen.enterScope(Label("main"))
         val readIntStmt = Read(TyExpr.Id("x", KType.Int))
         generate(readIntStmt)
         
@@ -26,6 +28,7 @@ class WidgetTests extends AnyFlatSpec {
 
     it should "have widget for character read operations" in {
         given codeGen: CodeGenerator = emptyCodeGenerator
+        codeGen.enterScope(Label("main"))
         val readCharStmt = Read(TyExpr.Id("y", KType.Char))
         generate(readCharStmt)
         
@@ -35,6 +38,7 @@ class WidgetTests extends AnyFlatSpec {
 
     it should "have widget for integer print operations" in {
         given codeGen: CodeGenerator = emptyCodeGenerator
+        codeGen.enterScope(Label("main"))
         val printIntStmt = Print(IntLit(42))
         generate(printIntStmt)
         
@@ -108,6 +112,7 @@ class WidgetTests extends AnyFlatSpec {
 
     it should "have widget for array bounds error" in {
         given codeGen: CodeGenerator = emptyCodeGenerator
+        codeGen.enterScope(Label("main"))
         val arrayType = KType.Array(KType.Int, 1)
         val arrayElem = TyExpr.ArrayElem(TyExpr.Id("arr", arrayType), List(IntLit(-1)), arrayType)
         generate(arrayElem)
@@ -127,6 +132,7 @@ class WidgetTests extends AnyFlatSpec {
 
     it should "have all used widgets in the widgets set" in {
         given codeGen: CodeGenerator = emptyCodeGenerator
+        codeGen.enterScope(Label("main"))
         
         val readIntStmt = Read(TyExpr.Id("x", KType.Int))
         val readCharStmt = Read(TyExpr.Id("y", KType.Char))
