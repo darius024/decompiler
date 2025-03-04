@@ -4,6 +4,7 @@ import scala.collection.mutable
 
 import wacc.backend.ir.*
 import allocator.*
+import constants.*
 import flags.*
 import immediate.*
 import instructions.*
@@ -12,10 +13,10 @@ import registers.*
 import utils.*
 
 /**
- * Allocates physical registers to the temporary registers used in the IR.
- * This is the second pass of code generation that transforms abstract registers
- * into concrete machine registers.
- */
+  * Allocates physical registers to the temporary registers used in the IR.
+  * This is the second pass of code generation that transforms abstract registers
+  * into concrete machine registers.
+  */
 def allocate(codeGen: CodeGenerator): CodeGenerator = {
     given registers: mutable.Map[TempReg, RegMem] = mutable.Map.empty
 
@@ -30,14 +31,14 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
         case Label("main") =>
             scopeInstructions += Label("main")
             regMachine.inMain = true
-            regMachine.initializeRBP
+            regMachine.initializeNewScope
             withinFunction = false
             regMachine.currentStackSize = codeGen.numRegisters(Label("main"))
         
         case Label(name) =>
             scopeInstructions += Label(name)
             if (name.startsWith("wacc_")) {
-                regMachine.initializeRBP
+                regMachine.initializeNewScope
                 withinFunction = false
                 regMachine.currentStackSize = codeGen.numRegisters(Label(name))
             }
@@ -53,7 +54,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             scopeInstructions.clear()
 
             // initialize the RBP pointer
-            regMachine.initializeRBP
+            regMachine.initializeNewScope
         
         case Push(src) =>
             val srcReg = regMachine.nextRegister(src)
@@ -67,9 +68,9 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             // set up the frame pointer
             if (!withinFunction) {
                 if (regMachine.rbpSize != 0) {
-                    Sub(RSP(), Imm(((regMachine.rbpSize + 7) / 8) * 8)) +=: scopeInstructions
+                    Sub(RSP(), Imm(((regMachine.rbpSize + ALIGN) / BYTE) * BYTE)) +=: scopeInstructions
                 }
-                Mov(RBP(), RSP()) +=: scopeInstructions
+                Mov(FRAME_REG(), RSP()) +=: scopeInstructions
 
                 // prepend to the buffer in reverse order
                 for ((reg, index) <- calleeRegistersToSave.reverseIterator.zipWithIndex) {
@@ -80,13 +81,13 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
                 if (regMachine.stackSize != 0) {
                     Sub(RSP(), Imm(regMachine.stackSize)) +=: scopeInstructions
                 }
-                Push(RBP()) +=: scopeInstructions
+                Push(FRAME_REG()) +=: scopeInstructions
 
                 withinFunction = true
             }
 
             if (regMachine.rbpSize != 0) {
-                scopeInstructions += Add(RSP(), Imm(((regMachine.rbpSize + 7) / 8) * 8))
+                scopeInstructions += Add(RSP(), Imm(((regMachine.rbpSize + ALIGN) / BYTE) * BYTE))
             }
 
             // restore all callee registers on the stack at the beginning of function
@@ -97,9 +98,9 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             if (regMachine.stackSize != 0) {
                 scopeInstructions += Add(RSP(), Imm(regMachine.stackSize))
             } else {
-                scopeInstructions += Mov(RSP(), RBP())
+                scopeInstructions += Mov(RSP(), FRAME_REG())
             }
-            scopeInstructions += Pop(RBP())
+            scopeInstructions += Pop(FRAME_REG())
         
         case Pop(src) =>
             val srcReg = regMachine.nextRegister(src)
@@ -159,10 +160,10 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
         case Mov(dest: RegMem, src: RegImmMem) =>
             val register = scopeInstructions match {
                 case _ :+ Mov(RAX(_), _) => src match {
-                    case MemAccess(RAX(_), _, _) => RESULT_REG()
+                    case MemAccess(RAX(_), _, _) => RETURN_REG()
                     case _                       => AUX_REG()
                 }
-                case _                   => RESULT_REG()
+                case _                   => RETURN_REG()
             }
             val destReg: RegMem = dest match {
                 case reg: Register          => regMachine.nextRegisterMem(reg, register)
@@ -171,7 +172,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             }
             val srcReg: RegImmMem = src match {
                 case regImm: RegImm => regMachine.nextRegisterImm(regImm)
-                case MemAccess(RBP(_), offset: Int, size) => MemAccess(RBP(), offset + regMachine.currentStackSize * RegSize.QUAD_WORD.size, size)
+                case MemAccess(RBP(_), offset: Int, size) => MemAccess(FRAME_REG(), offset + regMachine.currentStackSize * RegSize.QUAD_WORD.size, size)
                 case MemAccess(reg, offset, size) => MemAccess(regMachine.nextRegister(reg), offset, size)
                 case _                      => src
             }
@@ -202,8 +203,8 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
 }
 
 /**
- * Contains helper classes and constants for register allocation.
- */
+  * Contains helper classes and constants for register allocation.
+  */
 object allocator {
     // parameter registers used for function calls
     val paramRegisters = List(ARG3(), ARG4(), ARG2(), ARG1(), ARG5(), ARG6())
@@ -211,20 +212,21 @@ object allocator {
     private val calleeSaved: List[Register] = List(R12(), R13(), R14(), R15())
     
     /**
-     * Manages the allocation of physical registers to temporary registers.
-     */
+      * Manages the allocation of physical registers to temporary registers.
+      */
     class RegisterMachine {
         // queue of available registers (initially all callee-saved registers)
         var availableRegisters: mutable.Queue[Register] = mutable.Queue.from(calleeSaved)
         var usedRegisters: mutable.ListBuffer[Register] = mutable.ListBuffer.empty[Register]
-        var rbpSize = 0
+        
         private var usingParameters = false
-        var inFunction = true
-        var stackSize = 0
         var inMain = false
+
+        var rbpSize = 0
+        var stackSize = 0
         var currentStackSize = 0
 
-        def nextRegisterMem(reg: RegMem, regParam: Register = RESULT_REG())
+        def nextRegisterMem(reg: RegMem, regParam: Register = RETURN_REG())
                            (using temporaries: mutable.Map[String, RegMem])
                            (using scopeInstructions: mutable.ListBuffer[Instruction])
                            (using regs: mutable.Map[TempReg, RegMem]): RegMem = reg match {
@@ -235,9 +237,7 @@ object allocator {
                     // if registers are not available, use the stack
                     val regMem: RegMem = if (availableRegisters.isEmpty) {
                         rbpSize = rbpSize + temp.size.size
-                        // TODO: implement proper RBP management
-                        val mem = MemAccess(RBP(), -rbpSize, temp.size)
-                        regs += temp -> mem
+                        val mem = MemAccess(FRAME_REG(), -rbpSize, temp.size)
                         mem
                     } else {
                         val reg = availableRegisters.dequeue()
@@ -248,40 +248,35 @@ object allocator {
                             usingParameters = true
                         }
 
-                        regs += temp -> changeRegisterSize(reg, temp.size)
                         usedRegisters += reg
-                        reg
+                        changeRegisterSize(reg, temp.size)
                     }
+                    regs += temp -> regMem
                     regMem
                 } else {
-                    if (regs.contains(temp)) {
-                        regs(temp)
-                    } else {
-                        regParam
-                    }
+                    regParam
                 }
                 regMem match {
                     case reg: Register => changeRegisterSize(reg, temp.size)
-                    case MemAccess(RBP(_), offset: Int, size) => MemAccess(RBP(), offset + stackSize, size)
+                    case MemAccess(RBP(_), offset: Int, size) => MemAccess(FRAME_REG(), offset + stackSize, size)
                     case mem           => mem
                 }
             }
-            case MemAccess(RBP(_), offset: Int, size) => MemAccess(RBP(), offset + stackSize, size)
+            case MemAccess(RBP(_), offset: Int, size) => MemAccess(FRAME_REG(), offset + stackSize, size)
             case mem                            => mem      
         }
 
-        def nextRegister(reg: Register, regParam: Register = RESULT_REG())
+        def nextRegister(reg: Register, regParam: Register = RETURN_REG())
                         (using temporaries: mutable.Map[String, RegMem])
                         (using scopeInstructions: mutable.ListBuffer[Instruction])
                         (using regs: mutable.Map[TempReg, RegMem]): Register = nextRegisterMem(reg, regParam) match {
             case reg: Register => reg
-            // TODO: handle memory accesses
             case mem           =>
-                scopeInstructions += Mov(RESULT_REG(mem.size), mem)
-                RESULT_REG(mem.size)
+                scopeInstructions += Mov(RETURN_REG(mem.size), mem)
+                RETURN_REG(mem.size)
         }
 
-        def nextRegisterImm(regImm: RegImm, regParam: Register = RESULT_REG())
+        def nextRegisterImm(regImm: RegImm, regParam: Register = RETURN_REG())
                            (using temporaries: mutable.Map[String, RegMem])
                            (using scopeInstructions: mutable.ListBuffer[Instruction])
                            (using regs: mutable.Map[TempReg, RegMem]): RegImm = regImm match {
@@ -289,15 +284,19 @@ object allocator {
             case _             => regImm
         }
 
-        def initializeRBP: Unit = {
+        /** Reset the register machine for a new scope. */
+        def initializeNewScope: Unit = {
             rbpSize = 0
+            availableRegisters = mutable.Queue.from(calleeSaved)
+
             usedRegisters = mutable.ListBuffer.empty[Register]
             usedRegisters += AUX_REG()
-            availableRegisters = mutable.Queue.from(calleeSaved)
         }
 
+        /** Retrieves the used registers of the function scope. */
         def getUsedRegisters: List[Register] = usedRegisters.toList
 
+        /** Saves register on the stack in increasing order. */
         def saveRegisters(using scopeInstructions: mutable.ListBuffer[Instruction]): Unit = {
             for (reg <- usedRegisters) {
                 if (paramRegisters.contains(reg)) {
@@ -306,6 +305,7 @@ object allocator {
             }
         }
 
+        /** Restores register on the stack in decreasing order. */
         def restoreRegisters(using scopeInstructions: mutable.ListBuffer[Instruction]): Unit = {
             for (reg <- usedRegisters.reverse) {
                 if (paramRegisters.contains(reg)) {

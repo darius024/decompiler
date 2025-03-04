@@ -80,8 +80,9 @@ object registers {
         override def hashCode(): Int = num.hashCode()
     }
 
-    def RESULT_REG(size: RegSize = RegSize.QUAD_WORD): Register = RAX(size)
-    def AUX_REG(size: RegSize = RegSize.QUAD_WORD): Register = RBX(size)
+    /** Abstract register roles. */
+    def RETURN_REG(size: RegSize = RegSize.QUAD_WORD): Register = RAX(size)
+    def AUX_REG   (size: RegSize = RegSize.QUAD_WORD): Register = RBX(size)
 
     def ARG1(size: RegSize = RegSize.QUAD_WORD): Register = RDI(size)
     def ARG2(size: RegSize = RegSize.QUAD_WORD): Register = RSI(size)
@@ -118,15 +119,15 @@ object memory {
     }
 
     /** 
-     * Base register + offset memory access.
-     * Can use either an integer offset or a label.
-     */
+      * Base register + offset memory access.
+      * Can use either an integer offset or a label.
+      */
     case class MemAccess(base: Register, offset: Int | Label = memoryOffsets.NO_OFFSET, val size: RegSize = RegSize.QUAD_WORD) extends MemoryAccess
     
     /**
-     * Base register + index register * coefficient memory access.
-     * Used for array indexing operations.
-     */
+      * Base register + index register * coefficient memory access.
+      * Used for array indexing operations.
+      */
     case class MemRegAccess(base: Register, reg: Register, coeff: Int, val size: RegSize = RegSize.QUAD_WORD) extends MemoryAccess
 }
 
@@ -257,6 +258,8 @@ object constants {
     final val BYTE = 8           // number of bits in a byte
     final val SUCCESS = 0        // success exit code
     final val STACK_ADDR = 16    // stack address offset in functions
+    final val DIVISION_OVERFLOW_CHECK = -1 // division overflow
+    final val ALIGN = 7
 }
 
 /** Memory offsets used in the code generation. */

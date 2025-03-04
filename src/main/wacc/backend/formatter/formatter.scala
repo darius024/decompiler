@@ -167,15 +167,6 @@ def formatATTInstruction(instr: Instruction): String = {
     }
     
     instr match {
-        // assembly directives
-        case SectionRoData          => ".section .rodata"
-        case Text                   => ".text"
-        case Label(name)            => s"$name:"
-        case Global(label)          => s".globl $label"
-        case StrLabel(label, _)     => s".L.${label.name}:"
-        case DirInt(size)           => format(".int", size.toString)
-        case Asciz(name)            => format(".asciz", s"\"${formatString(name)}\"")
-
         // stack operations
         case Push(reg)              => format("pushq", reg)
         case Pop(reg)               => format("popq" , reg)
@@ -191,14 +182,11 @@ def formatATTInstruction(instr: Instruction): String = {
 
         // data movement
         case CMov(dest, src, cond)  => format(s"cmov${formatCompFlag(cond)}${sizePtrATT(dest.size)}", src, dest)
-        // TODO: use the correct flags
         case Mov(dest, src)         => format(s"mov${dest match { case reg: Register => sizePtrATT(reg.size); case _ => "q" }}", src, dest)
         case Lea(dest, addr)        => format(s"lea${sizePtrATT(dest.size)}", addr, dest)
 
         // control flow
         case Call(label)            => format("call", label)
-        case Jump(label, flag)      => format(s"j${formatJumpFlag(flag)}", label)
-        case Ret                    => format("ret")
 
         // comparison operations
         case Cmp(src1, src2)        => format(s"cmp${sizePtrATT(src1.size)}", src2, src1)
@@ -207,7 +195,7 @@ def formatATTInstruction(instr: Instruction): String = {
         case JumpComp(label, flag)  => format(s"j${formatCompFlag(flag)}", label)
         case ConvertDoubleToQuad    => format("cltd")
         
-        case _                      => "" // no action required for Intel or AT&T headers
+        case _                     => formatIntelInstruction(instr)
     }
 }
 
@@ -307,6 +295,6 @@ def formatRegister(reg: Register, size: RegSize, syntax: SyntaxStyle): String = 
     case R14(_) => numberedRegister("14", size, syntax)
     case R15(_) => numberedRegister("15", size, syntax)
 
-    // TODO: temporary register (to be removed in future)
+    // for debugging
     case TempReg(num, size) => "TEMP_REG"
 }

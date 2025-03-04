@@ -28,7 +28,7 @@ def generate(prog: TyProg): CodeGenerator = {
     val TyProg(funcs, stmts) = prog
 
     // generate code for each function
-    funcs.map { case TyFunc(name, params, stmts) =>
+    funcs.foreach { case TyFunc(name, params, stmts) =>
         val label = codeGen.nextLabel(LabelType.Function(name))
         val size = constants.STACK_ADDR
         var paramSizes = 0
@@ -77,10 +77,10 @@ def generateMain(stmts: TyStmtList)
     codeGen.addInstr(Push(FRAME_REG()))
 
     // generate code for the function body
-    stmts.map(generate(_, false))
+    stmts.foreach(generate(_, false))
     
     // set exit code to success
-    codeGen.addInstr(Mov(RESULT_REG(), Imm(constants.SUCCESS)))
+    codeGen.addInstr(Mov(RETURN_REG(), Imm(constants.SUCCESS)))
 
     // function epilogue
     codeGen.addInstr(Pop(FRAME_REG()))
@@ -124,6 +124,7 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
                 val reg = generate(expr)
                 reg
             case _           =>
+                // last index is used for storing
                 generateArrayElem(id, idx.dropRight(1), semTy)
                 generate(idx.last)
         }
@@ -132,7 +133,7 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
 
         // compute the expression value
         val rhs = generate(expr)
-        codeGen.addInstr(Mov(RESULT_REG(rhs.size), rhs))
+        codeGen.addInstr(Mov(RETURN_REG(rhs.size), rhs))
 
         // get the array pointer
         codeGen.addInstr(Mov(PTR(), codeGen.getVar(id.value)))
@@ -170,11 +171,10 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
         val (widget, regSize) = expr.ty match {
             case KType.Int  => (ReadInt , RegSize.DOUBLE_WORD)
             case KType.Char => (ReadChar, RegSize.BYTE)
-            // TODO: remove this case
             case _          => (ReadInt, RegSize.DOUBLE_WORD)
         }
         codeGen.addInstr(Call(codeGen.getWidgetLabel(widget)))
-        codeGen.addInstr(Mov(generate(expr), RESULT_REG(regSize)))
+        codeGen.addInstr(Mov(generate(expr), RETURN_REG(regSize)))
         if (inFunction) codeGen.registers.reverse.foreach { reg => codeGen.addInstr(Pop(reg)) }
     
     // free heap-allocated memory
@@ -202,7 +202,7 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
     // return from a function
     case Return(expr: TyExpr) =>
         val temp = generate(expr)
-        codeGen.addInstr(Mov(RESULT_REG(temp.size), temp))
+        codeGen.addInstr(Mov(RETURN_REG(temp.size), temp))
         // function epilogue
         codeGen.addInstr(Pop(FRAME_REG()))
         codeGen.addInstr(Ret)
@@ -239,11 +239,11 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
         // generate condition and jump to then branch if true
         generateCond(cond, ifLabel)
         // generate else branch
-        elseStmts.map(generate(_, inFunction))
+        elseStmts.foreach(generate(_, inFunction))
         codeGen.addInstr(Jump(endIfLabel, JumpFlag.Unconditional))
         // generate then branch
         codeGen.addInstr(ifLabel)
-        thenStmts.map(generate(_, inFunction))
+        thenStmts.foreach(generate(_, inFunction))
         codeGen.addInstr(endIfLabel)
     
     // while loop
@@ -255,14 +255,14 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
         codeGen.addInstr(Jump(whileCondLabel, JumpFlag.Unconditional))
         // generate loop body
         codeGen.addInstr(whileBodyLabel)
-        doStmts.map(generate(_, inFunction))
+        doStmts.foreach(generate(_, inFunction))
         // generate condition check
         codeGen.addInstr(whileCondLabel)
         generateCond(cond, whileBodyLabel)
     
     // block of statements
     case Block(stmts: TyStmtList) =>
-        stmts.map(generate(_, inFunction))
+        stmts.foreach(generate(_, inFunction))
 }
 
 /**
@@ -303,7 +303,6 @@ def generate(expr: TyExpr)
             case TyExpr.OpArithmetic.Add => Add(lhsTemp, rhsTemp)
             case TyExpr.OpArithmetic.Sub => Sub(lhsTemp, rhsTemp)
             case TyExpr.OpArithmetic.Mul => Mul(lhsTemp, rhsTemp)
-            // TODO: remove this case
             case _                       => Add(lhsTemp, rhsTemp)
         })
         // check for overflow
@@ -314,10 +313,10 @@ def generate(expr: TyExpr)
     case TyExpr.Not(expr) => 
         val temp = generate(expr)
         codeGen.addInstr(Cmp(changeRegisterSize(temp, RegSize.BYTE), Imm(memoryOffsets.TRUE)))
-        codeGen.addInstr(SetComp(RESULT_REG(RegSize.BYTE), CompFlag.NE))
+        codeGen.addInstr(SetComp(RETURN_REG(RegSize.BYTE), CompFlag.NE))
 
         val resultReg = codeGen.nextTemp(RegSize.BYTE)
-        codeGen.addInstr(Mov(resultReg, RESULT_REG(RegSize.BYTE)))
+        codeGen.addInstr(Mov(resultReg, RETURN_REG(RegSize.BYTE)))
         resultReg
     
     // numeric negation
@@ -334,7 +333,7 @@ def generate(expr: TyExpr)
     // array length operation
     case TyExpr.Len(expr) => 
         val temp = generate(expr)
-        val resultReg = RESULT_REG(RegSize.DOUBLE_WORD)//codeGen.nextTemp(RegSize.DOUBLE_WORD)
+        val resultReg = RETURN_REG(RegSize.DOUBLE_WORD)//codeGen.nextTemp(RegSize.DOUBLE_WORD)
         // the array length is stored 4 bytes before the array data
         codeGen.addInstr(Mov(resultReg, MemAccess(temp, memoryOffsets.ARRAY_LENGTH_OFFSET, RegSize.DOUBLE_WORD)))
         resultReg
@@ -342,7 +341,7 @@ def generate(expr: TyExpr)
     // character to integer conversion
     case TyExpr.Ord(expr) =>
         val temp = generate(expr)
-        val resultReg = RESULT_REG(RegSize.DOUBLE_WORD)//codeGen.nextTemp(RegSize.DOUBLE_WORD)
+        val resultReg = RETURN_REG(RegSize.DOUBLE_WORD)//codeGen.nextTemp(RegSize.DOUBLE_WORD)
         codeGen.addInstr(Mov(resultReg, temp))
         resultReg
     
@@ -439,7 +438,7 @@ def generateDivMod(expr: TyExpr.BinaryArithmetic)
     val skipOverflowLabel = codeGen.nextLabel(LabelType.AnyLabel)
     
     // Check if divisor is -1
-    codeGen.addInstr(Cmp(rhsTemp, Imm(-1)))
+    codeGen.addInstr(Cmp(rhsTemp, Imm(constants.DIVISION_OVERFLOW_CHECK)))
     codeGen.addInstr(JumpComp(skipOverflowLabel, CompFlag.NE))
     
     // Check if dividend is INT_MIN (-2^31 for 32-bit integers)
@@ -448,7 +447,7 @@ def generateDivMod(expr: TyExpr.BinaryArithmetic)
     
     codeGen.addInstr(skipOverflowLabel)
     
-    codeGen.addInstr(Mov(RESULT_REG(RegSize.DOUBLE_WORD), lhsTemp))
+    codeGen.addInstr(Mov(RETURN_REG(RegSize.DOUBLE_WORD), lhsTemp))
     codeGen.addInstr(ConvertDoubleToQuad)
 
     codeGen.addInstr(Pop(RBX()))
@@ -457,7 +456,7 @@ def generateDivMod(expr: TyExpr.BinaryArithmetic)
     // select the appropriate result (quotient or remainder)
     val resultReg = codeGen.nextTemp(RegSize.DOUBLE_WORD)
     val res = op match {
-        case TyExpr.OpArithmetic.Div => RESULT_REG(RegSize.DOUBLE_WORD)
+        case TyExpr.OpArithmetic.Div => RETURN_REG(RegSize.DOUBLE_WORD)
         case _                       => DIV_REG(RegSize.DOUBLE_WORD)
     }
     codeGen.addInstr(Mov(resultReg, res))
@@ -480,7 +479,7 @@ def generateNewPair(fst: TyExpr, snd: TyExpr, fstTy: SemType, sndTy: SemType)
 
     // save the pair pointer
     val pairPtr = PTR_ARG()
-    codeGen.addInstr(Mov(pairPtr, RESULT_REG()))
+    codeGen.addInstr(Mov(pairPtr, RETURN_REG()))
 
     // store the first and second elements
     val fstTemp = generate(fst)
@@ -515,8 +514,8 @@ def generateFstSnd(pairElem: TyExpr.TyPairElem)
     // load the element
     val size = getTypeSize(pairElem.ty)
     val resultReg = codeGen.nextTemp(size)
-    codeGen.addInstr(Mov(RESULT_REG(size), MemAccess(pairPtr, offset, size)))
-    codeGen.addInstr(Mov(resultReg, RESULT_REG(size)))
+    codeGen.addInstr(Mov(RETURN_REG(size), MemAccess(pairPtr, offset, size)))
+    codeGen.addInstr(Mov(resultReg, RETURN_REG(size)))
 
     resultReg
 }
@@ -539,12 +538,12 @@ def generateArrayLit(exprs: List[TyExpr], semTy: SemType)
 
     // use specific register for array operations
     val arrayPtr = PTR_ARG()
-    codeGen.addInstr(Mov(arrayPtr, RESULT_REG()))
+    codeGen.addInstr(Mov(arrayPtr, RETURN_REG()))
 
     // store the array length
     codeGen.addInstr(Add(arrayPtr, Imm(RegSize.DOUBLE_WORD.size)))
-    codeGen.addInstr(Mov(RESULT_REG(RegSize.DOUBLE_WORD), Imm(exprsLength)))
-    codeGen.addInstr(Mov(MemAccess(arrayPtr, -RegSize.DOUBLE_WORD.size, RegSize.DOUBLE_WORD), RESULT_REG(RegSize.DOUBLE_WORD)))
+    codeGen.addInstr(Mov(RETURN_REG(RegSize.DOUBLE_WORD), Imm(exprsLength)))
+    codeGen.addInstr(Mov(MemAccess(arrayPtr, -RegSize.DOUBLE_WORD.size, RegSize.DOUBLE_WORD), RETURN_REG(RegSize.DOUBLE_WORD)))
 
     // store the array elements
     exprs.zipWithIndex.foreach { case (expr, i) =>
@@ -625,10 +624,10 @@ def generateCall(func: String, args: List[TyExpr], retTy: SemType)
 
     if (!codeGen.inMain) codeGen.registers.reverse.foreach { reg => codeGen.addInstr(Pop(reg)) }
 
-    // get the return value from RESULT_REG
+    // get the return value from RETURN_REG
     val returnSize = getTypeSize(retTy)
     val temp = codeGen.nextTemp(returnSize)
-    codeGen.addInstr(Mov(temp, RESULT_REG(returnSize)))
+    codeGen.addInstr(Mov(temp, RETURN_REG(returnSize)))
 
     // reset the stack pointer
     codeGen.addInstr(Add(STACK_REG(), Imm(savedSize)))
@@ -680,9 +679,8 @@ def generateBinary(lhs: TyExpr, rhs: TyExpr)
     val rightReg = generate(right)
     codeGen.addInstr(Push(changeRegisterSize(rightReg, RegSize.QUAD_WORD)))
 
-    // TODO: do not hardcode this registers
-    val leftTemp = RESULT_REG()
-    val rightTemp = RBX()
+    val leftTemp = RETURN_REG()
+    val rightTemp = AUX_REG()
     val size = getTypeSize(rhs.ty)
 
     codeGen.addInstr(Pop(rightTemp))
