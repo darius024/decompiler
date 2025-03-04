@@ -30,12 +30,16 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
         case Label("main") =>
             scopeInstructions += Label("main")
             regMachine.inMain = true
+            regMachine.initializeRBP
             withinFunction = false
+            regMachine.currentStackSize = codeGen.numRegisters(Label("main"))
         
         case Label(name) =>
             scopeInstructions += Label(name)
             if (name.startsWith("wacc_")) {
+                regMachine.initializeRBP
                 withinFunction = false
+                regMachine.currentStackSize = codeGen.numRegisters(Label(name))
             }
 
         // track function entry and exit points for register saving
@@ -167,7 +171,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             }
             val srcReg: RegImmMem = src match {
                 case regImm: RegImm => regMachine.nextRegisterImm(regImm)
-                case MemAccess(RBP(_), offset: Int, size) => MemAccess(RBP(), offset + regMachine.getUsedRegisters.length * RegSize.QUAD_WORD.size, size)
+                case MemAccess(RBP(_), offset: Int, size) => MemAccess(RBP(), offset + regMachine.currentStackSize * RegSize.QUAD_WORD.size, size)
                 case MemAccess(reg, offset, size) => MemAccess(regMachine.nextRegister(reg), offset, size)
                 case _                      => src
             }
@@ -218,6 +222,7 @@ object allocator {
         var inFunction = true
         var stackSize = 0
         var inMain = false
+        var currentStackSize = 0
 
         def nextRegisterMem(reg: RegMem, regParam: Register = RAX())
                            (using temporaries: mutable.Map[String, RegMem])
@@ -288,6 +293,7 @@ object allocator {
             rbpSize = 0
             usedRegisters = mutable.ListBuffer.empty[Register]
             usedRegisters += RBX()
+            availableRegisters = mutable.Queue.from(calleeSaved)
         }
 
         def getUsedRegisters: List[Register] = usedRegisters.toList

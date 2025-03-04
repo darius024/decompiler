@@ -32,16 +32,18 @@ def generate(prog: TyProg): CodeGenerator = {
         val label = codeGen.nextLabel(LabelType.Function(name))
         var size = constants.STACK_ADDR
 
+        codeGen.enterScope(label)
+
         // map function parameters to registers according to calling convention
         params.zipWithIndex.foreach { case (param, ind) =>
             val paramSize = getTypeSize(param.semTy)
             if (ind < constants.MAX_CALL_ARGS) {
                 // first 6 arguments go in registers
                 val register = codeGen.registers(ind)
-                codeGen.addVar(param.value, changeRegisterSize(register, paramSize))
+                codeGen.addVar(param.value, changeRegisterSize(register, paramSize), true)
             } else {
                 // additional arguments go on the stack
-                codeGen.addVar(param.value, MemAccess(RBP(), size, paramSize))
+                codeGen.addVar(param.value, MemAccess(RBP(), size, paramSize), true)
                 size += paramSize.size
             }
         }
@@ -63,7 +65,9 @@ def generate(prog: TyProg): CodeGenerator = {
 def generateMain(stmts: TyStmtList)
                 (using codeGen: CodeGenerator): Unit = {    
     // function prologue
-    codeGen.addInstr(codeGen.nextLabel(LabelType.Main))
+    val label = codeGen.nextLabel(LabelType.Main)
+    codeGen.enterScope(label)
+    codeGen.addInstr(label)
     codeGen.addInstr(Push(RBP()))
 
     // generate code for the function body
@@ -581,12 +585,13 @@ def generateArrayElem(id: TyExpr.Id, idx: List[TyExpr], semTy: SemType)
 def generateCall(func: String, args: List[TyExpr], retTy: SemType)
                 (using codeGen: CodeGenerator): TempReg = {
     var size: Int = 0
-    args.foreach { arg => size += getTypeSize(arg.ty).size }
+    args.drop(constants.MAX_CALL_ARGS).foreach { arg => size += getTypeSize(arg.ty).size }
 
     // save parameters on stack
     codeGen.addInstr(Sub(RSP(), Imm(size)))
 
     // pass arguments according to the calling convention
+    size = 0
     args.zipWithIndex.foreach { case (arg, ind) =>
         val temp = generate(arg)
         val instr = if (ind < constants.MAX_CALL_ARGS) {
@@ -594,9 +599,9 @@ def generateCall(func: String, args: List[TyExpr], retTy: SemType)
             Mov(changeRegisterSize(codeGen.registers(ind), temp.size), temp)
         } else {
             // additional arguments go on the stack
-            val prevSize = size
+            val instr = Mov(MemAccess(RSP(), size, temp.size), temp)
             size += getTypeSize(arg.ty).size
-            Mov(MemAccess(RSP(), prevSize, temp.size), temp)
+            instr
         }
         codeGen.addInstr(instr)
     }
