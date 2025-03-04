@@ -1,7 +1,6 @@
 package wacc.backend.formatter
 
-import java.io.{File, OutputStream}
-import os.*
+import java.io.OutputStream
 
 import wacc.backend.generator.*
 import wacc.backend.ir.*
@@ -23,31 +22,24 @@ enum SyntaxStyle {
 /**
  * Formats the assembly instructions produced by the code generator.
  * 
- * This module handles the conversion from IR instructions to actual assembly text,
- * writing the output to a .s file with the same name as the input WACC file.
+ * This module handles the conversion from IR instructions to actual assembly text.
  */
-def format(codeGen: CodeGenerator, file: File, syntax: SyntaxStyle): Unit = {
-    // create output file with the same name as the input but with .s extension
-    val outputPath = os.pwd / s"${file.getName.stripSuffix(".wacc")}.s"
-    given outputStream: OutputStream = os.write.outputStream(outputPath)
-
-    try {
-        formatHeader(syntax)
-        formatBlock(codeGen.data, syntax)
-        format(codeGen.ir, syntax)
-        formatWidgets(codeGen.dependencies, syntax)
-    } finally {
-        outputStream.close()
-    }
+def format(codeGen: CodeGenerator, syntax: SyntaxStyle)
+          (using OutputStream): Unit = {
+    formatHeader(syntax)
+    formatBlock(codeGen.data, syntax)
+    format(codeGen.ir, syntax)
+    formatWidgets(codeGen.dependencies, syntax)
 }
 
-/** Formats a block of instructions by writing each one on a new line. */
+/**
+ * Formats a block of instructions by writing each one on a new line.
+ * Write directly to the output stream instead of accumulating in memory.
+ */
 def format(instructions: List[Instruction], syntax: SyntaxStyle)
-          (using outputStream: OutputStream): Unit = instructions.foreach { instr =>
-    // write directly to the output stream to save memory
-    // (avoids accumulating the entire text in memory)
-    outputStream.write(formatInstruction(instr, syntax).getBytes)
-    outputStream.write("\n".getBytes)
+          (using out: OutputStream): Unit = instructions.foreach { instr =>
+    out.write(formatInstruction(instr, syntax).getBytes)
+    out.write("\n".getBytes)
 }
 
 def formatHeader(syntax: SyntaxStyle) (using outputStream: OutputStream): Unit = {
@@ -62,21 +54,19 @@ def formatHeader(syntax: SyntaxStyle) (using outputStream: OutputStream): Unit =
  * Creates the .rodata section and adds all string constants.
  */
 def formatBlock(directives: Set[StrLabel], syntax: SyntaxStyle)
-               (using outputStream: OutputStream): Unit = {
+               (using OutputStream): Unit = {
     // mark the beginning of the data segment
     format(List(SectionRoData), syntax)
-    if (!directives.isEmpty) {
-        directives.map(formatDirective(_, syntax))
-    }
+    // push derivatives
+    directives.foreach(formatDirective(_, syntax))
     // mark the beginning of the code segment
     format(List(Text), syntax)
 }
 
 /** Formats a string directive with its size and value. */
 def formatDirective(strLabel: StrLabel, syntax: SyntaxStyle)
-                   (using outputStream: OutputStream): Unit = {
+                   (using OutputStream): Unit = {
     val StrLabel(label, name) = strLabel
-
     format(List(DirInt(name.length), label, Asciz(name)), syntax)
 }
 
@@ -85,7 +75,7 @@ def formatDirective(strLabel: StrLabel, syntax: SyntaxStyle)
  * Each widget has its own data and code segments.
  */
 def formatWidgets(widgets: Set[Widget], syntax: SyntaxStyle)
-                 (using outputStream: OutputStream): Unit = widgets.foreach { widget =>
+                 (using OutputStream): Unit = widgets.foreach { widget =>
     formatBlock(widget.directives, syntax)
     format(List(widget.label), syntax)
     format(widget.instructions, syntax)
