@@ -5,6 +5,8 @@
         "function",
         "array",
         "pairs",
-        "while"
+        "while",
+        "expressions",
+        "IO"
     ]
 }
