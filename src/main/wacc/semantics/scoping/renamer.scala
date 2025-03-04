@@ -147,7 +147,7 @@ def rename(rvalue: LValue | RValue, parentScope: Map[String, RenamedInfo], curre
           (using ctx: ScopeCheckerContext[?]): Unit = rvalue match {
     case e: Expr => renameExpr(e, parentScope, currentScope)
 
-    case ArrayLit(exprs) => exprs.map(rename(_, parentScope, currentScope))
+    case ArrayLit(exprs) => exprs.foreach(rename(_, parentScope, currentScope))
 
     case NewPair(fst, snd) => renameBinExpr(fst, snd, parentScope, currentScope)
 
