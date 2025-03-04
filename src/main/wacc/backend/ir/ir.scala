@@ -7,32 +7,32 @@ import memory.*
 import registers.*
 
 /** 
- * Calling Conventions for x86-64 Intel:
- * 
- * rax:                     --- caller-saved, return value
- * rbx:                     --- callee-saved
- * rcx:   4th argument      --- caller-saved
- * rdx:   3rd argument      --- caller-saved
- * rsi:   2nd argument      --- caller-saved
- * rdi:   1st argument      --- caller-saved
- * rsp:   stack pointer     --- callee-saved
- * rbp:   base pointer      --- callee-saved
- * r8 :   5th argument      --- caller-saved
- * r9 :   6th argument      --- caller-saved
- * r10:                     --- caller-saved
- * r11:                     --- caller-saved
- * r12:                     --- callee-saved
- * r13:                     --- callee-saved
- * r14:                     --- callee-saved
- * r15:                     --- callee-saved
- */
+  * Calling Conventions for x86-64 Intel:
+  * 
+  * rax:                     --- caller-saved, return value
+  * rbx:                     --- callee-saved
+  * rcx:   4th argument      --- caller-saved
+  * rdx:   3rd argument      --- caller-saved
+  * rsi:   2nd argument      --- caller-saved
+  * rdi:   1st argument      --- caller-saved
+  * rsp:   stack pointer     --- callee-saved
+  * rbp:   base pointer      --- callee-saved
+  * r8 :   5th argument      --- caller-saved
+  * r9 :   6th argument      --- caller-saved
+  * r10:                     --- caller-saved
+  * r11:                     --- caller-saved
+  * r12:                     --- callee-saved
+  * r13:                     --- callee-saved
+  * r14:                     --- callee-saved
+  * r15:                     --- callee-saved
+  */
 
 /** Register definitions and sizes. */
 object registers {
     /** 
-     * Register sizes in x86-64 architecture.
-     * Each size represents a different number of bytes that can be accessed.
-     */
+      * Register sizes in x86-64 architecture.
+      * Each size represents a different number of bytes that can be accessed.
+      */
     enum RegSize(val size: Int) {
         case QUAD_WORD   extends RegSize(8)  // 64-bit registers
         case DOUBLE_WORD extends RegSize(4)  // 32-bit registers
@@ -68,9 +68,9 @@ object registers {
     case class R15(val size: RegSize = RegSize.QUAD_WORD) extends Register
 
     /** 
-     * Temporary register used during code generation.
-     * These are replaced with real registers during register allocation.
-     */
+      * Temporary register used during code generation.
+      * These are replaced with real registers during register allocation.
+      */
     case class TempReg(num: Int, val size: RegSize = RegSize.QUAD_WORD) extends Register {
         override def equals(obj: Any): Boolean = obj match {
             case that: TempReg => this.num == that.num
@@ -231,6 +231,15 @@ object errorCodes {
     final val NULL_POINTER = 0
 }
 
+/** Constants used in code generation. */
+object constants {
+    final val MAX_CALL_ARGS = 6  // maximum number of arguments passed in registers
+    final val CHR = -128         // character range check
+    final val BYTE = 8           // number of bits in a byte
+    final val SUCCESS = 0        // success exit code
+    final val STACK_ADDR = 16    // stack address offset in functions
+}
+
 /** Memory offsets used in the code generation. */
 object memoryOffsets {
     final val FALSE = 0                  // boolean false value
@@ -242,23 +251,4 @@ object memoryOffsets {
     final val STACK_ALIGNMENT = -16      // stack alignment for function calls
     final val STACK_READ = 16            // stack space for reads
     final val BOOL_PRINT_OFFSET = 24     // offset for printing booleans
-    
-    // array element access sizes
-    final val ARR_STORE1 = RegSize.BYTE.size
-    final val ARR_STORE2 = RegSize.WORD.size
-    final val ARR_STORE4 = RegSize.DOUBLE_WORD.size
-    final val ARR_STORE8 = RegSize.QUAD_WORD.size
-    final val ARR_LOAD1 = RegSize.BYTE.size
-    final val ARR_LOAD2 = RegSize.WORD.size
-    final val ARR_LOAD4 = RegSize.DOUBLE_WORD.size
-    final val ARR_LOAD8 = RegSize.QUAD_WORD.size
-}
-
-/** Constants used in code generation. */
-object constants {
-    final val MAX_CALL_ARGS = 6  // maximum number of arguments passed in registers
-    final val CHR = -128         // character range check
-    final val BYTE = 8           // number of bits in a byte
-    final val SUCCESS = 0        // success exit code
-    final val STACK_ADDR = 16    // stack address offset in functions
 }
