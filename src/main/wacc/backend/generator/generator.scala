@@ -405,10 +405,26 @@ def generateDivMod(expr: TyExpr.BinaryArithmetic)
     codeGen.addInstr(Cmp(rhsTemp, Imm(memoryOffsets.DIV_ZERO)))
     codeGen.addInstr(JumpComp(codeGen.getWidgetLabel(ErrDivZero), CompFlag.E))
 
+    // Save the divisor for later use
     codeGen.addInstr(Push(changeRegisterSize(rhsTemp, RegSize.QUAD_WORD)))
 
     // compute the division
     val lhsTemp = generate(lhs)
+    
+    // Handle the special case of INT_MIN / -1 which causes overflow
+    // Create a label to skip the special case check if not needed
+    val skipOverflowLabel = codeGen.nextLabel(LabelType.AnyLabel)
+    
+    // Check if divisor is -1
+    codeGen.addInstr(Cmp(rhsTemp, Imm(-1)))
+    codeGen.addInstr(JumpComp(skipOverflowLabel, CompFlag.NE))
+    
+    // Check if dividend is INT_MIN (-2^31 for 32-bit integers)
+    codeGen.addInstr(Cmp(lhsTemp, Imm(Int.MinValue)))
+    codeGen.addInstr(JumpComp(codeGen.getWidgetLabel(ErrOverflow), CompFlag.E))
+    
+    codeGen.addInstr(skipOverflowLabel)
+    
     codeGen.addInstr(Mov(RAX(RegSize.DOUBLE_WORD), lhsTemp))
     codeGen.addInstr(ConvertDoubleToQuad)
 
