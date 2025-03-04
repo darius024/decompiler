@@ -96,20 +96,19 @@ object memory {
     /** Base trait for all memory access expressions. */
     sealed trait MemoryAccess extends SizedAs[RegSize] { 
         val base: Register 
-        val size: RegSize = base.size
     }
 
     /** 
      * Base register + offset memory access.
      * Can use either an integer offset or a label.
      */
-    case class MemAccess(base: Register, offset: Int | Label = memoryOffsets.NO_OFFSET) extends MemoryAccess
+    case class MemAccess(base: Register, offset: Int | Label = memoryOffsets.NO_OFFSET, val size: RegSize = RegSize.QUAD_WORD) extends MemoryAccess
     
     /**
      * Base register + index register * coefficient memory access.
      * Used for array indexing operations.
      */
-    case class MemRegAccess(base: Register, reg: Register, coeff: Int) extends MemoryAccess
+    case class MemRegAccess(base: Register, reg: Register, coeff: Int, val size: RegSize = RegSize.QUAD_WORD) extends MemoryAccess
 }
 
 /** Intermediate representation of assembly instructions. */
@@ -261,4 +260,5 @@ object constants {
     final val CHR = -128         // character range check
     final val BYTE = 8           // number of bits in a byte
     final val SUCCESS = 0        // success exit code
+    final val STACK_ADDR = 16    // stack address offset in functions
 }
