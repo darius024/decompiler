@@ -1,5 +1,7 @@
 package wacc.backend.generator
 
+import scala.collection.mutable
+
 import wacc.backend.ir.*
 import errors.*
 import flags.*
@@ -30,13 +32,23 @@ def generate(prog: TyProg): CodeGenerator = {
     // generate code for each function
     funcs.map { case TyFunc(name, params, stmts) =>
         val label = codeGen.nextLabel(LabelType.Function(name))
+        var size = constants.STACK_ADDR
 
         // map function parameters to registers according to calling convention
-        params.zip(codeGen.registers).foreach { case (param, reg) =>
-            codeGen.addVar(param.value, changeRegisterSize(reg, getTypeSize(param.semTy)))
+        params.zipWithIndex.foreach { case (param, ind) =>
+            val paramSize = getTypeSize(param.semTy)
+            if (ind < constants.MAX_CALL_ARGS) {
+                // first 6 arguments go in registers
+                val register = codeGen.registers(ind)
+                codeGen.addVar(param.value, changeRegisterSize(register, paramSize))
+            } else {
+                // additional arguments go on the stack
+                codeGen.addVar(param.value, MemAccess(RBP(), size, paramSize))
+                size += paramSize.size
+            }
         }
 
-        generate(label, stmts, params)
+        generate(label, stmts)
     }
 
     // generate code for the main program
@@ -71,7 +83,7 @@ def generateMain(stmts: TyStmtList)
  * Generates IR instructions for the main program.
  * Sets up the function prologue and epilogue.
  */
-def generate(label: Label, stmts: TyStmtList, params: Array[TyExpr.Id])
+def generate(label: Label, stmts: TyStmtList)
             (using codeGen: CodeGenerator): Unit = {    
     // function prologue
     codeGen.addInstr(label)
@@ -135,7 +147,7 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
 
         // compute the expression and store it
         val rhs = generate(expr)
-        codeGen.addInstr(Mov(MemAccess(pairPtr, offset), rhs))  
+        codeGen.addInstr(Mov(MemAccess(pairPtr, offset, rhs.size), rhs))  
 
     // read input into a variable
     case Read(expr: TyExpr.LVal) =>
@@ -313,7 +325,7 @@ def generate(expr: TyExpr)
         val temp = generate(expr)
         val resultReg = codeGen.nextTemp(RegSize.DOUBLE_WORD)
         // the array length is stored 4 bytes before the array data
-        codeGen.addInstr(Mov(resultReg, MemAccess(temp, memoryOffsets.ARRAY_LENGTH_OFFSET)))
+        codeGen.addInstr(Mov(resultReg, MemAccess(temp, memoryOffsets.ARRAY_LENGTH_OFFSET, temp.size)))
         resultReg
     
     // character to integer conversion
@@ -461,7 +473,7 @@ def generateNewPair(fst: TyExpr, snd: TyExpr, fstTy: SemType, sndTy: SemType)
 
     // store the first and second elements
     val fstTemp = generate(fst)
-    codeGen.addInstr(Mov(MemAccess(pairPtr), fstTemp))
+    codeGen.addInstr(Mov(MemAccess(pairPtr, size = fstTemp.size), fstTemp))
     val sndTemp = generate(snd)
     codeGen.addInstr(Mov(MemAccess(pairPtr, RegSize.QUAD_WORD.size), changeRegisterSize(sndTemp, RegSize.QUAD_WORD)))
 
@@ -490,9 +502,10 @@ def generateFstSnd(pairElem: TyExpr.TyPairElem)
     }
 
     // load the element
-    val resultReg = codeGen.nextTemp(getTypeSize(pairElem.ty))
-    codeGen.addInstr(Mov(RAX(), MemAccess(pairPtr, offset)))
-    codeGen.addInstr(Mov(resultReg, RAX(getTypeSize(pairElem.ty))))
+    val size = getTypeSize(pairElem.ty)
+    val resultReg = codeGen.nextTemp(size)
+    codeGen.addInstr(Mov(RAX(size), MemAccess(pairPtr, offset, size)))
+    codeGen.addInstr(Mov(resultReg, RAX(size)))
 
     resultReg
 }
@@ -520,12 +533,12 @@ def generateArrayLit(exprs: List[TyExpr], semTy: SemType)
     // store the array length
     codeGen.addInstr(Add(arrayPtr, Imm(RegSize.DOUBLE_WORD.size)))
     codeGen.addInstr(Mov(RAX(RegSize.DOUBLE_WORD), Imm(exprsLength)))
-    codeGen.addInstr(Mov(MemAccess(arrayPtr, -RegSize.DOUBLE_WORD.size), RAX(RegSize.DOUBLE_WORD)))
+    codeGen.addInstr(Mov(MemAccess(arrayPtr, -RegSize.DOUBLE_WORD.size, RegSize.DOUBLE_WORD), RAX(RegSize.DOUBLE_WORD)))
 
     // store the array elements
     exprs.zipWithIndex.foreach { case (expr, i) =>
         val temp = generate(expr)
-        codeGen.addInstr(Mov(MemAccess(arrayPtr, i * elementSize.size), temp))
+        codeGen.addInstr(Mov(MemAccess(arrayPtr, i * elementSize.size, temp.size), temp))
     }
 
     val temp = codeGen.nextTemp()
@@ -558,7 +571,6 @@ def generateArrayElem(id: TyExpr.Id, idx: List[TyExpr], semTy: SemType)
     val resultReg = codeGen.nextTemp(elementSize)
     codeGen.addInstr(Mov(resultReg, R9(elementSize)))
     resultReg
-
 }
 
 /**
@@ -567,18 +579,28 @@ def generateArrayElem(id: TyExpr.Id, idx: List[TyExpr], semTy: SemType)
  */
 def generateCall(func: String, args: List[TyExpr], retTy: SemType)
                 (using codeGen: CodeGenerator): TempReg = {
+    var size = 0
+    val instructions = mutable.ListBuffer.empty[Instruction]
+
     // pass arguments according to the calling convention
     args.zipWithIndex.foreach { case (arg, ind) =>
         val temp = generate(arg)
-        val instr = if (ind < constants.MAX_CALL_ARGS) {
+        if (ind < constants.MAX_CALL_ARGS) {
             // first 6 arguments go in registers
-            Mov(changeRegisterSize(codeGen.registers(ind), temp.size), temp)
+            instructions += Mov(changeRegisterSize(codeGen.registers(ind), temp.size), temp)
         } else {
             // additional arguments go on the stack
-            Push(changeRegisterSize(temp, RegSize.QUAD_WORD))
+            val prevSize = size
+            size += getTypeSize(arg.ty).size
+            instructions += Mov(MemAccess(RSP(), prevSize, temp.size), temp)
         }
-        codeGen.addInstr(instr)
     }
+
+    // save parameters on stack
+    codeGen.addInstr(Sub(RSP(), Imm(size)))
+
+    // put parameters into the right positions
+    instructions.map(codeGen.addInstr(_))
     
     // call the function
     codeGen.addInstr(Call(codeGen.nextLabel(LabelType.Function(func))))
@@ -587,6 +609,9 @@ def generateCall(func: String, args: List[TyExpr], retTy: SemType)
     val returnSize = getTypeSize(retTy)
     val temp = codeGen.nextTemp(returnSize)
     codeGen.addInstr(Mov(temp, RAX(returnSize)))
+
+    // reset the stack pointer
+    codeGen.addInstr(Add(RSP(), Imm(size)))
 
     temp
 }

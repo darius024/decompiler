@@ -191,6 +191,7 @@ def formatATTInstruction(instr: Instruction): String = {
 
         // data movement
         case CMov(dest, src, cond)  => format(s"cmov${formatCompFlag(cond)}${sizePtrATT(dest.size)}", src, dest)
+        // TODO: use the correct flags
         case Mov(dest, src)         => format(s"mov${dest match { case reg: Register => sizePtrATT(reg.size); case _ => "q" }}", src, dest)
         case Lea(dest, addr)        => format(s"lea${sizePtrATT(dest.size)}", addr, dest)
 
@@ -220,7 +221,7 @@ def isExternalFunction(name: String): Boolean = {
 def formatOperand(op: RegImmMemLabel, size: RegSize = RegSize.QUAD_WORD, syntax: SyntaxStyle): String = op match {
     case reg: Register     => formatRegister(reg, reg.size, syntax)
     case imm: Immediate    => formatImmediate(imm, syntax)
-    case mem: MemoryAccess => formatMemAccess(mem, size, syntax)
+    case mem: MemoryAccess => formatMemAccess(mem, mem.size, syntax)
     case label: Label      => label.name
     case str: String       => str
 }
@@ -229,7 +230,7 @@ def formatOperand(op: RegImmMemLabel, size: RegSize = RegSize.QUAD_WORD, syntax:
 def formatImmediate(imm: Immediate, syntax: SyntaxStyle): String = {
     (imm, syntax) match {
         case (Imm(value), SyntaxStyle.Intel) => s"$value"
-        case (Imm(value), SyntaxStyle.ATT) => s"$$$value"
+        case (Imm(value), SyntaxStyle.ATT) => s"$value"
     }
 }
 /** 
@@ -243,39 +244,39 @@ def formatMemAccess(mem: MemoryAccess, size: RegSize, syntax: SyntaxStyle): Stri
     }
 }
 
-def formatMemAccessIntel(mem: MemoryAccess, size: RegSize): String = mem match {
-    case MemAccess(reg: Register, offset: Int) => 
+def formatMemAccessIntel(mem: MemoryAccess, dim: RegSize): String = mem match {
+    case MemAccess(reg: Register, offset: Int, size) => 
         val operand = if (offset == 0) s"[${formatRegister(reg, reg.size, SyntaxStyle.Intel)}]" else s"[${formatRegister(reg, reg.size, SyntaxStyle.Intel)} ${if offset > 0 then "+" else ""} $offset]"
         s"${sizePtrIntel(size)} ptr $operand"
 
     // RIP-relative addressing doesn't require size specifier
-    case MemAccess(reg @ RIP(_), offset: Label) =>
+    case MemAccess(reg @ RIP(_), offset: Label, size) =>
         s"[${formatRegister(reg, reg.size, SyntaxStyle.Intel)} + ${offset.name}]"
-    case MemAccess(reg: Register, offset: Label) =>
+    case MemAccess(reg: Register, offset: Label, size) =>
         s"${sizePtrIntel(size)} ptr [${formatRegister(reg, reg.size, SyntaxStyle.Intel)} + ${offset.name}]"
     
     // base + index*scale addressing mode
-    case MemRegAccess(base, reg, coeff) =>
+    case MemRegAccess(base, reg, coeff, size) =>
         s"${sizePtrIntel(size)} ptr [${formatRegister(base, base.size, SyntaxStyle.Intel)} + ${formatRegister(reg, reg.size, SyntaxStyle.Intel)} * $coeff]"
 }
 
-def formatMemAccessATT(mem: MemoryAccess, size: RegSize): String = mem match {
-    case MemAccess(reg: Register, offset: Int) => 
+def formatMemAccessATT(mem: MemoryAccess, dim: RegSize): String = mem match {
+    case MemAccess(reg: Register, offset: Int, size) => 
         // Remove the % from the register as it's already included in formatRegister for AT&T
         val regStr = formatRegister(reg, reg.size, SyntaxStyle.ATT)
         if (offset == 0) s"(${regStr})"
         else s"$offset(${regStr})"
     
     // RIP-relative addressing
-    case MemAccess(reg @ RIP(_), offset: Label) =>
+    case MemAccess(reg @ RIP(_), offset: Label, size) =>
         val regStr = formatRegister(reg, reg.size, SyntaxStyle.ATT)
         s"${offset.name}(${regStr})"
-    case MemAccess(reg: Register, offset: Label) =>
+    case MemAccess(reg: Register, offset: Label, size) =>
         val regStr = formatRegister(reg, reg.size, SyntaxStyle.ATT)
         s"${offset.name}(${regStr})"
     
     // base + index*scale addressing mode
-    case MemRegAccess(base, reg, coeff) =>
+    case MemRegAccess(base, reg, coeff, size) =>
         val baseStr = formatRegister(base, base.size, SyntaxStyle.ATT)
         val regStr = formatRegister(reg, reg.size, SyntaxStyle.ATT)
         s"(${baseStr},${regStr},$coeff)"

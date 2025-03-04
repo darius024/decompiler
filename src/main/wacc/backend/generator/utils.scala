@@ -8,6 +8,7 @@ import wacc.semantics.typing.*
 import wacc.backend.ir.*
 import flags.*
 import instructions.*
+import memory.*
 import registers.*
 import widgets.*
 
@@ -69,7 +70,7 @@ class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruct
     def dependencies: Set[Widget] = widgets.usedWidgets ++ widgets.usedWidgets.flatMap(_.dependencies)
 
     final val registers: Array[Register] = Array(RDI(), RSI(), RDX(), RCX(), R8(), R9())
-    val varRegs: mutable.Map[String, Register] = mutable.Map.empty
+    val varRegs: mutable.Map[String, RegMem] = mutable.Map.empty
 
     def addInstr(instruction: Instruction): Unit = {
         instructions += instruction
@@ -87,13 +88,19 @@ class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruct
         temp.next(size)
     }
 
-    def addVar(name: String, reg: Register): Register = {
-        varRegs += name -> reg
-        reg
+    def addVar(name: String, regMem: RegMem): RegMem = {
+        varRegs += name -> regMem
+        regMem
     }
 
     def getVar(name: String, size: RegSize = RegSize.QUAD_WORD): Register = {
-        varRegs.getOrElse(name, addVar(name, nextTemp(size)))
+        varRegs.getOrElse(name, addVar(name, nextTemp(size))) match {
+            case memAccess: MemoryAccess => 
+                val temp = nextTemp(memAccess.size)
+                addInstr(Mov(temp, memAccess))
+                temp
+            case reg: Register           => reg
+        }
     }
     
     def getWidgetLabel(widget: Widget): Label = {
@@ -119,9 +126,9 @@ object utils {
      * Determines the appropriate register size for a semantic type.
      */
     def getTypeSize(semType: SemType): RegSize = semType match {
-        case KType.Int  => RegSize.DOUBLE_WORD
         case KType.Bool => RegSize.BYTE
         case KType.Char => RegSize.BYTE
+        case KType.Int  => RegSize.DOUBLE_WORD
         case _          => RegSize.QUAD_WORD
     }
 
