@@ -158,8 +158,10 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
         }
 
         // compute the expression and store it
+        codeGen.addInstr(Push(pairPtr))
         val rhs = generate(expr)
-        codeGen.addInstr(Mov(MemAccess(pairPtr, offset, rhs.size), rhs))
+        codeGen.addInstr(Pop(AUX_REG()))
+        codeGen.addInstr(Mov(MemAccess(AUX_REG(), offset, rhs.size), rhs))
 
     // read input into a variable
     case Read(expr: TyExpr.LVal) =>
@@ -167,7 +169,6 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
         val temp = generate(expr)
         codeGen.addInstr(Push(ARG1()))
         codeGen.addInstr(Mov(ARG1(temp.size), temp))
-        codeGen.addInstr(Pop(ARG1()))
 
         // use the appropriate read widget based on the type
         val (widget, regSize) = expr.ty match {
@@ -176,6 +177,7 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
             case _          => (ReadInt, RegSize.DOUBLE_WORD)
         }
         codeGen.addInstr(Call(codeGen.getWidgetLabel(widget)))
+        codeGen.addInstr(Pop(ARG1()))
         codeGen.addInstr(Mov(generate(expr), RETURN_REG(regSize)))
         if (inFunction) codeGen.registers.reverse.foreach { reg => codeGen.addInstr(Pop(reg)) }
     
@@ -493,7 +495,7 @@ def generateNewPair(fst: TyExpr, snd: TyExpr, fstTy: SemType, sndTy: SemType)
 
     // store the first and second elements
     val fstTemp = generate(fst)
-    codeGen.addInstr(Mov(MemAccess(pairPtr, size = fstTemp.size), fstTemp))
+    codeGen.addInstr(Mov(MemAccess(pairPtr), changeRegisterSize(fstTemp, RegSize.QUAD_WORD)))
     val sndTemp = generate(snd)
     codeGen.addInstr(Mov(MemAccess(pairPtr, RegSize.QUAD_WORD.size), changeRegisterSize(sndTemp, RegSize.QUAD_WORD)))
 
