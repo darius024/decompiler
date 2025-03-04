@@ -28,7 +28,7 @@ def generate(prog: TyProg): CodeGenerator = {
     val TyProg(funcs, stmts) = prog
 
     // generate code for each function
-    funcs.foreach { case TyFunc(name, params, stmts) =>
+    funcs.map { case TyFunc(name, params, stmts) =>
         val label = codeGen.nextLabel(LabelType.Function(name))
         val size = constants.STACK_ADDR
         var paramSizes = 0
@@ -77,7 +77,7 @@ def generateMain(stmts: TyStmtList)
     codeGen.addInstr(Push(RBP()))
 
     // generate code for the function body
-    stmts.foreach(generate(_, false))
+    stmts.map(generate(_, false))
     
     // set exit code to success
     codeGen.addInstr(Mov(RAX(), Imm(constants.SUCCESS)))
@@ -239,11 +239,11 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
         // generate condition and jump to then branch if true
         generateCond(cond, ifLabel)
         // generate else branch
-        elseStmts.foreach(generate(_, inFunction))
+        elseStmts.map(generate(_, inFunction))
         codeGen.addInstr(Jump(endIfLabel, JumpFlag.Unconditional))
         // generate then branch
         codeGen.addInstr(ifLabel)
-        thenStmts.foreach(generate(_, inFunction))
+        thenStmts.map(generate(_, inFunction))
         codeGen.addInstr(endIfLabel)
     
     // while loop
@@ -255,14 +255,14 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
         codeGen.addInstr(Jump(whileCondLabel, JumpFlag.Unconditional))
         // generate loop body
         codeGen.addInstr(whileBodyLabel)
-        doStmts.foreach(generate(_, inFunction))
+        doStmts.map(generate(_, inFunction))
         // generate condition check
         codeGen.addInstr(whileCondLabel)
         generateCond(cond, whileBodyLabel)
     
     // block of statements
     case Block(stmts: TyStmtList) =>
-        stmts.foreach(generate(_, inFunction))
+        stmts.map(generate(_, inFunction))
 }
 
 /**
