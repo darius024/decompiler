@@ -79,6 +79,25 @@ object registers {
 
         override def hashCode(): Int = num.hashCode()
     }
+
+    def RESULT_REG(size: RegSize = RegSize.QUAD_WORD): Register = RAX(size)
+    def AUX_REG(size: RegSize = RegSize.QUAD_WORD): Register = RBX(size)
+
+    def ARG1(size: RegSize = RegSize.QUAD_WORD): Register = RDI(size)
+    def ARG2(size: RegSize = RegSize.QUAD_WORD): Register = RSI(size)
+    def ARG3(size: RegSize = RegSize.QUAD_WORD): Register = RDX(size)
+    def ARG4(size: RegSize = RegSize.QUAD_WORD): Register = RCX(size)
+    def ARG5(size: RegSize = RegSize.QUAD_WORD): Register = R8(size)
+    def ARG6(size: RegSize = RegSize.QUAD_WORD): Register = R9(size)
+
+    def PTR_REG(size: RegSize = RegSize.QUAD_WORD): Register = R11(size)
+    def PTR_ARG(size: RegSize = RegSize.QUAD_WORD): Register = R10(size)
+    def PTR    (size: RegSize = RegSize.QUAD_WORD): Register = R9(size)
+
+    def STACK_REG(size: RegSize = RegSize.QUAD_WORD): Register = RSP(size)
+    def FRAME_REG(size: RegSize = RegSize.QUAD_WORD): Register = RBP(size)
+
+    def DIV_REG(size: RegSize = RegSize.QUAD_WORD): Register = RDX(size)
 }
 
 /** Immediate values used in assembly instructions. */
