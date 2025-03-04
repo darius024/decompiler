@@ -1,7 +1,5 @@
 package wacc.backend.generator
 
-import scala.collection.mutable
-
 import wacc.backend.ir.*
 import errors.*
 import flags.*
@@ -325,7 +323,7 @@ def generate(expr: TyExpr)
         val temp = generate(expr)
         val resultReg = codeGen.nextTemp(RegSize.DOUBLE_WORD)
         // the array length is stored 4 bytes before the array data
-        codeGen.addInstr(Mov(resultReg, MemAccess(temp, memoryOffsets.ARRAY_LENGTH_OFFSET, temp.size)))
+        codeGen.addInstr(Mov(resultReg, MemAccess(temp, memoryOffsets.ARRAY_LENGTH_OFFSET, RegSize.DOUBLE_WORD)))
         resultReg
     
     // character to integer conversion
@@ -579,28 +577,26 @@ def generateArrayElem(id: TyExpr.Id, idx: List[TyExpr], semTy: SemType)
  */
 def generateCall(func: String, args: List[TyExpr], retTy: SemType)
                 (using codeGen: CodeGenerator): TempReg = {
-    var size = 0
-    val instructions = mutable.ListBuffer.empty[Instruction]
-
-    // pass arguments according to the calling convention
-    args.zipWithIndex.foreach { case (arg, ind) =>
-        val temp = generate(arg)
-        if (ind < constants.MAX_CALL_ARGS) {
-            // first 6 arguments go in registers
-            instructions += Mov(changeRegisterSize(codeGen.registers(ind), temp.size), temp)
-        } else {
-            // additional arguments go on the stack
-            val prevSize = size
-            size += getTypeSize(arg.ty).size
-            instructions += Mov(MemAccess(RSP(), prevSize, temp.size), temp)
-        }
-    }
+    var size: Int = 0
+    args.foreach { arg => size += getTypeSize(arg.ty).size }
 
     // save parameters on stack
     codeGen.addInstr(Sub(RSP(), Imm(size)))
 
-    // put parameters into the right positions
-    instructions.map(codeGen.addInstr(_))
+    // pass arguments according to the calling convention
+    args.zipWithIndex.foreach { case (arg, ind) =>
+        val temp = generate(arg)
+        val instr = if (ind < constants.MAX_CALL_ARGS) {
+            // first 6 arguments go in registers
+            Mov(changeRegisterSize(codeGen.registers(ind), temp.size), temp)
+        } else {
+            // additional arguments go on the stack
+            val prevSize = size
+            size += getTypeSize(arg.ty).size
+            Mov(MemAccess(RSP(), prevSize, temp.size), temp)
+        }
+        codeGen.addInstr(instr)
+    }
     
     // call the function
     codeGen.addInstr(Call(codeGen.nextLabel(LabelType.Function(func))))

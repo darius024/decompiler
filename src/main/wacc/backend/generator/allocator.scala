@@ -81,6 +81,10 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
                 withinFunction = true
             }
 
+            if (regMachine.rbpSize != 0) {
+                scopeInstructions += Add(RSP(), Imm(regMachine.rbpSize))
+            }
+
             // restore all callee registers on the stack at the beginning of function
             for ((reg, index) <- calleeRegistersToSave.zipWithIndex) {
                 scopeInstructions += Mov(changeRegisterSize(reg, RegSize.QUAD_WORD), MemAccess(RSP(), index * RegSize.QUAD_WORD.size))
