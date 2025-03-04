@@ -186,7 +186,7 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
             case KType.Array(_, _) =>
                 // for arrays, adjust the pointer to include the length field
                 codeGen.addInstr(Mov(RDI(), temp))
-                codeGen.addInstr(Sub(RDI(), Imm(memoryOffsets.ARRAY_LENGTH_OFFSET)))
+                codeGen.addInstr(Add(RDI(), Imm(memoryOffsets.ARRAY_LENGTH_OFFSET)))
                 codeGen.addInstr(Call(codeGen.getWidgetLabel(FreeProg)))
             case KType.Pair(_, _) =>
                 // for pairs, check for null and use the pair-specific free function
