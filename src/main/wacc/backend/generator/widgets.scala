@@ -150,7 +150,7 @@ object widgets {
      */
     case object ReadChar extends Widget {
         val label = Label("_readc")
-        override val directives = Set(StrLabel(Label(".L._readc_str0"), asciz.character))
+        override val directives = Set(StrLabel(Label(".L._readc_str0"), asciz.characterRead))
         def instructions: List[Instruction] = List(
             Push(RBP()),
             Mov(RBP(), RSP()),
@@ -196,7 +196,7 @@ object widgets {
      */
     case object PrintChar extends Widget {
         val label = Label("_printc")
-        override val directives = Set(StrLabel(Label(".L._printc_str0"), asciz.character))
+        override val directives = Set(StrLabel(Label(".L._printc_str0"), asciz.characterPrint))
         def instructions: List[Instruction] = List(
             Push(RBP()),
             Mov(RBP(), RSP()),

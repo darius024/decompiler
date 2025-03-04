@@ -2,11 +2,9 @@
     "valid": [
         "advanced",
         "scope",   
-        "function",
-        "array",
         "pairs",
+        "function",
         "while",
-        "expressions",
-        "IO"
+        "array"
     ]
 }
