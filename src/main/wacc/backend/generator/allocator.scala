@@ -4,7 +4,6 @@ import scala.collection.mutable
 
 import wacc.backend.ir.*
 import allocator.*
-import constants.*
 import flags.*
 import immediate.*
 import instructions.*
@@ -62,13 +61,14 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
         
         case Pop(RBP(_)) =>
             // save all callee registers on the stack at the beginning of function
-            val calleeRegistersToSave = regMachine.getUsedRegisters
+            // val calleeRegistersToSave = regMachine.getUsedRegisters
+            val calleeRegistersToSave = (calleeSaved ::: paramRegisters).take(regMachine.currentStackSize)
             regMachine.stackSize = calleeRegistersToSave.length * RegSize.QUAD_WORD.size
 
             // set up the frame pointer
             if (!withinFunction) {
                 if (regMachine.rbpSize != 0) {
-                    Sub(RSP(), Imm(((regMachine.rbpSize + ALIGN) / BYTE) * BYTE)) +=: scopeInstructions
+                    Sub(RSP(), Imm(regMachine.rbpSize)) +=: scopeInstructions
                 }
                 Mov(FRAME_REG(), RSP()) +=: scopeInstructions
 
@@ -87,7 +87,8 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             }
 
             if (regMachine.rbpSize != 0) {
-                scopeInstructions += Add(RSP(), Imm(((regMachine.rbpSize + ALIGN) / BYTE) * BYTE))
+                // scopeInstructions += Add(RSP(), Imm(((regMachine.rbpSize + ALIGN) / BYTE) * BYTE))
+                scopeInstructions += Add(RSP(), Imm(regMachine.rbpSize))
             }
 
             // restore all callee registers on the stack at the beginning of function
@@ -207,9 +208,9 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
   */
 object allocator {
     // parameter registers used for function calls
-    val paramRegisters = List(ARG3(), ARG4(), ARG2(), ARG1(), ARG5(), ARG6())
+    val paramRegisters = List(ARG3(), ARG4(), ARG2(), ARG1(), ARG5())//, ARG6())
     // callee-saved registers that need to be preserved across function calls
-    private val calleeSaved: List[Register] = List(R12(), R13(), R14(), R15())
+    val calleeSaved: List[Register] = List(R12(), R13(), R14(), R15())
     
     /**
       * Manages the allocation of physical registers to temporary registers.

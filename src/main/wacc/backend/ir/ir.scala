@@ -253,7 +253,7 @@ object errorCodes {
 
 /** Constants used in code generation. */
 object constants {
-    final val MAX_CALL_ARGS = 6  // maximum number of arguments passed in registers
+    final val MAX_CALL_ARGS = 5  // maximum number of arguments passed in registers
     final val CHR = -128         // character range check
     final val BYTE = 8           // number of bits in a byte
     final val SUCCESS = 0        // success exit code

@@ -110,7 +110,7 @@ def generate(label: Label, stmts: TyStmtList)
 def generate(stmt: TyStmt, inFunction: Boolean = true)
             (using codeGen: CodeGenerator): Unit = stmt match {
     // simple variable assignment
-    case Assignment(id: TyExpr.Id, expr: TyExpr) => 
+    case Assignment(id: TyExpr.Id, expr: TyExpr) =>
         val rhs = generate(expr)
         val lhs = codeGen.getVar(id.value, rhs.size)
         val size = getTypeSize(id.ty)
@@ -159,13 +159,15 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
 
         // compute the expression and store it
         val rhs = generate(expr)
-        codeGen.addInstr(Mov(MemAccess(pairPtr, offset, rhs.size), rhs))  
+        codeGen.addInstr(Mov(MemAccess(pairPtr, offset, rhs.size), rhs))
 
     // read input into a variable
     case Read(expr: TyExpr.LVal) =>
         if (inFunction) codeGen.registers.foreach { reg => codeGen.addInstr(Push(reg)) }
         val temp = generate(expr)
+        codeGen.addInstr(Push(ARG1()))
         codeGen.addInstr(Mov(ARG1(temp.size), temp))
+        codeGen.addInstr(Pop(ARG1()))
 
         // use the appropriate read widget based on the type
         val (widget, regSize) = expr.ty match {
@@ -182,6 +184,7 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
         if (inFunction) codeGen.registers.foreach { reg => codeGen.addInstr(Push(reg)) }
         val temp = generate(expr)
         // handle different types of pointers
+        codeGen.addInstr(Push(ARG1()))
         expr.ty match {
             case KType.Array(_, _) =>
                 // for arrays, adjust the pointer to include the length field
@@ -197,6 +200,7 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
                 codeGen.addInstr(Mov(ARG1(), temp))
                 codeGen.addInstr(Call(codeGen.getWidgetLabel(FreeProg)))
         }
+        codeGen.addInstr(Pop(ARG1()))
         if (inFunction) codeGen.registers.reverse.foreach { reg => codeGen.addInstr(Pop(reg)) }
         
     // return from a function
@@ -217,18 +221,22 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
     case Print(expr: TyExpr) =>
         if (inFunction) codeGen.registers.foreach { reg => codeGen.addInstr(Push(reg)) }
         val temp = generate(expr)
+        codeGen.addInstr(Push(ARG1()))
         codeGen.addInstr(Mov(ARG1(temp.size), temp))
 
         // use the appropriate print widget based on the type
         val widget = getPrintWidget(expr.ty)
         codeGen.addInstr(Call(codeGen.getWidgetLabel(widget)))
+        codeGen.addInstr(Pop(ARG1()))
         if (inFunction) codeGen.registers.reverse.foreach { reg => codeGen.addInstr(Pop(reg)) }
 
     // print a value followed by a newline
     case Println(expr: TyExpr) =>
         if (inFunction) codeGen.registers.foreach { reg => codeGen.addInstr(Push(reg)) }
+        codeGen.addInstr(Push(ARG1()))
         generate(Print(expr), false)
         codeGen.addInstr(Call(codeGen.getWidgetLabel(PrintLn)))
+        codeGen.addInstr(Pop(ARG1()))
         if (inFunction) codeGen.registers.reverse.foreach { reg => codeGen.addInstr(Pop(reg)) }
 
     // if-then-else statement
@@ -474,11 +482,13 @@ def generateNewPair(fst: TyExpr, snd: TyExpr, fstTy: SemType, sndTy: SemType)
     val pairSize = RegSize.QUAD_WORD.size + RegSize.QUAD_WORD.size
     
     // allocate memory for the pair
+    codeGen.addInstr(Push(ARG1()))
     codeGen.addInstr(Mov(ARG1(RegSize.DOUBLE_WORD), Imm(pairSize)))
     codeGen.addInstr(Call(codeGen.getWidgetLabel(Malloc)))
+    codeGen.addInstr(Pop(ARG1()))
 
     // save the pair pointer
-    val pairPtr = PTR_ARG()
+    val pairPtr = PTR_REG()
     codeGen.addInstr(Mov(pairPtr, RETURN_REG()))
 
     // store the first and second elements
@@ -533,11 +543,13 @@ def generateArrayLit(exprs: List[TyExpr], semTy: SemType)
     val totalSize = RegSize.DOUBLE_WORD.size + elementSize.size * exprsLength
 
     // allocate memory for the array
+    codeGen.addInstr(Push(ARG1()))
     codeGen.addInstr(Mov(ARG1(RegSize.DOUBLE_WORD), Imm(totalSize)))
     codeGen.addInstr(Call(codeGen.getWidgetLabel(Malloc)))
+    codeGen.addInstr(Pop(ARG1()))
 
     // use specific register for array operations
-    val arrayPtr = PTR_ARG()
+    val arrayPtr = PTR_REG()
     codeGen.addInstr(Mov(arrayPtr, RETURN_REG()))
 
     // store the array length
@@ -590,6 +602,7 @@ def generateArrayElem(id: TyExpr.Id, idx: List[TyExpr], semTy: SemType)
 def generateCall(func: String, args: List[TyExpr], retTy: SemType)
                 (using codeGen: CodeGenerator): TempReg = {
     var size: Int = 0
+    val length = args.length
     args.drop(constants.MAX_CALL_ARGS).foreach { arg => size += getTypeSize(arg.ty).size }
 
     // save parameters on stack
@@ -614,7 +627,7 @@ def generateCall(func: String, args: List[TyExpr], retTy: SemType)
         } else {
             // additional arguments go on the stack
             size -= regSize.size
-            Mov(MemAccess(STACK_REG(), size, regSize), changeRegisterSize(temp, regSize))
+            Mov(MemAccess(STACK_REG(), size + (length - ind - 1) * RegSize.QUAD_WORD.size, regSize), changeRegisterSize(temp, regSize))
         }
         codeGen.addInstr(instr)
     }
