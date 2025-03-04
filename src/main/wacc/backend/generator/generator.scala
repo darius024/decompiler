@@ -111,8 +111,8 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
         // compute the array index
         val temp = idx match {
             case expr :: Nil =>
-                codeGen.addInstr(Mov(R9(), codeGen.getVar(id.value)))
-                generate(expr)
+                val reg = generate(expr)
+                reg
             case _           =>
                 generateArrayElem(id, idx.dropRight(1), semTy)
                 generate(idx.last)
@@ -123,6 +123,9 @@ def generate(stmt: TyStmt, inFunction: Boolean = true)
         // compute the expression value
         val rhs = generate(expr)
         codeGen.addInstr(Mov(RAX(rhs.size), rhs))
+
+        // get the array pointer
+        codeGen.addInstr(Mov(R9(), codeGen.getVar(id.value)))
 
         // store the value in the array
         val size = rhs.size
