@@ -73,6 +73,7 @@ class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruct
     val varRegs: mutable.Map[String, RegMem] = mutable.Map.empty
     final val numRegisters: mutable.Map[Label, Int] = mutable.Map.empty
     var currLabel: Label = Label("main")
+    var inMain: Boolean = false
 
     def addInstr(instruction: Instruction): Unit = {
         instructions += instruction

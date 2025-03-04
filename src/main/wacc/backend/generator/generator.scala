@@ -30,9 +30,14 @@ def generate(prog: TyProg): CodeGenerator = {
     // generate code for each function
     funcs.map { case TyFunc(name, params, stmts) =>
         val label = codeGen.nextLabel(LabelType.Function(name))
-        var size = constants.STACK_ADDR
+        val size = constants.STACK_ADDR
+        var paramSizes = 0
 
         codeGen.enterScope(label)
+
+        params.drop(constants.MAX_CALL_ARGS).foreach { param =>
+            paramSizes += getTypeSize(param.semTy).size
+        }
 
         // map function parameters to registers according to calling convention
         params.zipWithIndex.foreach { case (param, ind) =>
@@ -43,8 +48,8 @@ def generate(prog: TyProg): CodeGenerator = {
                 codeGen.addVar(param.value, changeRegisterSize(register, paramSize), true)
             } else {
                 // additional arguments go on the stack
-                codeGen.addVar(param.value, MemAccess(RBP(), size, paramSize), true)
-                size += paramSize.size
+                paramSizes -= paramSize.size
+                codeGen.addVar(param.value, MemAccess(RBP(), size + paramSizes, paramSize), true)
             }
         }
 
@@ -67,6 +72,7 @@ def generateMain(stmts: TyStmtList)
     // function prologue
     val label = codeGen.nextLabel(LabelType.Main)
     codeGen.enterScope(label)
+    codeGen.inMain = true
     codeGen.addInstr(label)
     codeGen.addInstr(Push(RBP()))
 
@@ -336,7 +342,7 @@ def generate(expr: TyExpr)
     // character to integer conversion
     case TyExpr.Ord(expr) =>
         val temp = generate(expr)
-        val resultReg = codeGen.nextTemp(RegSize.DOUBLE_WORD)
+        val resultReg = RAX(RegSize.DOUBLE_WORD)//codeGen.nextTemp(RegSize.DOUBLE_WORD)
         codeGen.addInstr(Mov(resultReg, temp))
         resultReg
     
@@ -345,7 +351,7 @@ def generate(expr: TyExpr)
         val temp = generate(expr)
         // check if the value is in the valid character range
         codeGen.addInstr(Test(temp, Imm(constants.CHR)))
-        codeGen.addInstr(Mov(RSI(temp.size), temp))
+        codeGen.addInstr(CMov(RSI(), changeRegisterSize(temp, RegSize.QUAD_WORD), CompFlag.NE))
         codeGen.addInstr(JumpComp(codeGen.getWidgetLabel(ErrBadChar), CompFlag.NE))
         temp
 
@@ -589,19 +595,27 @@ def generateCall(func: String, args: List[TyExpr], retTy: SemType)
 
     // save parameters on stack
     codeGen.addInstr(Sub(RSP(), Imm(size)))
+    if (!codeGen.inMain) codeGen.registers.foreach { reg => codeGen.addInstr(Push(reg)) }
 
     // pass arguments according to the calling convention
-    size = 0
-    args.zipWithIndex.foreach { case (arg, ind) =>
+    val savedSize = size
+    args.reverse.foreach { arg =>
+        if (!codeGen.inMain) codeGen.registers.foreach { reg => codeGen.addInstr(Push(reg)) }
         val temp = generate(arg)
+        if (!codeGen.inMain) codeGen.registers.reverse.foreach { reg => codeGen.addInstr(Pop(reg)) }
+        codeGen.addInstr(Push(changeRegisterSize(temp, RegSize.QUAD_WORD)))
+    }
+    args.zipWithIndex.foreach { case (arg, ind) =>
+        val temp = codeGen.nextTemp()
+        codeGen.addInstr(Pop(temp))
+        val regSize = getTypeSize(arg.ty)
         val instr = if (ind < constants.MAX_CALL_ARGS) {
             // first 6 arguments go in registers
-            Mov(changeRegisterSize(codeGen.registers(ind), temp.size), temp)
+            Mov(changeRegisterSize(codeGen.registers(ind), regSize), changeRegisterSize(temp, regSize))
         } else {
             // additional arguments go on the stack
-            val instr = Mov(MemAccess(RSP(), size, temp.size), temp)
-            size += getTypeSize(arg.ty).size
-            instr
+            size -= regSize.size
+            Mov(MemAccess(RSP(), size, regSize), changeRegisterSize(temp, regSize))
         }
         codeGen.addInstr(instr)
     }
@@ -609,13 +623,15 @@ def generateCall(func: String, args: List[TyExpr], retTy: SemType)
     // call the function
     codeGen.addInstr(Call(codeGen.nextLabel(LabelType.Function(func))))
 
+    if (!codeGen.inMain) codeGen.registers.reverse.foreach { reg => codeGen.addInstr(Pop(reg)) }
+
     // get the return value from RAX
     val returnSize = getTypeSize(retTy)
     val temp = codeGen.nextTemp(returnSize)
     codeGen.addInstr(Mov(temp, RAX(returnSize)))
 
     // reset the stack pointer
-    codeGen.addInstr(Add(RSP(), Imm(size)))
+    codeGen.addInstr(Add(RSP(), Imm(savedSize)))
 
     temp
 }
