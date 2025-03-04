@@ -321,7 +321,7 @@ def generate(expr: TyExpr)
     // array length operation
     case TyExpr.Len(expr) => 
         val temp = generate(expr)
-        val resultReg = codeGen.nextTemp(RegSize.DOUBLE_WORD)
+        val resultReg = RAX(RegSize.DOUBLE_WORD)//codeGen.nextTemp(RegSize.DOUBLE_WORD)
         // the array length is stored 4 bytes before the array data
         codeGen.addInstr(Mov(resultReg, MemAccess(temp, memoryOffsets.ARRAY_LENGTH_OFFSET, RegSize.DOUBLE_WORD)))
         resultReg
