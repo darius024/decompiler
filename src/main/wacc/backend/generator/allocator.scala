@@ -67,7 +67,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             // set up the frame pointer
             if (!withinFunction) {
                 if (regMachine.rbpSize != 0) {
-                    Sub(RSP(), Imm(regMachine.rbpSize)) +=: scopeInstructions
+                    Sub(RSP(), Imm(((regMachine.rbpSize + 7) / 8) * 8)) +=: scopeInstructions
                 }
                 Mov(RBP(), RSP()) +=: scopeInstructions
 
@@ -86,7 +86,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             }
 
             if (regMachine.rbpSize != 0) {
-                scopeInstructions += Add(RSP(), Imm(regMachine.rbpSize))
+                scopeInstructions += Add(RSP(), Imm(((regMachine.rbpSize + 7) / 8) * 8))
             }
 
             // restore all callee registers on the stack at the beginning of function
