@@ -38,15 +38,15 @@ object arrStore {
         Push(RBX()),
         // check for negative index
         Test(R10(RegSize.DOUBLE_WORD), R10(RegSize.DOUBLE_WORD)),
-        CMov(RSI(), R10(), CompFlag.L),
+        CMov(ARG2(), R10(), CompFlag.L),
         JumpComp(ErrOutOfBounds.label, CompFlag.L),
         // check for index >= array length
         Mov(RBX(RegSize.DOUBLE_WORD), MemAccess(R9(), memoryOffsets.ARRAY_LENGTH_OFFSET, RegSize.DOUBLE_WORD)),
         Cmp(R10(RegSize.DOUBLE_WORD), RBX(RegSize.DOUBLE_WORD)),
-        CMov(RSI(), R10(), CompFlag.GE),
+        CMov(ARG2(), R10(), CompFlag.GE),
         JumpComp(ErrOutOfBounds.label, CompFlag.GE),
         // store the element
-        Mov(MemRegAccess(R9(), R10(), regSize.size, regSize), RAX(regSize)),
+        Mov(MemRegAccess(R9(), R10(), regSize.size, regSize), RETURN_REG(regSize)),
         Pop(RBX()),
         Ret
     )
@@ -60,12 +60,12 @@ object arrLoad {
         Push(RBX()),
         // check for negative index
         Test(R10(RegSize.DOUBLE_WORD), R10(RegSize.DOUBLE_WORD)),
-        CMov(RSI(), R10(), CompFlag.L),
+        CMov(ARG2(), R10(), CompFlag.L),
         JumpComp(ErrOutOfBounds.label, CompFlag.L),
         // check for index >= array length
         Mov(RBX(RegSize.DOUBLE_WORD), MemAccess(R9(), memoryOffsets.ARRAY_LENGTH_OFFSET, RegSize.DOUBLE_WORD)),
         Cmp(R10(RegSize.DOUBLE_WORD), RBX(RegSize.DOUBLE_WORD)),
-        CMov(RSI(), R10(), CompFlag.GE),
+        CMov(ARG2(), R10(), CompFlag.GE),
         JumpComp(ErrOutOfBounds.label, CompFlag.GE),
         // load the element
         Mov(R9(regSize), MemRegAccess(R9(), R10(), regSize.size, regSize)),
@@ -125,11 +125,11 @@ object widgets {
       * Wrap all widgets uniformly to adhere to the calling convention.
       */ 
     private def adhereToCallingConvention(instructions: List[Instruction]): List[Instruction] =
-        List(Push(RBP()), Mov(RBP(), RSP()), And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)))
+        List(Push(FRAME_REG()), Mov(FRAME_REG(), STACK_REG()), And(STACK_REG(), Imm(memoryOffsets.STACK_ALIGNMENT)))
         :::
         instructions
         :::
-        List(Mov(RSP(), RBP()), Pop(RBP()), Ret)
+        List(Mov(STACK_REG(), FRAME_REG()), Pop(FRAME_REG()), Ret)
 
     /**
       * Reads an integer from standard input.
@@ -138,14 +138,14 @@ object widgets {
         val label = Label("_readi")
         override val directives = Set(StrLabel(Label(".L._readi_str"), asciz.integer))
         def instructions: List[Instruction] = adhereToCallingConvention(List(
-            Sub(RSP(), Imm(memoryOffsets.STACK_READ)),
-            Mov(MemAccess(RSP(), memoryOffsets.NO_OFFSET, RegSize.DOUBLE_WORD), RDI(RegSize.DOUBLE_WORD)),
-            Lea(RSI(), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._readi_str"))),
-            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Sub(STACK_REG(), Imm(memoryOffsets.STACK_READ)),
+            Mov(MemAccess(STACK_REG(), memoryOffsets.NO_OFFSET, RegSize.DOUBLE_WORD), ARG1(RegSize.DOUBLE_WORD)),
+            Lea(ARG2(), MemAccess(STACK_REG(), memoryOffsets.NO_OFFSET)),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._readi_str"))),
+            Mov(RETURN_REG(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.scanf),
-            Mov(RAX(RegSize.DOUBLE_WORD), MemAccess(RSP(), memoryOffsets.NO_OFFSET, RegSize.DOUBLE_WORD)),
-            Add(RSP(), Imm(memoryOffsets.STACK_READ)),
+            Mov(RETURN_REG(RegSize.DOUBLE_WORD), MemAccess(STACK_REG(), memoryOffsets.NO_OFFSET, RegSize.DOUBLE_WORD)),
+            Add(STACK_REG(), Imm(memoryOffsets.STACK_READ)),
         ))
     }
 
@@ -156,14 +156,14 @@ object widgets {
         val label = Label("_readc")
         override val directives = Set(StrLabel(Label(".L._readc_str"), asciz.characterRead))
         def instructions: List[Instruction] = adhereToCallingConvention(List(
-            Sub(RSP(), Imm(memoryOffsets.STACK_READ)),
-            Mov(MemAccess(RSP(), memoryOffsets.NO_OFFSET, RegSize.BYTE), RDI(RegSize.BYTE)),
-            Lea(RSI(), MemAccess(RSP(), memoryOffsets.NO_OFFSET)),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._readc_str"))),
-            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Sub(STACK_REG(), Imm(memoryOffsets.STACK_READ)),
+            Mov(MemAccess(STACK_REG(), memoryOffsets.NO_OFFSET, RegSize.BYTE), ARG1(RegSize.BYTE)),
+            Lea(ARG2(), MemAccess(STACK_REG(), memoryOffsets.NO_OFFSET)),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._readc_str"))),
+            Mov(RETURN_REG(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.scanf),
-            Mov(RAX(RegSize.BYTE), MemAccess(RSP(), memoryOffsets.NO_OFFSET, RegSize.BYTE)),
-            Add(RSP(), Imm(memoryOffsets.STACK_READ)),
+            Mov(RETURN_REG(RegSize.BYTE), MemAccess(STACK_REG(), memoryOffsets.NO_OFFSET, RegSize.BYTE)),
+            Add(STACK_REG(), Imm(memoryOffsets.STACK_READ)),
         ))
     }
 
@@ -174,11 +174,11 @@ object widgets {
         val label = Label("_printi")
         override val directives = Set(StrLabel(Label(".L._printi_str"), asciz.integer))
         def instructions: List[Instruction] = adhereToCallingConvention(List(
-            Mov(RSI(RegSize.DOUBLE_WORD), RDI(RegSize.DOUBLE_WORD)),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._printi_str"))),
-            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG2(RegSize.DOUBLE_WORD), ARG1(RegSize.DOUBLE_WORD)),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._printi_str"))),
+            Mov(RETURN_REG(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
-            Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG1(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
         ))
     }
@@ -190,11 +190,11 @@ object widgets {
         val label = Label("_printc")
         override val directives = Set(StrLabel(Label(".L._printc_str"), asciz.characterPrint))
         def instructions: List[Instruction] = adhereToCallingConvention(List(
-            Mov(RSI(RegSize.BYTE), RDI(RegSize.BYTE)),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._printc_str"))),
-            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG2(RegSize.BYTE), ARG1(RegSize.BYTE)),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._printc_str"))),
+            Mov(RETURN_REG(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
-            Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG1(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
         ))
     }
@@ -206,12 +206,12 @@ object widgets {
         val label = Label("_prints")
         override val directives = Set(StrLabel(Label(".L._prints_str"), asciz.string))
         def instructions: List[Instruction] = adhereToCallingConvention(List(
-            Mov(RDX(), RDI()),
-            Mov(RSI(RegSize.DOUBLE_WORD), MemAccess(RDI(), memoryOffsets.ARRAY_LENGTH_OFFSET, RegSize.DOUBLE_WORD)),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._prints_str"))),
-            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG3(), ARG1()),
+            Mov(ARG2(RegSize.DOUBLE_WORD), MemAccess(ARG1(), memoryOffsets.ARRAY_LENGTH_OFFSET, RegSize.DOUBLE_WORD)),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._prints_str"))),
+            Mov(RETURN_REG(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
-            Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG1(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
         ))
     }
@@ -223,11 +223,11 @@ object widgets {
         val label = Label("_printp")
         override val directives = Set(StrLabel(Label(".L._printp_str"), asciz.pair))
         def instructions: List[Instruction] = adhereToCallingConvention(List(
-            Mov(RSI(), RDI()),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._printp_str"))),
-            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG2(), ARG1()),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._printp_str"))),
+            Mov(RETURN_REG(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
-            Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG1(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
         ))
     }
@@ -243,18 +243,18 @@ object widgets {
             StrLabel(Label(".L._printb_str_false"), asciz.string)
         )
         def instructions: List[Instruction] = adhereToCallingConvention(List(
-            Cmp(RDI(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Cmp(ARG1(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             JumpComp(Label(".L_printb_true"), CompFlag.NE),
-            Lea(RDX(), MemAccess(RIP(), Label(".L._printb_str"))),
+            Lea(ARG3(), MemAccess(RIP(), Label(".L._printb_str"))),
             Jump(Label(".L_printb_false"), JumpFlag.Unconditional),
             Label(".L_printb_true"),
-            Lea(RDX(), MemAccess(RIP(), Label(".L._printb_str_true"))),
+            Lea(ARG3(), MemAccess(RIP(), Label(".L._printb_str_true"))),
             Label(".L_printb_false"),
-            Mov(RSI(RegSize.DOUBLE_WORD), MemAccess(RDX(), memoryOffsets.ARRAY_LENGTH_OFFSET, RegSize.DOUBLE_WORD)),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._printb_str_false"))),
-            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG2(RegSize.DOUBLE_WORD), MemAccess(ARG3(), memoryOffsets.ARRAY_LENGTH_OFFSET, RegSize.DOUBLE_WORD)),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._printb_str_false"))),
+            Mov(RETURN_REG(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
-            Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG1(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
         ))
     }
@@ -266,9 +266,9 @@ object widgets {
         val label = Label("_println")
         override val directives = Set(StrLabel(Label(".L._println_str"), asciz.endl))
         def instructions: List[Instruction] = adhereToCallingConvention(List(
-            Lea(RDI(), MemAccess(RIP(), Label(".L._println_str"))),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._println_str"))),
             Call(library.puts),
-            Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG1(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
         ))
     }
@@ -280,7 +280,7 @@ object widgets {
         val label = Label("_malloc")
         def instructions: List[Instruction] = adhereToCallingConvention(List(
             Call(library.malloc),
-            Cmp(RAX(), Imm(memoryOffsets.NO_OFFSET)),
+            Cmp(RETURN_REG(), Imm(memoryOffsets.NO_OFFSET)),
             JumpComp(ErrOutOfMemory.label, CompFlag.E),
         ))
         override def dependencies: Set[Widget] = Set(ErrOutOfMemory)
@@ -302,7 +302,7 @@ object widgets {
     case object FreePair extends Widget {
         val label = Label("_freepair")
         def instructions: List[Instruction] = adhereToCallingConvention(List(
-            Cmp(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Cmp(ARG1(), Imm(memoryOffsets.NO_OFFSET)),
             JumpComp(ErrNull.label, CompFlag.E),
             Call(library.free),
         ))
@@ -415,10 +415,10 @@ object errors {
             "dereferencing a null pointer is not allowed"
         )
         def instructions: List[Instruction] = List(
-            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._errNull_str"))),
+            And(STACK_REG(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._errNull_str"))),
             Call(PrintString.label),
-            Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
+            Mov(ARG1(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
         override def dependencies: Set[Widget] = Set(PrintString)
@@ -435,10 +435,10 @@ object errors {
             "ensure all operations can be computed within 32 bits"
         )
         def instructions: List[Instruction] = List(
-            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._errOverflow_str"))),
+            And(STACK_REG(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._errOverflow_str"))),
             Call(PrintString.label),
-            Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
+            Mov(ARG1(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
         override def dependencies: Set[Widget] = Set(PrintString)
@@ -455,10 +455,10 @@ object errors {
             "enusre the divisor is non-zero"
         )
         def instructions: List[Instruction] = List(
-            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._errDivZero_str"))),
+            And(STACK_REG(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._errDivZero_str"))),
             Call(PrintString.label),
-            Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
+            Mov(ARG1(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
         override def dependencies: Set[Widget] = Set(PrintString)
@@ -475,13 +475,13 @@ object errors {
             "ensure all memory accesses are within range"
         )
         def instructions: List[Instruction] = List(
-            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._errOutOfBounds_str"))),
-            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            And(STACK_REG(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._errOutOfBounds_str"))),
+            Mov(RETURN_REG(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
-            Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG1(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
-            Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
+            Mov(ARG1(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
         override def dependencies: Set[Widget] = Set(PrintString)
@@ -498,10 +498,10 @@ object errors {
             "allocating memory failed for the corresponding array or pair"
         )
         def instructions: List[Instruction] = List(
-            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._errOutOfMemory_str"))),
+            And(STACK_REG(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._errOutOfMemory_str"))),
             Call(PrintString.label),
-            Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
+            Mov(ARG1(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
         override def dependencies: Set[Widget] = Set(PrintString)
@@ -518,13 +518,13 @@ object errors {
             "provided integer value for ASCII character is not within (0, 127)"
         )
         def instructions: List[Instruction] = List(
-            And(RSP(), Imm(memoryOffsets.STACK_ALIGNMENT)),
-            Lea(RDI(), MemAccess(RIP(), Label(".L._errBadChar_str"))),
-            Mov(RAX(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
+            And(STACK_REG(), Imm(memoryOffsets.STACK_ALIGNMENT)),
+            Lea(ARG1(), MemAccess(RIP(), Label(".L._errBadChar_str"))),
+            Mov(RETURN_REG(RegSize.BYTE), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.printf),
-            Mov(RDI(), Imm(memoryOffsets.NO_OFFSET)),
+            Mov(ARG1(), Imm(memoryOffsets.NO_OFFSET)),
             Call(library.fflush),
-            Mov(RDI(RegSize.BYTE), Imm(errorCodes.FAILURE)),
+            Mov(ARG1(RegSize.BYTE), Imm(errorCodes.FAILURE)),
             Call(library.exit)
         )
         override def dependencies: Set[Widget] = Set(PrintString)
