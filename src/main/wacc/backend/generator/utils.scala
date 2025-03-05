@@ -6,6 +6,7 @@ import wacc.semantics.scoping.semanticTypes.*
 import wacc.semantics.typing.*
 
 import wacc.backend.ir.*
+import wacc.backend.optimisation.*
 import flags.*
 import instructions.*
 import memory.*
@@ -65,13 +66,13 @@ class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruct
                     labeller: Labeller,
                     temp: Temporary,
                     widgets: WidgetManager) {
-    def ir: List[Instruction] = instructions.result()
+    def ir: List[Instruction] = peephole(instructions.result())
     def data: Set[StrLabel] = directives.result()
     def dependencies: Set[Widget] = widgets.usedWidgets ++ widgets.usedWidgets.flatMap(_.dependencies)
 
     final val registers: Array[Register] = Array(RDI(), RSI(), RDX(), RCX(), R8(), R9())
-    val varRegs: mutable.Map[String, RegMem] = mutable.Map.empty
     final val numRegisters: mutable.Map[Label, Int] = mutable.Map.empty
+    val varRegs: mutable.Map[String, RegMem] = mutable.Map.empty
     var currLabel: Label = Label("main")
     var inMain: Boolean = false
 

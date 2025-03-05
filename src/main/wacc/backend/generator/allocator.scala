@@ -167,15 +167,15 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
                 case _                   => RETURN_REG()
             }
             val destReg: RegMem = dest match {
-                case reg: Register          => regMachine.nextRegisterMem(reg, register)
+                case reg: Register                => regMachine.nextRegisterMem(reg, register)
                 case MemAccess(reg, offset, size) => MemAccess(regMachine.nextRegister(reg), offset, size)
-                case _                      => dest
+                case _                            => dest
             }
             val srcReg: RegImmMem = src match {
                 case regImm: RegImm => regMachine.nextRegisterImm(regImm)
                 case MemAccess(RBP(_), offset: Int, size) => MemAccess(FRAME_REG(), offset + regMachine.currentStackSize * RegSize.QUAD_WORD.size, size)
                 case MemAccess(reg, offset, size) => MemAccess(regMachine.nextRegister(reg), offset, size)
-                case _                      => src
+                case _                            => src
             }
             scopeInstructions += Mov(destReg, srcReg)
                         

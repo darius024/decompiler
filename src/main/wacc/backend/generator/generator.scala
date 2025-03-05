@@ -7,8 +7,8 @@ import immediate.*
 import instructions.*
 import memory.*
 import registers.*
-import widgets.*
 import utils.*
+import widgets.*
 
 import wacc.semantics.scoping.semanticTypes.*
 import wacc.semantics.typing.*
