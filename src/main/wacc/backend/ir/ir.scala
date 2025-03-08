@@ -177,17 +177,20 @@ object instructions {
 
     /** Comparison operations */
     /** compare two values. */
-    case class Cmp[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
+    case class Cmp[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
     /** set a register based on a comparison result. */
     case class SetComp(dest: Register, compFlag: CompFlag) extends Instruction {
         require(dest.size == RegSize.BYTE)
     }
 
+    /** Common format of binary instructions. */
+    sealed trait BinaryInstr extends Instruction { val dest: Register; val src: RegImm }
+
     /** Arithmetic operations */
     /** add source to destination. */
-    case class Add[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
+    case class Add[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
     /** subtract source from destination. */
-    case class Sub[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
+    case class Sub[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
     /** multiply source1 by source2 and store in destination. */
     case class Mul[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
     /** compute remainder of division. */
@@ -197,11 +200,11 @@ object instructions {
 
     /** Logical operations */
     /** bitwise AND of destination and source. */
-    case class And [S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
+    case class And [S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
     /** bitwise OR of destination and source. */
-    case class Or  [S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
+    case class Or  [S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
     /** bitwise AND test (sets flags but doesn't store result). */
-    case class Test[S <: RegSize] (dest: Register & SizedAs[S], src1: RegImm & SizedAs[S]) extends Instruction
+    case class Test[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
 
     /** Data movement */
     /** move data from source to destination. */

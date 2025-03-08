@@ -63,7 +63,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
         
         case Pop(RBP(_)) =>
             // save all callee registers on the stack at the beginning of function
-            val calleeRegistersToSave = (calleeSaved ::: paramRegisters).take(regMachine.currentStackSize)
+            val calleeRegistersToSave = (RBX() :: (calleeSaved ::: paramRegisters)).take(regMachine.currentStackSize)
             regMachine.stackSize = calleeRegistersToSave.length * RegSize.QUAD_WORD.size
 
             // set up the frame pointer

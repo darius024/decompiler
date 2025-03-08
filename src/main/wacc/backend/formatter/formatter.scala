@@ -107,9 +107,9 @@ def formatInstruction(instr: Instruction, syntax: SyntaxStyle): String = {
         }
         ops match {
             case Seq(reg1: Register, reg2: Register) if reg1.size.size > reg2.size.size => 
-                f"    $opcode$size%-2s ${List(formatOperand(reg1, syntax), formatOperand(reg2, syntax)).mkString(", ")}"
+                f"    $opcode%-6s$size ${List(formatOperand(reg1, syntax), formatOperand(reg2, syntax)).mkString(", ")}"
             case _ =>
-                f"    $opcode$size%-2s ${ops.map(formatOperand(_, syntax)).mkString(", ")}"
+                f"    $opcode%-6s$size ${ops.map(formatOperand(_, syntax)).mkString(", ")}"
         }
     }
 
