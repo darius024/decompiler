@@ -104,7 +104,9 @@ object registers {
 /** Immediate values used in assembly instructions. */
 object immediate {
     /** Base trait for all immediate values. */
-    sealed trait Immediate extends SizedAs[RegSize]
+    sealed trait Immediate extends SizedAs[RegSize] {
+        val value: Int
+    }
     /** integer immediate value. */
     case class Imm(value: Int) extends Immediate {
         val size = RegSize.DOUBLE_WORD
@@ -259,7 +261,9 @@ object constants {
     final val SUCCESS = 0        // success exit code
     final val STACK_ADDR = 16    // stack address offset in functions
     final val DIVISION_OVERFLOW_CHECK = -1 // division overflow
-    final val ALIGN = 7
+    final val ALIGN = 7          // use for stack alignment
+    final val ARR_PAIR_WGHT = 3  // weight of an array or pair access
+    final val HIGH_WEIGHT = 6    // high weight approximation
 }
 
 /** Memory offsets used in the code generation. */

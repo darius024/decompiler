@@ -35,7 +35,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
         case label @ Label(name) =>
             scopeInstructions += label
             // check for entering a new scope
-            if (name == "main" && name.startsWith("wacc_")) {
+            if (name == "main" || name.startsWith("wacc_")) {
                 if (name == "main") { regMachine.inMain = true }
 
                 // start a new function scope
