@@ -19,6 +19,10 @@ object utils {
     def compileTest(path: Path): (String, ExitCode) =
         wacc.compile(new File(path.toString))
 
+    /** Decompiles program at path `p`, returning error message and exit code. */
+    def decompileTest(path: Path): (String, ExitCode) =
+        wacc.decompile(new File(path.toString))
+
     /** Lists the categories of tests in a directory. */
     def listCategories(path: Path): Generator[String] =
         os.list.stream(path).filter(os.isDir).map(_.baseName)

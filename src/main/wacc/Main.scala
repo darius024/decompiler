@@ -43,6 +43,11 @@ def compile(file: File): (String, ExitCode) = {
     ("Code compiled successfully.", ExitCode.Success)
 }
 
+/** Decompile the given input file and transform it through all the pipeline steps. */
+def decompile(file: File): (String, ExitCode) = {
+    ("Code decompiled successfully.", ExitCode.Success)
+}
+
 /** Using an enum of fixed codes to prevent invalid codes being used. */
 enum ExitCode(val code: Int) {
     case Success     extends ExitCode(exitCodes.SUCCESS)
