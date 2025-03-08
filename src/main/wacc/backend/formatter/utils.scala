@@ -6,9 +6,9 @@ import instructions.*
 import registers.*
 
 /** 
- * Formats a comparison flag for use in conditional instructions.
- * These flags determine when conditional operations are executed.
- */
+  * Formats a comparison flag for use in conditional instructions.
+  * These flags determine when conditional operations are executed.
+  */
 def formatCompFlag(flag: CompFlag): String = flag match {
     case CompFlag.E  => "e"   // equal
     case CompFlag.NE => "ne"  // not equal
@@ -19,17 +19,17 @@ def formatCompFlag(flag: CompFlag): String = flag match {
 }
 
 /** 
- * Formats a jump flag for unconditional jumps or jumps on overflow.
- */
+  * Formats a jump flag for unconditional jumps or jumps on overflow.
+  */
 def formatJumpFlag(flag: JumpFlag): String = flag match {
     case JumpFlag.Overflow      => "o"   // jump if overflow
     case JumpFlag.Unconditional => "mp"  // unconditional jump
 }
 
 /** 
- * Returns the size specifier string for memory access operations.
- * This determines how many bytes are read/written in memory operations.
- */
+  * Returns the size specifier string for memory access operations.
+  * This determines how many bytes are read/written in memory operations.
+  */
 def sizePtrIntel(size: RegSize): String = size match {
     case RegSize.BYTE        => "byte"   // 1 byte
     case RegSize.WORD        => "word"   // 2 bytes
@@ -45,9 +45,9 @@ def sizePtrATT(size: RegSize): String = size match {
 }
 
 /** 
- * Formats a parameter register (RAX, RBX, RCX, RDX) according to its size.
- * The register name changes based on how many bytes are being accessed.
- */
+  * Formats a parameter register (RAX, RBX, RCX, RDX) according to its size.
+  * The register name changes based on how many bytes are being accessed.
+  */
 def parameterRegister(reg: String, size: RegSize, syntax: SyntaxStyle): String = {
     syntax match {
         case SyntaxStyle.ATT   => s"%${getParameterRegisterIntel(reg, size)}"
@@ -63,9 +63,9 @@ def getParameterRegisterIntel(reg: String, size: RegSize): String = size match {
 }
 
 /** 
- * Formats a special register (RDI, RSI, RBP, RIP, RSP) according to its size.
- * The register name changes based on how many bytes are being accessed.
- */
+  * Formats a special register (RDI, RSI, RBP, RIP, RSP) according to its size.
+  * The register name changes based on how many bytes are being accessed.
+  */
 def specialRegister(reg: String, size: RegSize, syntax: SyntaxStyle): String = {
     syntax match {
         case SyntaxStyle.Intel => getSpecialRegisterIntel(reg, size)
@@ -81,9 +81,9 @@ def getSpecialRegisterIntel(reg: String, size: RegSize): String = size match {
 }
 
 /** 
- * Formats a numbered register (R8-R15) according to its size.
- * The register name changes based on how many bytes are being accessed.
- */
+  * Formats a numbered register (R8-R15) according to its size.
+  * The register name changes based on how many bytes are being accessed.
+  */
 def numberedRegister(reg: String, size: RegSize, syntax: SyntaxStyle): String = {
     syntax match {
         case SyntaxStyle.Intel => getNumberedRegisterIntel(reg, size)
@@ -99,9 +99,9 @@ def getNumberedRegisterIntel(reg: String, size: RegSize): String = size match {
 }
 
 /** 
- * Escapes special characters in string literals for proper assembly output.
- * Ensures that control characters are properly represented in the assembly.
- */
+  * Escapes special characters in string literals for proper assembly output.
+  * Ensures that control characters are properly represented in the assembly.
+  */
 def formatString(name: String): String = name
     .replace("\\", "\\\\")
     .replace("\u0000", "\\0")
@@ -114,9 +114,9 @@ def formatString(name: String): String = name
     .replace("\"", "\\\"")
 
 /** 
- * Determines the appropriate size for operands in an instruction.
- * Ensures that operands have compatible sizes.
- */
+  * Determines the appropriate size for operands in an instruction.
+  * Ensures that operands have compatible sizes.
+  */
 def matchSize(operands: Seq[RegImmMemLabel]): RegSize = operands.match {
     case Seq(reg: Register, _, _)            => reg.size
     case Seq(reg1: Register, reg2: Register) if reg1.size.size > reg2.size.size => reg2.size
@@ -127,17 +127,17 @@ def matchSize(operands: Seq[RegImmMemLabel]): RegSize = operands.match {
 }
 
 /** 
- * Determines if a move instruction must zero out the destination register's value.
- * Happens when a lower size register is moved into a higher size register.
- */
+  * Determines if a move instruction must zero out the destination register's value.
+  * Happens when a lower size register is moved into a higher size register.
+  */
 def flagSize(oper1: RegImmMem, oper2: RegImmMem): String = (oper1, oper2) match {
     case (reg1: Register, reg2: Register) if reg1.size.size > reg2.size.size => "zx"
     case _                                                                   => ""
 }
 
 /** 
- * Converts a byte count to the corresponding register size enum.
- */
+  * Converts a byte count to the corresponding register size enum.
+  */
 def sizeToReg(size: Int): RegSize = size match {
     case 1 => RegSize.BYTE
     case 2 => RegSize.WORD

@@ -7,8 +7,8 @@ import immediate.*
 import instructions.*
 import memory.*
 import registers.*
-import widgets.*
 import utils.*
+import widgets.*
 
 import wacc.semantics.scoping.semanticTypes.*
 import wacc.semantics.typing.*
@@ -343,7 +343,7 @@ def generate(expr: TyExpr)
     // array length operation
     case TyExpr.Len(expr) => 
         val temp = generate(expr)
-        val resultReg = RETURN_REG(RegSize.DOUBLE_WORD)//codeGen.nextTemp(RegSize.DOUBLE_WORD)
+        val resultReg = RETURN_REG(RegSize.DOUBLE_WORD)
         // the array length is stored 4 bytes before the array data
         codeGen.addInstr(Mov(resultReg, MemAccess(temp, memoryOffsets.ARRAY_LENGTH_OFFSET, RegSize.DOUBLE_WORD)))
         resultReg
@@ -351,7 +351,7 @@ def generate(expr: TyExpr)
     // character to integer conversion
     case TyExpr.Ord(expr) =>
         val temp = generate(expr)
-        val resultReg = RETURN_REG(RegSize.DOUBLE_WORD)//codeGen.nextTemp(RegSize.DOUBLE_WORD)
+        val resultReg = RETURN_REG(RegSize.DOUBLE_WORD)
         codeGen.addInstr(Mov(resultReg, temp))
         resultReg
     

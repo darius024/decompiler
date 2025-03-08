@@ -104,7 +104,9 @@ object registers {
 /** Immediate values used in assembly instructions. */
 object immediate {
     /** Base trait for all immediate values. */
-    sealed trait Immediate extends SizedAs[RegSize]
+    sealed trait Immediate extends SizedAs[RegSize] {
+        val value: Int
+    }
     /** integer immediate value. */
     case class Imm(value: Int) extends Immediate {
         val size = RegSize.DOUBLE_WORD
@@ -175,17 +177,20 @@ object instructions {
 
     /** Comparison operations */
     /** compare two values. */
-    case class Cmp[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
+    case class Cmp[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
     /** set a register based on a comparison result. */
     case class SetComp(dest: Register, compFlag: CompFlag) extends Instruction {
         require(dest.size == RegSize.BYTE)
     }
 
+    /** Common format of binary instructions. */
+    sealed trait BinaryInstr extends Instruction { val dest: Register; val src: RegImm }
+
     /** Arithmetic operations */
     /** add source to destination. */
-    case class Add[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
+    case class Add[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
     /** subtract source from destination. */
-    case class Sub[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
+    case class Sub[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
     /** multiply source1 by source2 and store in destination. */
     case class Mul[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
     /** compute remainder of division. */
@@ -195,11 +200,11 @@ object instructions {
 
     /** Logical operations */
     /** bitwise AND of destination and source. */
-    case class And [S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
+    case class And [S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
     /** bitwise OR of destination and source. */
-    case class Or  [S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
+    case class Or  [S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
     /** bitwise AND test (sets flags but doesn't store result). */
-    case class Test[S <: RegSize] (dest: Register & SizedAs[S], src1: RegImm & SizedAs[S]) extends Instruction
+    case class Test[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
 
     /** Data movement */
     /** move data from source to destination. */
@@ -259,7 +264,9 @@ object constants {
     final val SUCCESS = 0        // success exit code
     final val STACK_ADDR = 16    // stack address offset in functions
     final val DIVISION_OVERFLOW_CHECK = -1 // division overflow
-    final val ALIGN = 7
+    final val ALIGN = 7          // use for stack alignment
+    final val ARR_PAIR_WGHT = 3  // weight of an array or pair access
+    final val HIGH_WEIGHT = 6    // high weight approximation
 }
 
 /** Memory offsets used in the code generation. */

@@ -1,7 +1,6 @@
 package wacc.backend.formatter
 
-import java.io.{File, OutputStream}
-import os.*
+import java.io.OutputStream
 
 import wacc.backend.generator.*
 import wacc.backend.ir.*
@@ -21,22 +20,23 @@ enum SyntaxStyle {
 }
 
 /**
- * Formats the assembly instructions produced by the code generator.
- * 
- * This module handles the conversion from IR instructions to actual assembly text,
- * writing the output to a .s file with the same name as the input WACC file.
- */
-def format(codeGen: CodeGenerator, file: File, syntax: SyntaxStyle): Unit = {
-    // create output file with the same name as the input but with .s extension
-    val outputPath = os.pwd / s"${file.getName.stripSuffix(".wacc")}.s"
-    given outputStream: OutputStream = os.write.outputStream(outputPath)
-
+  * Formats the assembly instructions produced by the code generator.
+  * 
+  * This module handles the conversion from IR instructions to actual assembly text,
+  * writing the output to a .s file with the same name as the input WACC file.
+  */
+def format(codeGen: CodeGenerator, syntax: SyntaxStyle)
+          (using outputStream: OutputStream): Unit = {
     try {
         formatHeader(syntax)
         formatBlock(codeGen.data, syntax)
         format(codeGen.ir, syntax)
         formatWidgets(codeGen.dependencies, syntax)
-    } finally {
+    } catch {
+        case e: Throwable =>
+            println(s"Could not write to the output stream: ${e.getMessage}")
+    }
+    finally {
         outputStream.close()
     }
 }
@@ -53,14 +53,14 @@ def format(instructions: List[Instruction], syntax: SyntaxStyle)
 def formatHeader(syntax: SyntaxStyle) (using outputStream: OutputStream): Unit = {
     syntax match {
         case SyntaxStyle.Intel => format(List(IntelSyntax, Global("main")), syntax)
-        case SyntaxStyle.ATT => format(List(Global("main")), syntax)
+        case SyntaxStyle.ATT   => format(List(Global("main")), syntax)
     }
 }
 
 /** 
- * Formats the data segment containing string literals.
- * Creates the .rodata section and adds all string constants.
- */
+  * Formats the data segment containing string literals.
+  * Creates the .rodata section and adds all string constants.
+  */
 def formatBlock(directives: Set[StrLabel], syntax: SyntaxStyle)
                (using outputStream: OutputStream): Unit = {
     // mark the beginning of the data segment
@@ -81,9 +81,9 @@ def formatDirective(strLabel: StrLabel, syntax: SyntaxStyle)
 }
 
 /** 
- * Formats runtime support functions (widgets).
- * Each widget has its own data and code segments.
- */
+  * Formats runtime support functions (widgets).
+  * Each widget has its own data and code segments.
+  */
 def formatWidgets(widgets: Set[Widget], syntax: SyntaxStyle)
                  (using outputStream: OutputStream): Unit = widgets.foreach { widget =>
     formatBlock(widget.directives, syntax)
@@ -93,28 +93,29 @@ def formatWidgets(widgets: Set[Widget], syntax: SyntaxStyle)
 
 /** Transforms IR instructions into their corresponding assembly text. */
 def formatInstruction(instr: Instruction, syntax: SyntaxStyle): String = {
-    syntax match {
-        case SyntaxStyle.Intel => formatIntelInstruction(instr)
-        case SyntaxStyle.ATT => formatATTInstruction(instr)
-    }
-}
-
-def formatIntelInstruction(instr: Instruction): String = {
     /** Helper function to format instructions with uniform spacing. */
     def format(opcode: String, operands: RegImmMemLabel*): String = {
-        val size = matchSize(operands)
-        operands match {
-            case Seq(reg1: Register, reg2: Register) if reg1.size.size > reg2.size.size => 
-                f"    $opcode%-6s ${List(formatOperand(reg1, reg1.size, SyntaxStyle.Intel), formatOperand(reg2, reg2.size, SyntaxStyle.Intel)).mkString(", ")}"
-            case _ =>
-                f"    $opcode%-6s ${operands.map(formatOperand(_, size, SyntaxStyle.Intel)).mkString(", ")}"
+        var ops = operands
+        val size = syntax match {
+            case SyntaxStyle.Intel => ""
+            case SyntaxStyle.ATT   =>
+                ops = operands.toList.reverse
+                ops.toList match {
+                    case (reg: RegMem) :: _ => s"${sizePtrATT(reg.size)}"
+                    case _                  => ""
+                }
         }
-        // f"    $opcode%-6s ${operands.map(formatOperand(_, size)).mkString(", ")}"
+        ops match {
+            case Seq(reg1: Register, reg2: Register) if reg1.size.size > reg2.size.size => 
+                f"    $opcode%-6s$size ${List(formatOperand(reg1, syntax), formatOperand(reg2, syntax)).mkString(", ")}"
+            case _ =>
+                f"    $opcode%-6s$size ${ops.map(formatOperand(_, syntax)).mkString(", ")}"
+        }
     }
 
     instr match {
         // assembly directives
-        case IntelSyntax            =>  ".intel_syntax noprefix"
+        case IntelSyntax            => ".intel_syntax noprefix"
         case SectionRoData          => ".section .rodata"
         case Text                   => ".text"
         case Label(name)            => s"$name:"
@@ -159,46 +160,6 @@ def formatIntelInstruction(instr: Instruction): String = {
     }
 }
 
-def formatATTInstruction(instr: Instruction): String = {
-    /** Helper function to format instructions with uniform spacing. */
-    def format(opcode: String, operands: RegImmMemLabel*): String = {
-        val size = matchSize(operands)
-        f"    $opcode%-6s ${operands.map(formatOperand(_, size, SyntaxStyle.ATT)).mkString(", ")}"
-    }
-    
-    instr match {
-        // stack operations
-        case Push(reg)              => format("pushq", reg)
-        case Pop(reg)               => format("popq" , reg)
-
-        // arithmetic operations
-        case Add(dest, src)         => format(s"add${sizePtrATT(dest.size)}", src, dest)
-        case Sub(dest, src)         => format(s"sub${sizePtrATT(dest.size)}", src, dest)
-        case Mul(dest, src)         => format(s"imul${sizePtrATT(dest.size)}", src, dest)
-        case Div(src)               => format("idivl", src)
-        case Mod(src)               => format("idivl" , src)
-        case And(dest, src)         => format(s"and${sizePtrATT(dest.size)}", src, dest)
-        case Or(dest, src)          => format(s"or${sizePtrATT(dest.size)}", src, dest)
-
-        // data movement
-        case CMov(dest, src, cond)  => format(s"cmov${formatCompFlag(cond)}${sizePtrATT(dest.size)}", src, dest)
-        case Mov(dest, src)         => format(s"mov${dest match { case reg: Register => sizePtrATT(reg.size); case _ => "q" }}", src, dest)
-        case Lea(dest, addr)        => format(s"lea${sizePtrATT(dest.size)}", addr, dest)
-
-        // control flow
-        case Call(label)            => format("call", label)
-
-        // comparison operations
-        case Cmp(src1, src2)        => format(s"cmp${sizePtrATT(src1.size)}", src2, src1)
-        case Test(src1, src2)       => format(s"test${sizePtrATT(src1.size)}", src2, src1)
-        case SetComp(dest, flag)    => format(s"set${formatCompFlag(flag)}${sizePtrATT(dest.size)}", dest)
-        case JumpComp(label, flag)  => format(s"j${formatCompFlag(flag)}", label)
-        case ConvertDoubleToQuad    => format("cltd")
-        
-        case _                     => formatIntelInstruction(instr)
-    }
-}
-
 /** Checks if a function is an external C library function that needs @plt suffix. */
 def isExternalFunction(name: String): Boolean = {
     val externalFunctions = Set("exit", "fflush", "free", "malloc", "printf", "puts", "scanf")
@@ -206,94 +167,85 @@ def isExternalFunction(name: String): Boolean = {
 }
 
 /** Formats an operand according to its type (register, immediate, memory, or label). */
-def formatOperand(op: RegImmMemLabel, size: RegSize = RegSize.QUAD_WORD, syntax: SyntaxStyle): String = op match {
-    case reg: Register     => formatRegister(reg, reg.size, syntax)
+def formatOperand(op: RegImmMemLabel, syntax: SyntaxStyle): String = op match {
+    case reg: Register     => formatRegister(reg, syntax)
     case imm: Immediate    => formatImmediate(imm, syntax)
-    case mem: MemoryAccess => formatMemAccess(mem, mem.size, syntax)
+    case mem: MemoryAccess => formatMemAccess(mem, syntax)
     case label: Label      => label.name
     case str: String       => str
 }
 
 /** Formats an immediate value. */
-def formatImmediate(imm: Immediate, syntax: SyntaxStyle): String = {
-    (imm, syntax) match {
-        case (Imm(value), SyntaxStyle.Intel) => s"$value"
-        case (Imm(value), SyntaxStyle.ATT) => s"$value"
-    }
-}
-/** 
- * Formats a memory access expression.
- * Handles different addressing modes including base+offset and base+index*scale.
- */
-def formatMemAccess(mem: MemoryAccess, size: RegSize, syntax: SyntaxStyle): String = {
-    syntax match {
-        case SyntaxStyle.Intel => formatMemAccessIntel(mem, size)
-        case SyntaxStyle.ATT => formatMemAccessATT(mem, size)
-    }
+def formatImmediate(imm: Immediate, syntax: SyntaxStyle): String = syntax match {
+    case SyntaxStyle.Intel => s"${imm.value}"
+    case SyntaxStyle.ATT   => s"$$${imm.value}"
 }
 
-def formatMemAccessIntel(mem: MemoryAccess, dim: RegSize): String = mem match {
-    case MemAccess(reg: Register, offset: Int, size) => 
-        val operand = if (offset == 0) s"[${formatRegister(reg, reg.size, SyntaxStyle.Intel)}]" else s"[${formatRegister(reg, reg.size, SyntaxStyle.Intel)} ${if offset > 0 then "+" else ""} $offset]"
-        s"${sizePtrIntel(size)} ptr $operand"
+/** 
+  * Formats a memory access expression.
+  * Handles different addressing modes including base+offset and base+index*scale.
+  */
+def formatMemAccess(mem: MemoryAccess, syntax: SyntaxStyle): String = mem match {
+    case MemAccess(reg: Register, offset: Int, size) =>
+        val regFormat = formatRegister(reg, syntax)
+        syntax match {
+            case SyntaxStyle.Intel =>
+                val operand = if (offset == 0) s"[$regFormat]"
+                             else s"[$regFormat ${if offset > 0 then "+" else "-"} ${math.abs(offset)}]"
+                s"${sizePtrIntel(size)} ptr $operand"
+            case SyntaxStyle.ATT   =>
+                if (offset == 0) s"(${regFormat})"
+                else s"$offset(${regFormat})"
+        }
 
     // RIP-relative addressing doesn't require size specifier
-    case MemAccess(reg @ RIP(_), offset: Label, size) =>
-        s"[${formatRegister(reg, reg.size, SyntaxStyle.Intel)} + ${offset.name}]"
-    case MemAccess(reg: Register, offset: Label, size) =>
-        s"${sizePtrIntel(size)} ptr [${formatRegister(reg, reg.size, SyntaxStyle.Intel)} + ${offset.name}]"
+    case MemAccess(reg @ RIP(_), label: Label, size) =>
+        val regFormat = formatRegister(reg, syntax)
+        syntax match {
+            case SyntaxStyle.Intel => s"[$regFormat + ${label.name}]"
+            case SyntaxStyle.ATT   => s"${label.name}(${regFormat})"
+        }
+    case MemAccess(reg: Register, label: Label, size) =>
+        val regFormat = formatRegister(reg, syntax)
+        syntax match {
+            case SyntaxStyle.Intel => s"${sizePtrIntel(size)} ptr [$regFormat + ${label.name}]"
+            case SyntaxStyle.ATT   => s"${label.name}(${regFormat})"
+        }
     
-    // base + index*scale addressing mode
+    // base + index * scale addressing mode
     case MemRegAccess(base, reg, coeff, size) =>
-        s"${sizePtrIntel(size)} ptr [${formatRegister(base, base.size, SyntaxStyle.Intel)} + ${formatRegister(reg, reg.size, SyntaxStyle.Intel)} * $coeff]"
-}
-
-def formatMemAccessATT(mem: MemoryAccess, dim: RegSize): String = mem match {
-    case MemAccess(reg: Register, offset: Int, size) => 
-        // Remove the % from the register as it's already included in formatRegister for AT&T
-        val regStr = formatRegister(reg, reg.size, SyntaxStyle.ATT)
-        if (offset == 0) s"(${regStr})"
-        else s"$offset(${regStr})"
-    
-    // RIP-relative addressing
-    case MemAccess(reg @ RIP(_), offset: Label, size) =>
-        val regStr = formatRegister(reg, reg.size, SyntaxStyle.ATT)
-        s"${offset.name}(${regStr})"
-    case MemAccess(reg: Register, offset: Label, size) =>
-        val regStr = formatRegister(reg, reg.size, SyntaxStyle.ATT)
-        s"${offset.name}(${regStr})"
-    
-    // base + index*scale addressing mode
-    case MemRegAccess(base, reg, coeff, size) =>
-        val baseStr = formatRegister(base, base.size, SyntaxStyle.ATT)
-        val regStr = formatRegister(reg, reg.size, SyntaxStyle.ATT)
-        s"(${baseStr},${regStr},$coeff)"
+        val baseFormat = formatRegister(base, syntax)
+        val regFormat = formatRegister(reg, syntax)
+        syntax match {
+            case SyntaxStyle.Intel => s"${sizePtrIntel(size)} ptr [$baseFormat + $regFormat * $coeff]"
+            case SyntaxStyle.ATT   => s"(${baseFormat},${regFormat},$coeff)"
+        }
 }
 
 /** Formats a register name according to its size. */
-def formatRegister(reg: Register, size: RegSize, syntax: SyntaxStyle): String = reg match {
+def formatRegister(reg: Register, syntax: SyntaxStyle): String = reg match {
     // general purpose registers
-    case RAX(_) => parameterRegister("a", size, syntax)
-    case RBX(_) => parameterRegister("b", size, syntax)
-    case RCX(_) => parameterRegister("c", size, syntax)
-    case RDX(_) => parameterRegister("d", size, syntax)
+    case RAX(size) => parameterRegister("a", size, syntax)
+    case RBX(size) => parameterRegister("b", size, syntax)
+    case RCX(size) => parameterRegister("c", size, syntax)
+    case RDX(size) => parameterRegister("d", size, syntax)
 
     // special purpose registers
-    case RDI(_) => specialRegister("di", size, syntax)
-    case RSI(_) => specialRegister("si", size, syntax)
-    case RBP(_) => specialRegister("bp", size, syntax)
-    case RIP(_) => specialRegister("ip", size, syntax)
-    case RSP(_) => specialRegister("sp", size, syntax)
+    case RDI(size) => specialRegister("di", size, syntax)
+    case RSI(size) => specialRegister("si", size, syntax)
+    case RBP(size) => specialRegister("bp", size, syntax)
+    case RIP(size) => specialRegister("ip", size, syntax)
+    case RSP(size) => specialRegister("sp", size, syntax)
 
     // extended registers (r8-r15)
-    case R8 (_) => numberedRegister("8" , size, syntax)
-    case R9 (_) => numberedRegister("9" , size, syntax)
-    case R10(_) => numberedRegister("10", size, syntax)
-    case R11(_) => numberedRegister("11", size, syntax)
-    case R12(_) => numberedRegister("12", size, syntax)
-    case R13(_) => numberedRegister("13", size, syntax)
-    case R14(_) => numberedRegister("14", size, syntax)
-    case R15(_) => numberedRegister("15", size, syntax)
+    case R8 (size) => numberedRegister("8" , size, syntax)
+    case R9 (size) => numberedRegister("9" , size, syntax)
+    case R10(size) => numberedRegister("10", size, syntax)
+    case R11(size) => numberedRegister("11", size, syntax)
+    case R12(size) => numberedRegister("12", size, syntax)
+    case R13(size) => numberedRegister("13", size, syntax)
+    case R14(size) => numberedRegister("14", size, syntax)
+    case R15(size) => numberedRegister("15", size, syntax)
 
     // for debugging
     case TempReg(num, size) => "TEMP_REG"
