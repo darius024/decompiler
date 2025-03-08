@@ -1,20 +1,20 @@
 package wacc
 
-import java.io.File
+import java.io.{File, OutputStream}
 import parsley.{Success, Failure}
+
 import wacc.backend.*
 import wacc.frontend.*
-import wacc.backend.formatter.SyntaxStyle
 
-// entry point
+/** Entry point of the program. */
 @main
 def main(path: String): Unit = {
     val (errs, code) = compile(new File(path))
     println(errs)
-    code.enforce()
+    code.enforce
 }
 
-// compilation pipeline
+/** Compile the given input file and transform it through all the pipeline steps. */
 def compile(file: File): (String, ExitCode) = {
     // parsing and syntax analysis
     val ast = parser.parse(file) match {
@@ -32,8 +32,13 @@ def compile(file: File): (String, ExitCode) = {
         case Left(errs) => return (s"${semantics.format(errs, file)}", ExitCode.SemanticErr)
     }
 
+    // create output file: {prog}.wacc --> {prog}.s
+    given outputStream: OutputStream = os.write.outputStream(
+        os.pwd / s"${file.getName.stripSuffix(".wacc")}.s"
+    )
+
     // code generation and assembly formatter
-    formatter.format(generator.generate(typedAst), file, SyntaxStyle.Intel)
+    formatter.format(generator.generate(typedAst), formatter.SyntaxStyle.Intel)
 
     ("Code compiled successfully.", ExitCode.Success)
 }
@@ -44,9 +49,10 @@ enum ExitCode(val code: Int) {
     case SyntaxErr   extends ExitCode(exitCodes.SYNTAX_ERROR)
     case SemanticErr extends ExitCode(exitCodes.SEMANTIC_ERROR)
 
-    def enforce(): Unit = System.exit(code)
+    def enforce: Unit = System.exit(code)
 }
 
+/** Exit codes for program exit status. */
 object exitCodes {
     final val SUCCESS = 0
     final val SYNTAX_ERROR = 100

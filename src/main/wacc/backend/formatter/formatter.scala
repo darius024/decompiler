@@ -1,7 +1,6 @@
 package wacc.backend.formatter
 
-import java.io.{File, OutputStream}
-import os.*
+import java.io.OutputStream
 
 import wacc.backend.generator.*
 import wacc.backend.ir.*
@@ -26,17 +25,18 @@ enum SyntaxStyle {
   * This module handles the conversion from IR instructions to actual assembly text,
   * writing the output to a .s file with the same name as the input WACC file.
   */
-def format(codeGen: CodeGenerator, file: File, syntax: SyntaxStyle): Unit = {
-    // create output file with the same name as the input but with .s extension
-    val outputPath = os.pwd / s"${file.getName.stripSuffix(".wacc")}.s"
-    given outputStream: OutputStream = os.write.outputStream(outputPath)
-
+def format(codeGen: CodeGenerator, syntax: SyntaxStyle)
+          (using outputStream: OutputStream): Unit = {
     try {
         formatHeader(syntax)
         formatBlock(codeGen.data, syntax)
         format(codeGen.ir, syntax)
         formatWidgets(codeGen.dependencies, syntax)
-    } finally {
+    } catch {
+        case e: Throwable =>
+            println(s"Could not write to the output stream: ${e.getMessage}")
+    }
+    finally {
         outputStream.close()
     }
 }
