@@ -3,6 +3,7 @@ stages:
   - unit-test
   - integration-frontend
   - integration-backend
+  - integration-extension
 
 variables:
   SCALA_FLAGS: "--server=false --jvm system"
@@ -42,4 +43,14 @@ integration-backend:
   artifacts:
     paths:
       - integration_backend_output.log
+    expire_in: never
+
+integration-extension:
+  stage: integration-extension
+  script:
+    - echo "Running extension integration tests..."
+    - scala test . --test-only 'wacc.integration.extension*' $SCALA_FLAGS | tee integration_extension_output.log
+  artifacts:
+    paths:
+      - integration_extension_output.log
     expire_in: never
