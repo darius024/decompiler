@@ -6,7 +6,6 @@ import wacc.semantics.scoping.semanticTypes.*
 import wacc.semantics.typing.*
 
 import wacc.backend.ir.*
-import wacc.backend.optimisation.*
 import constants.*
 import flags.*
 import instructions.*
@@ -67,7 +66,7 @@ class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruct
                     labeller: Labeller,
                     temp: Temporary,
                     widgets: WidgetManager) {
-    def ir: List[Instruction] = peephole(instructions.result())
+    def ir: List[Instruction] = instructions.result()
     def data: Set[StrLabel] = directives.result()
     def dependencies: Set[Widget] = widgets.usedWidgets ++ widgets.usedWidgets.flatMap(_.dependencies)
 
