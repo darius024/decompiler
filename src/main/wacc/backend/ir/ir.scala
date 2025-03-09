@@ -1,5 +1,7 @@
 package wacc.backend.ir
 
+import parsley.generic.*
+
 import flags.*
 import immediate.*
 import instructions.*
@@ -111,6 +113,8 @@ object immediate {
     case class Imm(value: Int) extends Immediate {
         val size = RegSize.DOUBLE_WORD
     }
+
+    object Imm extends ParserBridge1[Int, Imm]
 }
 
 /** Memory access expressions for assembly instructions. */
@@ -131,6 +135,10 @@ object memory {
       * Used for array indexing operations.
       */
     case class MemRegAccess(base: Register, reg: Register, coeff: Int, val size: RegSize = RegSize.QUAD_WORD) extends MemoryAccess
+
+
+    object MemAccess extends ParserBridge3[Register, Int | Label, RegSize, MemAccess]
+    object MemRegAccess extends ParserBridge4[Register, Register, Int, RegSize, MemRegAccess]
 }
 
 /** Intermediate representation of assembly instructions. */
@@ -151,9 +159,9 @@ object instructions {
     /** AT&T syntax directive. */
     case object ATTSyntax extends Directive
     /** read-only data section directive. */
-    case object SectionRoData extends Directive
+    case object SectionRoData extends Directive with ParserBridge0[Instruction]
     /** code section directive. */
-    case object Text extends Directive
+    case object Text extends Directive with ParserBridge0[Instruction]
     /** label definition. */
     case class Label(name: String) extends Directive
     /** global symbol declaration. */
@@ -218,7 +226,7 @@ object instructions {
 
     /** Control flow */
     /** return from function. */
-    case object Ret extends Instruction
+    case object Ret extends Instruction with ParserBridge0[Instruction]
     /** call a function. */
     case class Call(label: Label) extends Instruction
     /** jump to a label. */
@@ -227,7 +235,42 @@ object instructions {
     case class JumpComp(label: Label, compFlag: CompFlag) extends Instruction
 
     /** sign extend EAX into EDX (used for division). */
-    case object ConvertDoubleToQuad extends Instruction
+    case object ConvertDoubleToQuad extends Instruction with ParserBridge0[Instruction]
+
+
+
+    // object SectionRoData extends ParserBridge0[Instruction]
+    // object Text extends ParserBridge0[Instruction]
+    object Label extends ParserBridge1[String, Label]
+    object Global extends ParserBridge1[String, Global]
+    object StrLabel extends ParserBridge2[Label, String, StrLabel]
+    object DirInt extends ParserBridge1[Int, DirInt]
+    object Asciz extends ParserBridge1[String, Asciz]
+
+    object Push extends ParserBridge1[Register, Push]
+    object Pop extends ParserBridge1[Register, Pop]
+    // object Cmp extends ParserBridge2[Register, RegImm, Cmp]
+    // object Add extends ParserBridge2[Register, RegImm, Add]
+    // object Sub extends ParserBridge2[Register, RegImm, Sub]
+    // object Mul extends ParserBridge2[Register, RegImm, Mul]
+    // object And extends ParserBridge2[Register, RegImm, And]
+    // object Or extends ParserBridge2[Register, RegImm, Or]
+    // object Test extends ParserBridge2[Register, RegImm, Test]
+
+    object Mod extends ParserBridge1[RegImm, Mod]
+    object Div extends ParserBridge1[RegImm, Div]
+
+    object SetComp extends ParserBridge2[Register, CompFlag, SetComp]
+    object Jump extends ParserBridge2[Label, JumpFlag, Jump]
+    object JumpComp extends ParserBridge2[Label, CompFlag, JumpComp]
+
+    // object Mov extends ParserBridge2[RegMem, RegImmMem, Mov]
+    object Lea extends ParserBridge2[Register, MemAccess, Lea]
+    // object CMov extends ParserBridge3[Register, Register, CompFlag, CMov]
+
+    // object Ret extends ParserBridge0[Instruction]
+    object Call extends ParserBridge1[Label, Call]
+    // object ConvertDoubleToQuad extends ParserBridge0[Instruction]
 }
 
 /** Flags used for conditional operations. */
