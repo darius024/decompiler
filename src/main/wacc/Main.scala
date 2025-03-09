@@ -6,76 +6,18 @@ import parsley.{Success, Failure}
 import wacc.backend.*
 import wacc.frontend.*
 
-import wacc.backend.formatter.SyntaxStyle
-import wacc.backend.generator.* 
-import wacc.backend.ir.instructions.*
-import wacc.backend.optimisation.*
+private final val AssemblySyntax = formatter.SyntaxStyle.Intel
 
 /** Entry point of the program. */
 @main
-def main(path: String, opt: String = "none", syntax: String = "intel"): Unit = {
-    val optimisationConfig = parseOptimisations(opt)
-
-    val syntaxStyle = parseSyntaxStyle(syntax)
-    val (errs, code) = compile(new File(path), optimisationConfig, syntaxStyle)
+def main(path: String, flags: String*): Unit = {
+    val (errs, code) = compile(new File(path), flags)
     println(errs)
     code.enforce
 }
 
-// parse comma-separated optmisation flags
-def parseOptimisations(opt: String): OptimisationConfig = opt match {
-    case "none" => OptimisationConfig()
-    case "all" => OptimisationConfig().all
-    case _ => 
-    val flags = opt.split(",").map(_.trim.toLowerCase)
-    val types = flags.flatMap { flag =>
-      OptimisationType.values.find(_.flagName == flag) match {
-        case Some(optType) => Some(optType)
-        case None => 
-          println(s"Unknown optimisation flag: $flag")
-          None
-      }
-    }
-    OptimisationConfig(enabledOpts = types.toSet)
-}
-
-// parse syntax style
-def parseSyntaxStyle(syntax: String): SyntaxStyle = syntax match {
-    case "intel" => SyntaxStyle.Intel
-    case "att" => SyntaxStyle.ATT
-    case _ => 
-        println(s"Unknown syntax style: $syntax. Defaulting to Intel.")
-        SyntaxStyle.Intel
-}
-
-// Apply the optmisation flags
-def applyOptimisations(codeGen: CodeGenerator, config: OptimisationConfig): CodeGenerator = {
-    var instructions = codeGen.ir
-
-    if (config.isEnabled) {
-        if (config.peephole) {
-            instructions = peephole(instructions)
-        }
-
-        // Add more optimisations here
-
-
-        // Update code
-        val newInstructionBuilder = List.newBuilder[Instruction]
-        instructions.foreach(newInstructionBuilder.addOne)
-        codeGen.instructions = newInstructionBuilder
-    } 
-    codeGen
-
-}
-
-
-
 /** Compile the given input file and transform it through all the pipeline steps. */
-def compile(file: File, 
-            config: OptimisationConfig = OptimisationConfig(), 
-            syntaxStyle: SyntaxStyle = SyntaxStyle.Intel 
-            ): (String, ExitCode) = {
+def compile(file: File, flags: Seq[String]): (String, ExitCode) = {
     // parsing and syntax analysis
     val ast = parser.parse(file) match {
         // on successful compilation, the AST is returned
@@ -92,21 +34,19 @@ def compile(file: File,
         case Left(errs) => return (s"${semantics.format(errs, file)}", ExitCode.SemanticErr)
     }
 
-    // Output optmisation info if any optmisations were applied
-    if (config.isEnabled) {
-        val appliedOpts = config.enabledOptimisations.mkString(", ")
-        println(s"Applying optimizations: $appliedOpts")
-    }
-
-    val irAssembly = generator.generate(typedAst)
-
     // create output file: {prog}.wacc --> {prog}.s
     given outputStream: OutputStream = os.write.outputStream(
         os.pwd / s"${file.getName.stripSuffix(".wacc")}.s"
     )
 
-    // code generation and assembly formatter
-    formatter.format(applyOptimisations(irAssembly, config), syntaxStyle)
+    // generate the intermediate representation
+    val instructions = generator.generate(typedAst)
+
+    // perform optimisations on the intermediate representation
+    val optimisedInstructions = optimisation.optimise(instructions.ir, flags)
+
+    // format the instructions into assembly
+    formatter.format(optimisedInstructions, AssemblySyntax)
 
     ("Code compiled successfully.", ExitCode.Success)
 }
@@ -117,6 +57,7 @@ enum ExitCode(val code: Int) {
     case SyntaxErr   extends ExitCode(exitCodes.SYNTAX_ERROR)
     case SemanticErr extends ExitCode(exitCodes.SEMANTIC_ERROR)
 
+    // exit with the provided code
     def enforce: Unit = System.exit(code)
 }
 
