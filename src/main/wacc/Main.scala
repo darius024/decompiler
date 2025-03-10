@@ -7,16 +7,18 @@ import wacc.backend.*
 import wacc.extension.*
 import wacc.frontend.*
 
+private final val AssemblySyntax = formatter.SyntaxStyle.Intel
+
 /** Entry point of the program. */
 @main
-def main(path: String): Unit = {
-    val (errs, code) = compile(new File(path))
+def main(path: String, flags: String*): Unit = {
+    val (errs, code) = compile(new File(path), flags)
     println(errs)
     code.enforce
 }
 
 /** Compile the given input file and transform it through all the pipeline steps. */
-def compile(file: File): (String, ExitCode) = {
+def compile(file: File, flags: Seq[String] = Seq.empty): (String, ExitCode) = {
     // parsing and syntax analysis
     val ast = parser.parse(file) match {
         // on successful compilation, the AST is returned
@@ -38,8 +40,14 @@ def compile(file: File): (String, ExitCode) = {
         os.pwd / s"${file.getName.stripSuffix(".wacc")}.s"
     )
 
-    // code generation and assembly formatter
-    formatter.format(generator.generate(typedAst), formatter.SyntaxStyle.Intel)
+    // generate the intermediate representation
+    val instructions = generator.generate(typedAst)
+
+    // perform optimisations on the intermediate representation
+    val optimisedInstructions = optimisation.optimise(instructions, flags)
+
+    // format the instructions into assembly
+    formatter.format(optimisedInstructions, AssemblySyntax)
 
     ("Code compiled successfully.", ExitCode.Success)
 }
@@ -62,6 +70,7 @@ enum ExitCode(val code: Int) {
     case SyntaxErr   extends ExitCode(exitCodes.SYNTAX_ERROR)
     case SemanticErr extends ExitCode(exitCodes.SEMANTIC_ERROR)
 
+    // exit with the provided code
     def enforce: Unit = System.exit(code)
 }
 
