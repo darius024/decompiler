@@ -9,8 +9,8 @@ import memory.*
 import registers.*
 
 object syntax {
-    object MemoryAcc extends ParserBridge3[Register, Option[Int], Option[Register], MemoryAccess] {
-        def apply(base: Register, offset: Option[Int], reg: Option[Register]): MemoryAccess = offset match {
+    object MemoryAcc extends ParserBridge3[Register, Option[Int | Label], Option[Register], MemoryAccess] {
+        def apply(base: Register, offset: Option[Int | Label], reg: Option[Register]): MemoryAccess = offset match {
             case Some(offset) => reg match {
                 case Some(reg) => MemRegAccess(base, reg, offset)
                 case None      => MemAccess(base, offset)

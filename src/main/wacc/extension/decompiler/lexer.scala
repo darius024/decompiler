@@ -5,6 +5,7 @@ import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions.*
 
 import wacc.backend.ir.flags.*
+import errorConfig.*
 
 /** Describes the lexical rules of the parser. */
 object lexer {
@@ -27,7 +28,6 @@ object lexer {
                 "call", "ret",
 
                 "j", "set", "cmov",
-                "jo", "jmp",
 
                 "add", "sub", "imul", "idiv", "and", "or",
                 "cmp", "test",
@@ -37,7 +37,19 @@ object lexer {
 
         NumericDesc.plain.copy(),
 
-        TextDesc.plain.copy(),
+        TextDesc.plain.copy(escapeSequences = EscapeDesc.plain.copy(
+            literals = Set('\"', '\'', '\\'),
+            mapping = Map(
+                "0" -> 0x0000,  // null
+                "b" -> 0x0008,  // backspace
+                "t" -> 0x0009,  // tab
+                "n" -> 0x000a,  // new line
+                "f" -> 0x000c,  // form feed
+                "r" -> 0x000d,  // carriage return
+            )),
+            graphicCharacter = Basic(c => c >= ' '.toInt
+                                       && !Set('\"', '\'', '\\').contains(c))
+        ),
 
         SpaceDesc.plain.copy(
             lineCommentStart = "#",
@@ -45,7 +57,7 @@ object lexer {
     )
 
     // lexer instance
-    private val lexer = Lexer(desc)
+    private val lexer = Lexer(desc, errConfig)
 
     // basic token type parsers
     val identifier = lexer.lexeme.names.identifier
@@ -63,9 +75,9 @@ object lexer {
              | lexer.lexeme.symbol("o") .as(JumpFlag.Overflow)
 
     val jumpCFlag = lexer.lexeme(lexer.nonlexeme.symbol("j")    ~> comp)
+    val jumpJFlag = lexer.lexeme(lexer.nonlexeme.symbol("j")    ~> jump)
     val setFlag   = lexer.lexeme(lexer.nonlexeme.symbol("set")  ~> comp)
     val cmovFlag  = lexer.lexeme(lexer.nonlexeme.symbol("cmov") ~> comp)
-    val jumpJFlag = lexer.lexeme(lexer.nonlexeme.symbol("j")    ~> jump)
 
     // higher-order parsers
     def brackets[A](p: => Parsley[A]): Parsley[A] = lexer.lexeme.brackets(p)

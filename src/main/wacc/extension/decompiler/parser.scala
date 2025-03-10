@@ -17,6 +17,8 @@ import instructions.*
 import memory.*
 import registers.*
 
+import advancedErrors.*
+
 /** Formulates the grammar rules the parser should follow. */
 object parser {
     type IRProgram = List[Instruction]
@@ -27,20 +29,24 @@ object parser {
     private lazy val immediate: Parsley[Immediate] =
         Imm(integer)
 
-    private lazy val register: Parsley[Register & SizedAs[RegSize]] =
+    private lazy val register: Parsley[Register & SizedAs[RegSize]] = labelRegister
         ( paramRegisters
         | specialRegisters
         | numberedRegisters
+        | _memory
         )
     
-    private lazy val memoryAccess: Parsley[MemoryAccess] = brackets(
-        MemoryAcc(register, option(("+" | "-") ~> integer), option("*" ~> register))
+    private lazy val memoryAccess: Parsley[MemoryAccess] = option(
+        ( "qword" | "dword" | "word" | "byte" ) ~> "ptr"
+    ) ~> brackets(
+        MemoryAcc(register, option(("+" | "-") ~> (integer | label)), option("*" ~> register))
     )
 
     private lazy val registerImmediate: Parsley[RegImm] =
         ( immediate
         | register
         )
+        
 
     private lazy val registerMemory: Parsley[RegMem] =
         ( register
@@ -74,8 +80,9 @@ object parser {
         | Or  ("or"   ~> register, "," ~> registerImmediate)
         | Cmp ("cmp"  ~> register, "," ~> registerImmediate)
         | Test("test" ~> register, "," ~> registerImmediate)
-        | Mod ("mod"                   ~> registerImmediate)
-        | Div ("div"                   ~> registerImmediate)
+        | Mul ("imul" ~> register, "," ~> registerImmediate)
+        // | Mod ("idiv"                   ~> registerImmediate)
+        | Div ("idiv"                   ~> registerImmediate)
         | SetCompInstr(setFlag, register)
         )
 
@@ -140,58 +147,58 @@ object helpers {
     val specialRegisters: Parsley[Register & SizedAs[RegSize]] =
         ( "rdi".as(RDI(RegSize.QUAD_WORD))
         | "edi".as(RDI(RegSize.DOUBLE_WORD))
-        | "di" .as(RDI(RegSize.WORD))
         | "dil".as(RDI(RegSize.BYTE))
+        | "di" .as(RDI(RegSize.WORD))
         | "rsi".as(RSI(RegSize.QUAD_WORD))
         | "esi".as(RSI(RegSize.DOUBLE_WORD))
-        | "si" .as(RSI(RegSize.WORD))
         | "sil".as(RSI(RegSize.BYTE))
+        | "si" .as(RSI(RegSize.WORD))
         | "rbp".as(RBP(RegSize.QUAD_WORD))
         | "ebp".as(RBP(RegSize.DOUBLE_WORD))
-        | "bp" .as(RBP(RegSize.WORD))
         | "bpl".as(RBP(RegSize.BYTE))
+        | "bp" .as(RBP(RegSize.WORD))
         | "rip".as(RIP(RegSize.QUAD_WORD))
         | "eip".as(RIP(RegSize.DOUBLE_WORD))
-        | "ip" .as(RIP(RegSize.WORD))
         | "ipl".as(RIP(RegSize.BYTE))
+        | "ip" .as(RIP(RegSize.WORD))
         | "rsp".as(RSP(RegSize.QUAD_WORD))
         | "esp".as(RSP(RegSize.DOUBLE_WORD))
-        | "sp" .as(RSP(RegSize.WORD))
         | "spl".as(RSP(RegSize.BYTE))
+        | "sp" .as(RSP(RegSize.WORD))
         )
     
     val numberedRegisters: Parsley[Register & SizedAs[RegSize]] =
-        ( "r8"  .as(R8(RegSize.QUAD_WORD))
-        | "r8d" .as(R8(RegSize.DOUBLE_WORD))
+        ( "r8d" .as(R8(RegSize.DOUBLE_WORD))
         | "r8w" .as(R8(RegSize.WORD))
         | "r8b" .as(R8(RegSize.BYTE))
-        | "r9"  .as(R9(RegSize.QUAD_WORD))
+        | "r8"  .as(R8(RegSize.QUAD_WORD))
         | "r9d" .as(R9(RegSize.DOUBLE_WORD))
         | "r9w" .as(R9(RegSize.WORD))
         | "r9b" .as(R9(RegSize.BYTE))
-        | "r10" .as(R10(RegSize.QUAD_WORD))
+        | "r9"  .as(R9(RegSize.QUAD_WORD))
         | "r10d".as(R10(RegSize.DOUBLE_WORD))
         | "r10w".as(R10(RegSize.WORD))
         | "r10b".as(R10(RegSize.BYTE))
-        | "r11" .as(R11(RegSize.QUAD_WORD))
+        | "r10" .as(R10(RegSize.QUAD_WORD))
         | "r11d".as(R11(RegSize.DOUBLE_WORD))
         | "r11w".as(R11(RegSize.WORD))
         | "r11b".as(R11(RegSize.BYTE))
-        | "r12" .as(R12(RegSize.QUAD_WORD))
+        | "r11" .as(R11(RegSize.QUAD_WORD))
         | "r12d".as(R12(RegSize.DOUBLE_WORD))
         | "r12w".as(R12(RegSize.WORD))
         | "r12b".as(R12(RegSize.BYTE))
-        | "r13" .as(R13(RegSize.QUAD_WORD))
+        | "r12" .as(R12(RegSize.QUAD_WORD))
         | "r13d".as(R13(RegSize.DOUBLE_WORD))
         | "r13w".as(R13(RegSize.WORD))
         | "r13b".as(R13(RegSize.BYTE))
-        | "r14" .as(R14(RegSize.QUAD_WORD))
+        | "r13" .as(R13(RegSize.QUAD_WORD))
         | "r14d".as(R14(RegSize.DOUBLE_WORD))
         | "r14w".as(R14(RegSize.WORD))
         | "r14b".as(R14(RegSize.BYTE))
-        | "r15" .as(R15(RegSize.QUAD_WORD))
+        | "r14" .as(R14(RegSize.QUAD_WORD))
         | "r15d".as(R15(RegSize.DOUBLE_WORD))
         | "r15w".as(R15(RegSize.WORD))
         | "r15b".as(R15(RegSize.BYTE))
+        | "r15" .as(R15(RegSize.QUAD_WORD))
         )
 }

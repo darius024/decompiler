@@ -114,7 +114,9 @@ object immediate {
         val size = RegSize.DOUBLE_WORD
     }
 
-    object Imm extends ParserBridge1[Int, Imm]
+    object Imm extends ParserBridge1[Int, Imm]  {
+        override def labels: List[String] = List("immediate")
+    }
 }
 
 /** Memory access expressions for assembly instructions. */
@@ -134,11 +136,15 @@ object memory {
       * Base register + index register * coefficient memory access.
       * Used for array indexing operations.
       */
-    case class MemRegAccess(base: Register, reg: Register, coeff: Int, val size: RegSize = RegSize.QUAD_WORD) extends MemoryAccess
+    case class MemRegAccess(base: Register, reg: Register, coeff: Int | Label, val size: RegSize = RegSize.QUAD_WORD) extends MemoryAccess
 
 
-    object MemAccess extends ParserBridge3[Register, Int | Label, RegSize, MemAccess]
-    object MemRegAccess extends ParserBridge4[Register, Register, Int, RegSize, MemRegAccess]
+    object MemAccess extends ParserBridge3[Register, Int | Label, RegSize, MemAccess] {
+        override def labels: List[String] = List("offset memory access")
+    }
+    object MemRegAccess extends ParserBridge4[Register, Register, Int | Label, RegSize, MemRegAccess] {
+        override def labels: List[String] = List("register memory access")
+    }
 }
 
 /** Intermediate representation of assembly instructions. */
@@ -238,11 +244,11 @@ object instructions {
     case object ConvertDoubleToQuad extends Instruction with ParserBridge0[Instruction]
 
 
-    object Label extends ParserBridge1[String, Label]
-    object Global extends ParserBridge1[String, Global]
+    object Label    extends ParserBridge1[String, Label]
+    object Global   extends ParserBridge1[String, Global]
     object StrLabel extends ParserBridge2[Label, String, StrLabel]
-    object DirInt extends ParserBridge1[Int, DirInt]
-    object Asciz extends ParserBridge1[String, Asciz]
+    object DirInt   extends ParserBridge1[Int, DirInt]
+    object Asciz    extends ParserBridge1[String, Asciz]
 
     object Push extends ParserBridge1[Register, Push]
     object Pop  extends ParserBridge1[Register, Pop]
@@ -257,12 +263,12 @@ object instructions {
     object Mod extends ParserBridge1[RegImm, Mod]
     object Div extends ParserBridge1[RegImm, Div]
 
-    object SetComp extends ParserBridge2[Register, CompFlag, SetComp]
-    object Jump extends ParserBridge2[Label, JumpFlag, Jump]
+    object SetComp  extends ParserBridge2[Register, CompFlag, SetComp]
+    object Jump     extends ParserBridge2[Label, JumpFlag, Jump]
     object JumpComp extends ParserBridge2[Label, CompFlag, JumpComp]
 
-    object Mov extends ParserBridge2[RegMem, RegImmMem, Mov]
-    object Lea extends ParserBridge2[Register, MemoryAccess, Lea]
+    object Mov  extends ParserBridge2[RegMem, RegImmMem, Mov]
+    object Lea  extends ParserBridge2[Register, MemoryAccess, Lea]
     object CMov extends ParserBridge3[Register, Register, CompFlag, CMov]
 
     object Call extends ParserBridge1[Label, Call]
