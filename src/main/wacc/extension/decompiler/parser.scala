@@ -22,9 +22,6 @@ import implicits.implicitSymbol
 
 /** Formulates the grammar rules the parser should follow. */
 object parser {
-    /** Alias for list of statements. */
-    type IRProgram = List[Instruction]
-
     // labels
 
     private lazy val label: Parsley[Label] =

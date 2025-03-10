@@ -10,6 +10,8 @@ import registers.*
 
 /** Defines parser-bridge objects to enable transformations of rules to IR nodes. */
 object syntax {
+    /** Alias for list of statements. */
+    type IRProgram = List[Instruction]
 
     /** Creates a memory access operand from the rules. */
     object MemoryAcc extends ParserBridge3[Register, Option[Int | Label], Option[Register], MemoryAccess] {

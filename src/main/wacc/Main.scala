@@ -59,7 +59,7 @@ def decompile(file: File): (String, ExitCode) = {
         // on successful compilation, the AST is returned
         case Success(ast) => ast
         // otherwise, there is a syntax error
-        case Failure(err) => return (s"${err}", ExitCode.SyntaxErr)
+        case Failure(err) => return (s"${err.message}", ExitCode.SyntaxErr)
     }
     ("Code decompiled successfully.", ExitCode.Success)
 }
