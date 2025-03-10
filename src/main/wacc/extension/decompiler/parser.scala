@@ -3,10 +3,12 @@ package wacc.extension.decompiler
 import java.io.File
 import parsley.{Parsley, Result, Failure}
 import parsley.Parsley.{atomic, many}
+import parsley.combinator.option
 import scala.util.{Success => TrySuccess, Failure => TryFailure}
 
 import helpers.*
 import lexer.*
+import syntax.*
 import implicits.implicitSymbol
 
 import wacc.backend.ir.*
@@ -25,17 +27,51 @@ object parser {
     private lazy val immediate: Parsley[Immediate] =
         Imm(integer)
 
-    private lazy val register: Parsley[Register] =
+    private lazy val register: Parsley[Register & SizedAs[RegSize]] =
         ( paramRegisters
         | specialRegisters
         | numberedRegisters
         )
+    
+    private lazy val memoryAccess: Parsley[MemoryAccess] = brackets(
+        MemoryAcc(register, option(("+" | "-") ~> integer), option("*" ~> register))
+    )
 
-    private lazy val memoryAccess: Parsley[MemoryAccess] = ???
+    private lazy val registerImmediate: Parsley[RegImm] =
+        ( immediate
+        | register
+        )
 
-    private lazy val directive: Parsley[StrLabel] = ???
+    private lazy val registerMemory: Parsley[RegMem] =
+        ( register
+        | memoryAccess
+        )
 
-    private lazy val instruction: Parsley[Instruction] = ???
+    private lazy val registerImmediateMemory: Parsley[RegImmMem] =
+        ( registerImmediate
+        | memoryAccess
+        )
+
+    private lazy val directive: Parsley[StrLabel] =
+        StrDirective(".int" ~> integer, label, ".asciz" ~> string)
+
+    private lazy val stackInstr: Parsley[Instruction] =
+        ( Push("push" ~> register)
+        | Pop("pop" ~> register)
+        )
+    
+    private lazy val arithmeticInstr: Parsley[Instruction] =
+        ( Add("add" ~> register, "," ~> registerImmediate)
+        | Sub("sub" ~> register, "," ~> registerImmediate)
+        | Mov("mov" ~> registerMemory, "," ~> registerImmediateMemory)
+        )
+
+    private lazy val instruction: Parsley[Instruction] =
+        ( label
+        | directive
+        | stackInstr
+        | arithmeticInstr
+        )
 
     private lazy val program: Parsley[IRProgram] = many(instruction)
 
@@ -52,7 +88,7 @@ object parser {
 }
 
 object helpers {
-    val paramRegisters: Parsley[Register] =
+    val paramRegisters: Parsley[Register & SizedAs[RegSize]] =
         ( "rax".as(RAX(RegSize.QUAD_WORD))
         | "eax".as(RAX(RegSize.DOUBLE_WORD))
         | "ax" .as(RAX(RegSize.WORD))
@@ -71,7 +107,7 @@ object helpers {
         | "dl" .as(RDX(RegSize.BYTE))
         )
 
-    val specialRegisters: Parsley[Register] =
+    val specialRegisters: Parsley[Register & SizedAs[RegSize]] =
         ( "rdi".as(RDI(RegSize.QUAD_WORD))
         | "edi".as(RDI(RegSize.DOUBLE_WORD))
         | "di" .as(RDI(RegSize.WORD))
@@ -94,7 +130,7 @@ object helpers {
         | "spl".as(RSP(RegSize.BYTE))
         )
     
-    val numberedRegisters: Parsley[Register] =
+    val numberedRegisters: Parsley[Register & SizedAs[RegSize]] =
         ( "r8"  .as(R8(RegSize.QUAD_WORD))
         | "r8d" .as(R8(RegSize.DOUBLE_WORD))
         | "r8w" .as(R8(RegSize.WORD))
