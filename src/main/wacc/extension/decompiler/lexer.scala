@@ -11,13 +11,14 @@ import errorConfig.*
 object lexer {
     // configure lexical description
     private val desc = LexicalDesc(
+        // labels and registers
         NameDesc.plain.copy(
             identifierStart = Basic(c => Character.isLetter(c) || c == '_' || c == '.'),
             identifierLetter = Basic(c => Character.isLetterOrDigit(c) || c == '_' || c == '.'),
         ),
-
+        
+        // reserved keywords - directives, mnemonics
         SymbolDesc.plain.copy(
-            // reserved keywords
             hardKeywords = Set(
                 ".intel_syntax", "noprefix", ".globl",
                 ".section", ".rodata", ".text", ".asciz", ".int",
@@ -40,6 +41,7 @@ object lexer {
 
         NumericDesc.plain.copy(),
 
+        // allow escape sequences within string literals
         TextDesc.plain.copy(escapeSequences = EscapeDesc.plain.copy(
             literals = Set('\"', '\'', '\\'),
             mapping = Map(
@@ -52,6 +54,7 @@ object lexer {
             )),
         ),
 
+        // assembly comments
         SpaceDesc.plain.copy(
             lineCommentStart = "#",
         ),
@@ -65,6 +68,7 @@ object lexer {
     val integer = lexer.lexeme.integer.decimal32
     val string = lexer.lexeme.string.ascii
 
+    // comparison flag
     val comp = lexer.lexeme.symbol("e") .as(CompFlag.E)
              | lexer.lexeme.symbol("ne").as(CompFlag.NE)
              | lexer.lexeme.symbol("ge").as(CompFlag.GE)
@@ -72,9 +76,11 @@ object lexer {
              | lexer.lexeme.symbol("le").as(CompFlag.LE)
              | lexer.lexeme.symbol("l") .as(CompFlag.L)
 
+    // jump flag
     val jump = lexer.lexeme.symbol("mp").as(JumpFlag.Unconditional)
              | lexer.lexeme.symbol("o") .as(JumpFlag.Overflow)
 
+    // mnemonics formed by comparison flags
     val jumpCFlag = lexer.lexeme(lexer.nonlexeme.symbol("j")    ~> comp)
     val jumpJFlag = lexer.lexeme(lexer.nonlexeme.symbol("j")    ~> jump)
     val setFlag   = lexer.lexeme(lexer.nonlexeme.symbol("set")  ~> comp)
