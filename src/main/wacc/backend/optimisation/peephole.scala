@@ -64,10 +64,10 @@ def matchRegister(reg1: RegImmMem, reg2: RegImmMem, equal: Boolean = false): Boo
 
 /** Transform a binary instruction to its more specific format. */
 def transformBinaryInstr(binInstr: BinaryInstr, reg1: Register, reg2: RegImm): BinaryInstr = binInstr match {
-    case _: Add[_]  => Add (reg1, reg2)
-    case _: Sub[_]  => Sub (reg1, reg2)
-    case _: And[_]  => And (reg1, reg2)
-    case _: Or[_]   => Or  (reg1, reg2)
-    case _: Cmp[_]  => Cmp (reg1, reg2)
-    case _: Test[_] => Test(reg1, reg2)
+    case _: Add  => Add (reg1, reg2)
+    case _: Sub  => Sub (reg1, reg2)
+    case _: And  => And (reg1, reg2)
+    case _: Or   => Or  (reg1, reg2)
+    case _: Cmp  => Cmp (reg1, reg2)
+    case _: Test => Test(reg1, reg2)
 }

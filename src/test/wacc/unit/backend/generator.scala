@@ -129,6 +129,6 @@ class CodeGeneratorTests extends AnyFlatSpec {
         
         val instructions = codeGen.ir
         instructions.collectFirst { case _: Div => succeed } getOrElse fail("Expected Div instruction")
-        instructions.collectFirst { case _: Cmp[_] => succeed } getOrElse fail("Expected Cmp instruction for zero check")
+        instructions.collectFirst { case _: Cmp => succeed } getOrElse fail("Expected Cmp instruction for zero check")
     }
 }

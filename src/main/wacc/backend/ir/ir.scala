@@ -1,5 +1,7 @@
 package wacc.backend.ir
 
+import parsley.generic.*
+
 import flags.*
 import immediate.*
 import instructions.*
@@ -111,6 +113,10 @@ object immediate {
     case class Imm(value: Int) extends Immediate {
         val size = RegSize.DOUBLE_WORD
     }
+
+    object Imm extends ParserBridge1[Int, Imm]  {
+        override def labels: List[String] = List("immediate")
+    }
 }
 
 /** Memory access expressions for assembly instructions. */
@@ -130,7 +136,15 @@ object memory {
       * Base register + index register * coefficient memory access.
       * Used for array indexing operations.
       */
-    case class MemRegAccess(base: Register, reg: Register, coeff: Int, val size: RegSize = RegSize.QUAD_WORD) extends MemoryAccess
+    case class MemRegAccess(base: Register, reg: Register, coeff: Int | Label, val size: RegSize = RegSize.QUAD_WORD) extends MemoryAccess
+
+
+    object MemAccess extends ParserBridge3[Register, Int | Label, RegSize, MemAccess] {
+        override def labels: List[String] = List("offset memory access")
+    }
+    object MemRegAccess extends ParserBridge4[Register, Register, Int | Label, RegSize, MemRegAccess] {
+        override def labels: List[String] = List("register memory access")
+    }
 }
 
 /** Intermediate representation of assembly instructions. */
@@ -147,13 +161,13 @@ object instructions {
     sealed trait Directive extends Instruction
 
     /** Intel syntax directive. */
-    case object IntelSyntax extends Directive
+    case object IntelSyntax extends Directive with ParserBridge0[Instruction]
     /** AT&T syntax directive. */
     case object ATTSyntax extends Directive
     /** read-only data section directive. */
-    case object SectionRoData extends Directive
+    case object SectionRoData extends Directive with ParserBridge0[Instruction]
     /** code section directive. */
-    case object Text extends Directive
+    case object Text extends Directive with ParserBridge0[Instruction]
     /** label definition. */
     case class Label(name: String) extends Directive
     /** global symbol declaration. */
@@ -167,17 +181,13 @@ object instructions {
 
     /** Stack operations */
     /** push a value onto the stack. */
-    case class Push(reg: Register) extends Instruction {
-        require(reg.size == RegSize.QUAD_WORD)
-    }
+    case class Push(reg: Register) extends Instruction
     /** pop a value from the stack. */
-    case class Pop(reg: Register) extends Instruction {
-        require(reg.size == RegSize.QUAD_WORD)
-    }
+    case class Pop(reg: Register) extends Instruction
 
     /** Comparison operations */
     /** compare two values. */
-    case class Cmp[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
+    case class Cmp(dest: Register, src: RegImm) extends BinaryInstr
     /** set a register based on a comparison result. */
     case class SetComp(dest: Register, compFlag: CompFlag) extends Instruction {
         require(dest.size == RegSize.BYTE)
@@ -188,11 +198,13 @@ object instructions {
 
     /** Arithmetic operations */
     /** add source to destination. */
-    case class Add[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
+    case class Add(dest: Register, src: RegImm) extends BinaryInstr
     /** subtract source from destination. */
-    case class Sub[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
+    case class Sub(dest: Register, src: RegImm) extends BinaryInstr
     /** multiply source1 by source2 and store in destination. */
-    case class Mul[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends Instruction
+    case class Mul(dest: Register, src: RegImm) extends Instruction
+    /** multiply source1 by source2 and store in destination. */
+    case class MulImm(dest: Register, src: Register, imm: Immediate) extends Instruction
     /** compute remainder of division. */
     case class Mod(src: RegImm) extends Instruction
     /** divide by source. */
@@ -200,25 +212,25 @@ object instructions {
 
     /** Logical operations */
     /** bitwise AND of destination and source. */
-    case class And [S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
+    case class And(dest: Register, src: RegImm) extends BinaryInstr
     /** bitwise OR of destination and source. */
-    case class Or  [S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
+    case class Or(dest: Register, src: RegImm) extends BinaryInstr
     /** bitwise AND test (sets flags but doesn't store result). */
-    case class Test[S <: RegSize] (dest: Register & SizedAs[S], src: RegImm & SizedAs[S]) extends BinaryInstr
+    case class Test(dest: Register, src: RegImm) extends BinaryInstr
 
     /** Data movement */
     /** move data from source to destination. */
-    case class Mov[S <: RegSize] (dest: RegMem & SizedAs[S], src: RegImmMem & SizedAs[S]) extends Instruction
+    case class Mov(dest: RegMem, src: RegImmMem) extends Instruction
     /** load effective address. */
-    case class Lea(dest: Register, addr: MemAccess) extends Instruction {
+    case class Lea(dest: Register, addr: MemoryAccess) extends Instruction {
         require(dest.size == RegSize.QUAD_WORD)
     }
     /** conditional move based on flag. */
-    case class CMov[S <: RegSize] (dest: Register & SizedAs[S], src: Register & SizedAs[S], cond: CompFlag) extends Instruction 
+    case class CMov(dest: Register, src: Register, cond: CompFlag) extends Instruction 
 
     /** Control flow */
     /** return from function. */
-    case object Ret extends Instruction
+    case object Ret extends Instruction with ParserBridge0[Instruction]
     /** call a function. */
     case class Call(label: Label) extends Instruction
     /** jump to a label. */
@@ -227,7 +239,38 @@ object instructions {
     case class JumpComp(label: Label, compFlag: CompFlag) extends Instruction
 
     /** sign extend EAX into EDX (used for division). */
-    case object ConvertDoubleToQuad extends Instruction
+    case object ConvertDoubleToQuad extends Instruction with ParserBridge0[Instruction]
+
+
+    object Label    extends ParserBridge1[String, Label]
+    object Global   extends ParserBridge1[String, Global]
+    object StrLabel extends ParserBridge2[Label, String, StrLabel]
+    object DirInt   extends ParserBridge1[Int, DirInt]
+    object Asciz    extends ParserBridge1[String, Asciz]
+
+    object Push extends ParserBridge1[Register, Push]
+    object Pop  extends ParserBridge1[Register, Pop]
+    object Cmp  extends ParserBridge2[Register, RegImm, Cmp]
+    object Add  extends ParserBridge2[Register, RegImm, Add]
+    object Sub  extends ParserBridge2[Register, RegImm, Sub]
+    object Mul  extends ParserBridge2[Register, RegImm, Mul]
+    object MulImm extends ParserBridge3[Register, Register, Immediate, MulImm]
+    object And  extends ParserBridge2[Register, RegImm, And]
+    object Or   extends ParserBridge2[Register, RegImm, Or]
+    object Test extends ParserBridge2[Register, RegImm, Test]
+
+    object Mod extends ParserBridge1[RegImm, Mod]
+    object Div extends ParserBridge1[RegImm, Div]
+
+    object SetComp  extends ParserBridge2[Register, CompFlag, SetComp]
+    object Jump     extends ParserBridge2[Label, JumpFlag, Jump]
+    object JumpComp extends ParserBridge2[Label, CompFlag, JumpComp]
+
+    object Mov  extends ParserBridge2[RegMem, RegImmMem, Mov]
+    object Lea  extends ParserBridge2[Register, MemoryAccess, Lea]
+    object CMov extends ParserBridge3[Register, Register, CompFlag, CMov]
+
+    object Call extends ParserBridge1[Label, Call]
 }
 
 /** Flags used for conditional operations. */
