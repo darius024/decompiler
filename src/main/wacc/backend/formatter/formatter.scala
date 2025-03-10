@@ -132,6 +132,7 @@ def formatInstruction(instr: Instruction, syntax: SyntaxStyle): String = {
         case Add(dest, src)         => format("add" , dest, src)
         case Sub(dest, src)         => format("sub" , dest, src)
         case Mul(dest, src)         => format("imul", dest, src)
+        case MulImm(dest, src, imm) => format("imul", dest, src, imm)
         case Div(src)               => format("idiv", src)
         case Mod(src)               => format("idiv", src)
         case And(dest, src)         => format("and" , dest, src)

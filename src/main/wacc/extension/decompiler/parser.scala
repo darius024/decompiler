@@ -36,11 +36,15 @@ object parser {
         | _memory
         )
     
-    private lazy val memoryAccess: Parsley[MemoryAccess] = option(
-        ( "qword" | "dword" | "word" | "byte" ) ~> "ptr"
-    ) ~> brackets(
+    private lazy val memoryAccess: Parsley[MemoryAccess] = MemoryPointer(option(
+        ( "qword".as(RegSize.QUAD_WORD)
+        | "dword".as(RegSize.DOUBLE_WORD)
+        | "word".as(RegSize.WORD)
+        | "byte".as(RegSize.BYTE)
+        ) <~ "ptr"
+    ), brackets(
         MemoryAcc(register, option(("+" | "-") ~> (integer | label)), option("*" ~> register))
-    )
+    ))
 
     private lazy val registerImmediate: Parsley[RegImm] =
         ( immediate
@@ -80,6 +84,7 @@ object parser {
         | Or  ("or"   ~> register, "," ~> registerImmediate)
         | Cmp ("cmp"  ~> register, "," ~> registerImmediate)
         | Test("test" ~> register, "," ~> registerImmediate)
+        | atomic(MulImm("imul" ~> register, "," ~> register, "," ~> immediate))
         | Mul ("imul" ~> register, "," ~> registerImmediate)
         // | Mod ("idiv"                   ~> registerImmediate)
         | Div ("idiv"                   ~> registerImmediate)
@@ -87,7 +92,7 @@ object parser {
         )
 
     private lazy val movInstr: Parsley[Instruction] =
-        ( Mov(("mov" | "movzx") ~> registerMemory, "," ~> registerImmediateMemory)
+        ( Mov(("movzx" | "mov") ~> registerMemory, "," ~> registerImmediateMemory)
         | Lea("lea" ~> register, "," ~> memoryAccess)
         | CMovInstr(cmovFlag, register, "," ~> register)
         | ConvertDoubleToQuad.from("cdq")
@@ -96,17 +101,17 @@ object parser {
     private lazy val controlFlowInstr: Parsley[Instruction] =
         ( Ret.from("ret")
         | Call("call" ~> label)
-        | JumpInstr(jumpJFlag, label)
+        | atomic(JumpInstr(jumpJFlag, label))
         | JumpCompInstr(jumpCFlag, label)
         )
 
     private lazy val instruction: Parsley[Instruction] =
-        ( label
+        ( movInstr
+        | label
         | directive
         | header
         | stackInstr
         | arithmeticInstr
-        | movInstr
         | controlFlowInstr
         )
 
@@ -118,7 +123,7 @@ object parser {
 
     def parse(file: File): Result[String, IRProgram] = parser.parseFile[String](file) match {
         case TrySuccess(result) => result
-        case TryFailure(_)      => Failure("could not open file")
+        case TryFailure(msg)    => Failure(s"could not open file: $msg")
     }
 
     def parse(input: String): Result[String, IRProgram] = parser.parse[String](input)

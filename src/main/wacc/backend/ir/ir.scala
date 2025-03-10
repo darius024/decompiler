@@ -181,17 +181,13 @@ object instructions {
 
     /** Stack operations */
     /** push a value onto the stack. */
-    case class Push(reg: Register) extends Instruction {
-        require(reg.size == RegSize.QUAD_WORD)
-    }
+    case class Push(reg: Register) extends Instruction
     /** pop a value from the stack. */
-    case class Pop(reg: Register) extends Instruction {
-        require(reg.size == RegSize.QUAD_WORD)
-    }
+    case class Pop(reg: Register) extends Instruction
 
     /** Comparison operations */
     /** compare two values. */
-    case class Cmp (dest: Register, src: RegImm) extends BinaryInstr
+    case class Cmp(dest: Register, src: RegImm) extends BinaryInstr
     /** set a register based on a comparison result. */
     case class SetComp(dest: Register, compFlag: CompFlag) extends Instruction {
         require(dest.size == RegSize.BYTE)
@@ -202,11 +198,13 @@ object instructions {
 
     /** Arithmetic operations */
     /** add source to destination. */
-    case class Add (dest: Register, src: RegImm) extends BinaryInstr
+    case class Add(dest: Register, src: RegImm) extends BinaryInstr
     /** subtract source from destination. */
-    case class Sub (dest: Register, src: RegImm) extends BinaryInstr
+    case class Sub(dest: Register, src: RegImm) extends BinaryInstr
     /** multiply source1 by source2 and store in destination. */
-    case class Mul (dest: Register, src: RegImm) extends Instruction
+    case class Mul(dest: Register, src: RegImm) extends Instruction
+    /** multiply source1 by source2 and store in destination. */
+    case class MulImm(dest: Register, src: Register, imm: Immediate) extends Instruction
     /** compute remainder of division. */
     case class Mod(src: RegImm) extends Instruction
     /** divide by source. */
@@ -214,21 +212,21 @@ object instructions {
 
     /** Logical operations */
     /** bitwise AND of destination and source. */
-    case class And  (dest: Register, src: RegImm) extends BinaryInstr
+    case class And(dest: Register, src: RegImm) extends BinaryInstr
     /** bitwise OR of destination and source. */
-    case class Or   (dest: Register, src: RegImm) extends BinaryInstr
+    case class Or(dest: Register, src: RegImm) extends BinaryInstr
     /** bitwise AND test (sets flags but doesn't store result). */
-    case class Test (dest: Register, src: RegImm) extends BinaryInstr
+    case class Test(dest: Register, src: RegImm) extends BinaryInstr
 
     /** Data movement */
     /** move data from source to destination. */
-    case class Mov (dest: RegMem, src: RegImmMem) extends Instruction
+    case class Mov(dest: RegMem, src: RegImmMem) extends Instruction
     /** load effective address. */
     case class Lea(dest: Register, addr: MemoryAccess) extends Instruction {
         require(dest.size == RegSize.QUAD_WORD)
     }
     /** conditional move based on flag. */
-    case class CMov (dest: Register, src: Register, cond: CompFlag) extends Instruction 
+    case class CMov(dest: Register, src: Register, cond: CompFlag) extends Instruction 
 
     /** Control flow */
     /** return from function. */
@@ -252,12 +250,13 @@ object instructions {
 
     object Push extends ParserBridge1[Register, Push]
     object Pop  extends ParserBridge1[Register, Pop]
-    object Cmp  extends ParserBridge2[Register, RegImm, Cmp ]
-    object Add  extends ParserBridge2[Register, RegImm, Add ]
-    object Sub  extends ParserBridge2[Register, RegImm, Sub ]
-    object Mul  extends ParserBridge2[Register, RegImm, Mul ]
-    object And  extends ParserBridge2[Register, RegImm, And ]
-    object Or   extends ParserBridge2[Register, RegImm, Or  ]
+    object Cmp  extends ParserBridge2[Register, RegImm, Cmp]
+    object Add  extends ParserBridge2[Register, RegImm, Add]
+    object Sub  extends ParserBridge2[Register, RegImm, Sub]
+    object Mul  extends ParserBridge2[Register, RegImm, Mul]
+    object MulImm extends ParserBridge3[Register, Register, Immediate, MulImm]
+    object And  extends ParserBridge2[Register, RegImm, And]
+    object Or   extends ParserBridge2[Register, RegImm, Or]
     object Test extends ParserBridge2[Register, RegImm, Test]
 
     object Mod extends ParserBridge1[RegImm, Mod]

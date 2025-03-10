@@ -47,4 +47,11 @@ object syntax {
             SetComp(dest, compFlag)
         }
     }
+
+    object MemoryPointer extends ParserBridge2[Option[RegSize], MemoryAccess, MemoryAccess] {
+        def apply(size: Option[RegSize], memAccess: MemoryAccess): MemoryAccess = memAccess match {
+            case MemAccess(base, offset, _)         => MemAccess(base, offset, size.getOrElse(RegSize.QUAD_WORD))
+            case MemRegAccess(base, reg, offset, _) => MemRegAccess(base, reg, offset, size.getOrElse(RegSize.QUAD_WORD))
+        }
+    }
 }

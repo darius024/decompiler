@@ -27,7 +27,10 @@ object lexer {
                 "push", "pop", "mov", "movzx", "lea",
                 "call", "ret",
 
-                "j", "set", "cmov",
+                "cmove", "cmovne", "cmovge", "cmovg", "cmovle", "cmovl",
+                "je", "jne", "jge", "jg", "jle", "jl",
+                "sete", "setne", "setge", "setg", "setle", "setl",
+                "jmp", "jo",
 
                 "add", "sub", "imul", "idiv", "and", "or",
                 "cmp", "test",
@@ -47,8 +50,6 @@ object lexer {
                 "f" -> 0x000c,  // form feed
                 "r" -> 0x000d,  // carriage return
             )),
-            graphicCharacter = Basic(c => c >= ' '.toInt
-                                       && !Set('\"', '\'', '\\').contains(c))
         ),
 
         SpaceDesc.plain.copy(
@@ -66,10 +67,10 @@ object lexer {
 
     val comp = lexer.lexeme.symbol("e") .as(CompFlag.E)
              | lexer.lexeme.symbol("ne").as(CompFlag.NE)
-             | lexer.lexeme.symbol("g") .as(CompFlag.G)
              | lexer.lexeme.symbol("ge").as(CompFlag.GE)
-             | lexer.lexeme.symbol("l") .as(CompFlag.L)
+             | lexer.lexeme.symbol("g") .as(CompFlag.G)
              | lexer.lexeme.symbol("le").as(CompFlag.LE)
+             | lexer.lexeme.symbol("l") .as(CompFlag.L)
 
     val jump = lexer.lexeme.symbol("mp").as(JumpFlag.Unconditional)
              | lexer.lexeme.symbol("o") .as(JumpFlag.Overflow)
