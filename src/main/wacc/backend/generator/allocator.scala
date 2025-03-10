@@ -201,7 +201,7 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             scopeInstructions += instr
     }
 
-    codeGen.instructions = newInstructions
+    codeGen.instrs = newInstructions.result()
     codeGen
 }
 

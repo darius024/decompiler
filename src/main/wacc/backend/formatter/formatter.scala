@@ -30,7 +30,7 @@ def format(codeGen: CodeGenerator, syntax: SyntaxStyle)
     try {
         formatHeader(syntax)
         formatBlock(codeGen.data, syntax)
-        format(codeGen.ir, syntax)
+        format(codeGen.instrs, syntax)
         formatWidgets(codeGen.dependencies, syntax)
     } catch {
         case e: Throwable =>
