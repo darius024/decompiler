@@ -61,12 +61,14 @@ class WidgetManager {
   * - temp: successive temporary registers
   * - widgets: handles all widgets that the instructions use
   */ 
-class CodeGenerator(var instructions: mutable.Builder[Instruction, List[Instruction]],
+class CodeGenerator(instructions: mutable.Builder[Instruction, List[Instruction]],
                     directives: mutable.Builder[StrLabel, Set[StrLabel]],
                     labeller: Labeller,
                     temp: Temporary,
                     widgets: WidgetManager) {
     def ir: List[Instruction] = instructions.result()
+    var instrs: List[Instruction] = ir
+    
     def data: Set[StrLabel] = directives.result()
     def dependencies: Set[Widget] = widgets.usedWidgets ++ widgets.usedWidgets.flatMap(_.dependencies)
 

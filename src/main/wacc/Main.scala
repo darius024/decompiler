@@ -17,7 +17,7 @@ def main(path: String, flags: String*): Unit = {
 }
 
 /** Compile the given input file and transform it through all the pipeline steps. */
-def compile(file: File, flags: Seq[String]): (String, ExitCode) = {
+def compile(file: File, flags: Seq[String] = Seq.empty): (String, ExitCode) = {
     // parsing and syntax analysis
     val ast = parser.parse(file) match {
         // on successful compilation, the AST is returned
@@ -43,7 +43,7 @@ def compile(file: File, flags: Seq[String]): (String, ExitCode) = {
     val instructions = generator.generate(typedAst)
 
     // perform optimisations on the intermediate representation
-    val optimisedInstructions = optimisation.optimise(instructions.ir, flags)
+    val optimisedInstructions = optimisation.optimise(instructions, flags)
 
     // format the instructions into assembly
     formatter.format(optimisedInstructions, AssemblySyntax)

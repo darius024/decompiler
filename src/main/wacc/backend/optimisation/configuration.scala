@@ -2,14 +2,20 @@ package wacc.backend.optimisation
 
 import scala.collection.mutable
 
-import wacc.backend.ir.instructions.*
+import wacc.backend.*
+import generator.*
+import ir.instructions.*
 import optimisations.*
 
 /** Optimises the intermediate representation of the backend of the compiler. */
-def optimise(instructions: List[Instruction], flags: Seq[String]): List[Instruction] = {
+def optimise(codeGen: CodeGenerator, flags: Seq[String]): CodeGenerator = {
     val config = parseFlags(flags)
 
-    config.enabledOptimisations.foldLeft(instructions)((ir, optimisation) => optimisation(ir))
+    codeGen.instrs = config.enabledOptimisations.foldLeft(codeGen.instrs) { (ir, optimisation) =>
+        optimisation(ir)
+    }
+
+    codeGen
 }
 
 /** Transforms the flags into their corresponding types. */
