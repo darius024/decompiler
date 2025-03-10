@@ -155,7 +155,7 @@ object instructions {
     sealed trait Directive extends Instruction
 
     /** Intel syntax directive. */
-    case object IntelSyntax extends Directive
+    case object IntelSyntax extends Directive with ParserBridge0[Instruction]
     /** AT&T syntax directive. */
     case object ATTSyntax extends Directive
     /** read-only data section directive. */
@@ -218,7 +218,7 @@ object instructions {
     /** move data from source to destination. */
     case class Mov (dest: RegMem, src: RegImmMem) extends Instruction
     /** load effective address. */
-    case class Lea(dest: Register, addr: MemAccess) extends Instruction {
+    case class Lea(dest: Register, addr: MemoryAccess) extends Instruction {
         require(dest.size == RegSize.QUAD_WORD)
     }
     /** conditional move based on flag. */
@@ -238,9 +238,6 @@ object instructions {
     case object ConvertDoubleToQuad extends Instruction with ParserBridge0[Instruction]
 
 
-
-    // object SectionRoData extends ParserBridge0[Instruction]
-    // object Text extends ParserBridge0[Instruction]
     object Label extends ParserBridge1[String, Label]
     object Global extends ParserBridge1[String, Global]
     object StrLabel extends ParserBridge2[Label, String, StrLabel]
@@ -265,7 +262,7 @@ object instructions {
     object JumpComp extends ParserBridge2[Label, CompFlag, JumpComp]
 
     object Mov extends ParserBridge2[RegMem, RegImmMem, Mov]
-    object Lea extends ParserBridge2[Register, MemAccess, Lea]
+    object Lea extends ParserBridge2[Register, MemoryAccess, Lea]
     object CMov extends ParserBridge3[Register, Register, CompFlag, CMov]
 
     object Call extends ParserBridge1[Label, Call]

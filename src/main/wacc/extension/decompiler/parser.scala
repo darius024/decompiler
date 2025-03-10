@@ -22,7 +22,7 @@ object parser {
     type IRProgram = List[Instruction]
 
     private lazy val label: Parsley[Label] =
-        atomic(Label(identifier <~ ":"))
+        atomic(Label(identifier <~ option(":" | "@plt")))
 
     private lazy val immediate: Parsley[Immediate] =
         Imm(integer)
@@ -55,22 +55,52 @@ object parser {
     private lazy val directive: Parsley[StrLabel] =
         StrDirective(".int" ~> integer, label, ".asciz" ~> string)
 
+    private lazy val header: Parsley[Instruction] =
+        ( IntelSyntax.from(".intel_syntax" <~> "noprefix")
+        | SectionRoData.from(".section" <~> ".rodata")
+        | Text.from(".text")
+        | Global(".globl" ~> identifier)
+        )
+
     private lazy val stackInstr: Parsley[Instruction] =
         ( Push("push" ~> register)
         | Pop("pop" ~> register)
         )
     
     private lazy val arithmeticInstr: Parsley[Instruction] =
-        ( Add("add" ~> register, "," ~> registerImmediate)
-        | Sub("sub" ~> register, "," ~> registerImmediate)
-        | Mov("mov" ~> registerMemory, "," ~> registerImmediateMemory)
+        ( Add ("add"  ~> register, "," ~> registerImmediate)
+        | Sub ("sub"  ~> register, "," ~> registerImmediate)
+        | And ("and"  ~> register, "," ~> registerImmediate)
+        | Or  ("or"   ~> register, "," ~> registerImmediate)
+        | Cmp ("cmp"  ~> register, "," ~> registerImmediate)
+        | Test("test" ~> register, "," ~> registerImmediate)
+        | Mod ("mod"                   ~> registerImmediate)
+        | Div ("div"                   ~> registerImmediate)
+        | SetCompInstr(setFlag, register)
+        )
+
+    private lazy val movInstr: Parsley[Instruction] =
+        ( Mov(("mov" | "movzx") ~> registerMemory, "," ~> registerImmediateMemory)
+        | Lea("lea" ~> register, "," ~> memoryAccess)
+        | CMovInstr(cmovFlag, register, "," ~> register)
+        | ConvertDoubleToQuad.from("cdq")
+        )
+
+    private lazy val controlFlowInstr: Parsley[Instruction] =
+        ( Ret.from("ret")
+        | Call("call" ~> label)
+        | JumpInstr(jumpJFlag, label)
+        | JumpCompInstr(jumpCFlag, label)
         )
 
     private lazy val instruction: Parsley[Instruction] =
         ( label
         | directive
+        | header
         | stackInstr
         | arithmeticInstr
+        | movInstr
+        | controlFlowInstr
         )
 
     private lazy val program: Parsley[IRProgram] = many(instruction)

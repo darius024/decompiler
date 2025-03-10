@@ -4,6 +4,7 @@ import java.io.{File, OutputStream}
 import parsley.{Success, Failure}
 
 import wacc.backend.*
+import wacc.extension.*
 import wacc.frontend.*
 
 /** Entry point of the program. */
@@ -45,6 +46,13 @@ def compile(file: File): (String, ExitCode) = {
 
 /** Decompile the given input file and transform it through all the pipeline steps. */
 def decompile(file: File): (String, ExitCode) = {
+    // parsing and syntax analysis
+    val ast = decompiler.parser.parse(file) match {
+        // on successful compilation, the AST is returned
+        case Success(ast) => ast
+        // otherwise, there is a syntax error
+        case Failure(err) => return (s"${err}", ExitCode.SyntaxErr)
+    }
     ("Code decompiled successfully.", ExitCode.Success)
 }
 

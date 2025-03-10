@@ -40,7 +40,7 @@ object lexer {
         TextDesc.plain.copy(),
 
         SpaceDesc.plain.copy(
-            lineCommentStart = "//",
+            lineCommentStart = "#",
         ),
     )
 
@@ -52,16 +52,20 @@ object lexer {
     val integer = lexer.lexeme.integer.decimal32
     val string = lexer.lexeme.string.ascii
 
-    val compFlag = lexer.lexeme.symbol("e") .as(CompFlag.E)
-                 | lexer.lexeme.symbol("ne").as(CompFlag.NE)
-                 | lexer.lexeme.symbol("g") .as(CompFlag.G)
-                 | lexer.lexeme.symbol("ge").as(CompFlag.GE)
-                 | lexer.lexeme.symbol("l") .as(CompFlag.L)
-                 | lexer.lexeme.symbol("le").as(CompFlag.LE)
+    val comp = lexer.lexeme.symbol("e") .as(CompFlag.E)
+             | lexer.lexeme.symbol("ne").as(CompFlag.NE)
+             | lexer.lexeme.symbol("g") .as(CompFlag.G)
+             | lexer.lexeme.symbol("ge").as(CompFlag.GE)
+             | lexer.lexeme.symbol("l") .as(CompFlag.L)
+             | lexer.lexeme.symbol("le").as(CompFlag.LE)
 
-    val jumpFlag = lexer.lexeme(lexer.nonlexeme.symbol("j")    <~ compFlag)
-    val setFlag  = lexer.lexeme(lexer.nonlexeme.symbol("set")  <~ compFlag)
-    val cmovFlag = lexer.lexeme(lexer.nonlexeme.symbol("cmov") <~ compFlag)
+    val jump = lexer.lexeme.symbol("mp").as(JumpFlag.Unconditional)
+             | lexer.lexeme.symbol("o") .as(JumpFlag.Overflow)
+
+    val jumpCFlag = lexer.lexeme(lexer.nonlexeme.symbol("j")    ~> comp)
+    val setFlag   = lexer.lexeme(lexer.nonlexeme.symbol("set")  ~> comp)
+    val cmovFlag  = lexer.lexeme(lexer.nonlexeme.symbol("cmov") ~> comp)
+    val jumpJFlag = lexer.lexeme(lexer.nonlexeme.symbol("j")    ~> jump)
 
     // higher-order parsers
     def brackets[A](p: => Parsley[A]): Parsley[A] = lexer.lexeme.brackets(p)
