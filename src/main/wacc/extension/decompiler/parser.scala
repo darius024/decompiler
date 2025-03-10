@@ -6,18 +6,19 @@ import parsley.Parsley.{atomic, many}
 import parsley.combinator.option
 import scala.util.{Success => TrySuccess, Failure => TryFailure}
 
-import helpers.*
-import lexer.*
-import syntax.*
-import implicits.implicitSymbol
-
 import wacc.backend.ir.*
 import immediate.*
 import instructions.*
 import memory.*
 import registers.*
+import wacc.error.errors.*
 
 import advancedErrors.*
+import helpers.*
+import lexer.*
+import syntax.*
+import syntaxErrors.*
+import implicits.implicitSymbol
 
 /** Formulates the grammar rules the parser should follow. */
 object parser {
@@ -132,12 +133,12 @@ object parser {
     
     private val parser = fully(program)
 
-    def parse(file: File): Result[String, IRProgram] = parser.parseFile[String](file) match {
+    def parse(file: File): Result[WaccError, IRProgram] = parser.parseFile[WaccError](file) match {
         case TrySuccess(result) => result
-        case TryFailure(msg)    => Failure(s"could not open file: $msg")
+        case TryFailure(_)      => Failure(IOError)
     }
 
-    def parse(input: String): Result[String, IRProgram] = parser.parse[String](input)
+    def parse(input: String): Result[WaccError, IRProgram] = parser.parse[WaccError](input)
 }
 
 /** Helper functions used by the parser. */
