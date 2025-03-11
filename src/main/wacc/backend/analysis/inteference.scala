@@ -12,44 +12,56 @@ import registers.*
 class InterferenceGraph {
   // Map from temp register to the set of temp registers it interferes with
   val graph: mutable.Map[TempReg, mutable.Set[TempReg]] = mutable.Map.empty
+
+  // Getter for all nodes in the graph
+  def nodes: Set[TempReg] = graph.keySet.toSet
   
   /**
-   * Build the interference graph from a CFG with liveness information.
+   * Build the interference graph from an instruction-level CFG with liveness information.
    */
-  def build(cfg: ControlFlowGraph): Unit = {
+  def build(instrCFG: InstructionCFG): Unit = {
     // First ensure all blocks have computed uses and defs
-    cfg.blocks.foreach(_.computeUsesAndDefs())
-    
-    // For each block
-    for (block <- cfg.blocks) {
-        // Process each instruction to find interferences
-        for (i <- 0 until block.instructions.size) {
-            val instr = block.instructions(i)
-            
-            // Get temps defined at this instruction
-            val defs = InstructionAnalysis.getDefines(instr)
-            
-            // Get temps live at this point (after the instruction)
-            val liveAfter = block.liveAtInstruction.getOrElse(i, Set.empty)
-            
-            // Add interference edges
-            for (defVar <- defs) {
-                for (liveVar <- liveAfter) {
-                    if (defVar != liveVar) {
-                        addEdge(defVar, liveVar)
-                        }
-                    }
-                }
-        }
+    instrCFG.computeUsesAndDefs()
 
-        // Ensure all nodes aer in the graph
-        for (temp <- block.uses ++ block.defs) {
-            if (!graph.contains(temp)) {
-                graph(temp) = mutable.Set.empty
+    // Then perform liveness analysis
+    instrCFG.performLivenessAnalysis()
+    
+    // For each instruction node in the CFG
+    for (instr <- instrCFG.nodes) {
+      // Get temps defined at this instruction
+      val defs =  instr.defs
+      
+      // Get temps live at this point (after the instruction)
+      val liveOut = instr.liveOut
+
+      // Add interference edges
+      for (defVar <- defs) {
+        for (liveVar <- liveOut) {
+            if (defVar != liveVar) {
+              addEdge(defVar, liveVar)
             }
         }
+      }
+        
+      // Ensure all nodes aer in the graph
+      for (temp <- instr.uses ++ instr.defs) {
+          if (!graph.contains(temp)) {
+              graph(temp) = mutable.Set.empty
+          }
+      }
     }
-}
+  }
+
+  /**
+   * Create a copy of the interference graph.
+   */
+  def copy(): InterferenceGraph = {
+    val newGraph = new InterferenceGraph()
+    for ((temp, neighbors) <- graph) {
+      newGraph.graph(temp) = mutable.Set.from(neighbors)
+    }
+    newGraph
+  }
   
   /**
    * Add an edge between two nodes in the graph.
@@ -81,10 +93,10 @@ class InterferenceGraph {
   }
 
 
-    /**
-     * Check if two nodes interfere.
-     */
-    def interferes(a: TempReg, b: TempReg): Boolean = {
-        graph.get(a).exists(_.contains(b)) || graph.get(b).exists(_.contains(a))
-    }
+  /**
+   * Check if two nodes interfere.
+   */
+  def interferes(a: TempReg, b: TempReg): Boolean = {
+      graph.get(a).exists(_.contains(b)) || graph.get(b).exists(_.contains(a))
+  }
 }

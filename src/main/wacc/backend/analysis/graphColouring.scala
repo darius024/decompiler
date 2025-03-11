@@ -17,7 +17,7 @@ class GraphColoringAllocator(availableRegisters: List[Register], codeGen: CodeGe
   // Variables that couldn't be allocated to registers
   val spilledNodes: mutable.Set[TempReg] = mutable.Set.empty
 
-  // Stack frame offset for spilled variables\
+  // Stack frame offset for spilled variables
   var stackFrameOffset: Int = 0
   
   /**
@@ -41,13 +41,20 @@ class GraphColoringAllocator(availableRegisters: List[Register], codeGen: CodeGe
   }
   
   /**
-   * Rewrite the IR with physical registers.
+   * Assign a physical register to a temporary register.
    */
-  def rewriteIR(instructions: List[Instruction]): List[Instruction] = {
-    ???
-    // TO IMPLEMENT:
-    // 1. Replace temp registers with allocated physical registers
-    // 2. Add spill code for spilled variables
-    // 3. Update function prologue/epilogue as needed
+  def assignRegister(temp: TempReg, reg: Register): Unit = {
+    colors(temp) = reg
   }
+
+  /**
+    * Update variable locations for temporary registers to concrete registers or stack.
+    */
+  def updateVariableLocations(): Unit = {
+    ???
+    // TO IMPLEMENT: Update the variable locations in the code generator
+    // based on the colors map and spilled nodes.
+    // This may involve updating the stack frame offset for spilled nodes.
+  }
+
 }
