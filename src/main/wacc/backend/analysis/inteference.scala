@@ -20,8 +20,6 @@ class InterferenceGraph {
    * Build the interference graph from an instruction-level CFG with liveness information.
    */
   def build(instrCFG: InstructionCFG): Unit = {
-    // First ensure all blocks have computed uses and defs
-    instrCFG.computeUsesAndDefs()
 
     // Then perform liveness analysis
     instrCFG.performLivenessAnalysis()

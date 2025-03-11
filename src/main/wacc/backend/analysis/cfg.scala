@@ -24,20 +24,11 @@ sealed trait CFGNode {
  */
 class InstructionNode(val id: Int, val instruction: Instruction) extends CFGNode {
   // Liveness analysis information for this instruction
-  val defs: mutable.Set[TempReg] = mutable.Set.empty
-  val uses: mutable.Set[TempReg] = mutable.Set.empty
+  val defs: Set[TempReg] = instruction.getDefs
+  val uses: Set[TempReg] = instruction.getUses
   var liveIn: mutable.Set[TempReg] = mutable.Set.empty
   var liveOut: mutable.Set[TempReg] = mutable.Set.empty
   
-  /**
-   * Compute which temporary registers are defined or used by this instruction.
-   */
-  def computeUsesAndDefs(): Unit = {
-    defs.clear()
-    uses.clear()
-    defs ++= InstructionAnalysis.getDefines(instruction)
-    uses ++= InstructionAnalysis.getUses(instruction)
-  }
 }
 
 /**
@@ -140,10 +131,10 @@ class CFGBuilder {
    * Construct both block-level and instruction-level CFGs in a single pass.
    */
   private def constructCFGs(
-    instructions: List[Instruction], 
-    leaders: Set[Int],
-    blockCFG: BlockCFG,
-    instrCFG: InstructionCFG
+      instructions: List[Instruction], 
+      leaders: Set[Int],
+      blockCFG: BlockCFG,
+      instrCFG: InstructionCFG
   ): Unit = {
     // TO IMPLEMENT: Construct both CFGs in a single pass
     // This should:
@@ -160,44 +151,44 @@ class CFGBuilder {
  * Used for optimizations like dead code elimination.
  */
 class BlockCFG {
-  val blocks: mutable.ListBuffer[BasicBlock] = mutable.ListBuffer.empty
-  var entryBlock: Option[BasicBlock] = None
-  var exitBlocks: mutable.Set[BasicBlock] = mutable.Set.empty
-  
-  /**
-   * Find unreachable blocks in the CFG.
-   * @return Set of unreachable block IDs
-   */
-  def findUnreachableBlocks(): Set[Int] = {
-    // TO IMPLEMENT: Mark reachable blocks via DFS from entry block
-    // Return IDs of blocks that aren't reachable
-    Set.empty
-  }
-  
-  /**
-   * Perform dead code elimination.
-   * @return List of eliminated instructions
-   */
-  def eliminateDeadCode(): List[Instruction] = {
-    // TO IMPLEMENT: Remove unreachable blocks
-    // Return the eliminated instructions
-    List.empty
-  }
-  
-  /**
-   * Find the block containing a specific instruction.
-   */
-  def findBlockForInstruction(instr: Instruction): Option[BasicBlock] = {
-    // TO IMPLEMENT: Find the block containing the given instruction
-    None
-  }
-  
-  /**
-   * Print the block-level CFG for debugging.
-   */
-  def printCFG(): Unit = {
-    // TO IMPLEMENT: Print the block-level CFG structure
-  }
+    val blocks: mutable.ListBuffer[BasicBlock] = mutable.ListBuffer.empty
+    var entryBlock: Option[BasicBlock] = None
+    var exitBlocks: mutable.Set[BasicBlock] = mutable.Set.empty
+    
+    /**
+     * Find unreachable blocks in the CFG.
+     * @return Set of unreachable block IDs
+     */
+    def findUnreachableBlocks(): Set[Int] = {
+      // TO IMPLEMENT: Mark reachable blocks via DFS from entry block
+      // Return IDs of blocks that aren't reachable
+      Set.empty
+    }
+    
+    /**
+     * Perform dead code elimination.
+     * @return List of eliminated instructions
+     */
+    def eliminateDeadCode(): List[Instruction] = {
+      // TO IMPLEMENT: Remove unreachable blocks
+      // Return the eliminated instructions
+      List.empty
+    }
+    
+    /**
+     * Find the block containing a specific instruction.
+     */
+    def findBlockForInstruction(instr: Instruction): Option[BasicBlock] = {
+      // TO IMPLEMENT: Find the block containing the given instruction
+      None
+    }
+    
+    /**
+     * Print the block-level CFG for debugging.
+     */
+    def printCFG(): Unit = {
+      // TO IMPLEMENT: Print the block-level CFG structure
+    }
 }
 
 
@@ -206,59 +197,53 @@ class BlockCFG {
  * Used for precise liveness analysis and register allocation.
  */
 class InstructionCFG {
-  val nodes: mutable.ListBuffer[InstructionNode] = mutable.ListBuffer.empty
-  var entryNode: Option[InstructionNode] = None
-  var exitNodes: mutable.Set[InstructionNode] = mutable.Set.empty
-  
-  // Maps instructions to their nodes
-  private val instructionToNode: mutable.Map[Instruction, InstructionNode] = mutable.Map.empty
-  
-  /**
-   * Get the node for an instruction.
-   */
-  def getNodeForInstruction(instr: Instruction): Option[InstructionNode] = {
-    instructionToNode.get(instr)
-  }
-  
-  /**
-   * Compute uses and defs for all nodes.
-   */
-  def computeUsesAndDefs(): Unit = {
-    nodes.foreach(_.computeUsesAndDefs())
-  }
-  
-  /**
-   * Perform liveness analysis to compute liveIn and liveOut for each instruction.
-   */
-  def performLivenessAnalysis(): Unit = {
-    // TO IMPLEMENT: Run iterative dataflow algorithm to compute liveness
-    // Start with empty liveIn/liveOut sets
-    // Iterate until fixpoint:
-    //   For each node in reverse order:
-    //     liveOut[n] = union of liveIn[s] for all successors s
-    //     liveIn[n] = uses[n] ∪ (liveOut[n] - defs[n])
-  }
+    val nodes: mutable.ListBuffer[InstructionNode] = mutable.ListBuffer.empty
+    var entryNode: Option[InstructionNode] = None
+    var exitNodes: mutable.Set[InstructionNode] = mutable.Set.empty
+    
+    // Maps instructions to their nodes
+    private val instructionToNode: mutable.Map[Instruction, InstructionNode] = mutable.Map.empty
+    
+    /**
+     * Get the node for an instruction.
+     */
+    def getNodeForInstruction(instr: Instruction): Option[InstructionNode] = {
+        instructionToNode.get(instr)
+    }
+    
+    
+    /**
+     * Perform liveness analysis to compute liveIn and liveOut for each instruction.
+     */
+    def performLivenessAnalysis(): Unit = {
+      // TO IMPLEMENT: Run iterative dataflow algorithm to compute liveness
+      // Start with empty liveIn/liveOut sets
+      // Iterate until fixpoint:
+      //   For each node in reverse order:
+      //     liveOut[n] = union of liveIn[s] for all successors s
+      //     liveIn[n] = uses[n] ∪ (liveOut[n] - defs[n])  
+    }
 
-  /**
-   * Check if a temporary register is live at a specific instruction.
-   */
-  def isLiveAt(temp: TempReg, instr: Instruction, before: Boolean = false): Boolean = {
-    // TO IMPLEMENT: Check if the temp is in liveIn (if before) or liveOut (if after)
-    false
-  }
-  
-  /**
-   * Get all instructions where a temporary register is live.
-   */
-  def getLiveRangeFor(temp: TempReg): List[Instruction] = {
-    // TO IMPLEMENT: Find all instructions where temp is live
-    List.empty
-  }
-  
-  /**
-   * Print the instruction-level CFG with liveness information.
-   */
-  def printCFG(): Unit = {
-    // TO IMPLEMENT: Print the instruction-level CFG with liveness info
-  }
+    /**
+     * Check if a temporary register is live at a specific instruction.
+     */
+    def isLiveAt(temp: TempReg, instr: Instruction, before: Boolean = false): Boolean = {
+      // TO IMPLEMENT: Check if the temp is in liveIn (if before) or liveOut (if after)
+      false
+    }
+    
+    /**
+     * Get all instructions where a temporary register is live.
+     */
+    def getLiveRangeFor(temp: TempReg): List[Instruction] = {
+      // TO IMPLEMENT: Find all instructions where temp is live
+      List.empty
+    }
+    
+    /**
+     * Print the instruction-level CFG with liveness information.
+     */
+    def printCFG(): Unit = {
+      // TO IMPLEMENT: Print the instruction-level CFG with liveness info
+    }
 }

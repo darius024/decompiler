@@ -86,6 +86,70 @@ class CodeGenerator(instructions: mutable.Builder[Instruction, List[Instruction]
     }
 
     /**
+      * Updates the uses and defs set of the instruction.
+      */  
+    def updateUsesDefs(instr: Instruction): Unit = instr match {
+        case mov: Mov => 
+            // If destination is a register, it's defined
+            // If destination is memory, the base/index registers are used
+            mov.dest match {
+                case regDest: Register => mov.addDef(regDest)
+                case memDest: MemoryAccess => mov.addUse(memDest)  // This will extract any temp regs from the memory address
+            }
+    
+            mov.addUse(mov.src)
+
+        case div: Div  => 
+            div.addUse(div.src)
+
+        case mod: Mod  => 
+            mod.addUse(mod.src)
+
+        case cmp: Cmp => 
+            cmp.addUse(cmp.dest)
+            cmp.addUse(cmp.src) 
+        
+        case test: Test => 
+            test.addUse(test.dest)
+            test.addUse(test.src)
+
+        // ADD Sub, AND, OR
+        case binaryInstr: BinaryInstr => 
+            binaryInstr.addDef(binaryInstr.dest)
+            binaryInstr.addUse(binaryInstr.dest)
+            binaryInstr.addUse(binaryInstr.src)
+        
+        case setComp: SetComp => 
+            setComp.addDef(setComp.dest)
+        
+        case mul: Mul =>
+            mul.addDef(mul.dest)
+            mul.addUse(mul.src)
+            // In x86, MUL might implicitly use RAX or other registers
+
+        case mulImm: MulImm =>
+            mulImm.addDef(mulImm.dest)
+            mulImm.addUse(mulImm.src)
+            // Immediate is already handled
+
+        case lea: Lea =>
+            lea.addDef(lea.dest)
+            lea.addUse(lea.addr) 
+        
+        case cMov: CMov => 
+            cMov.addDef(cMov.dest)
+            cMov.addUse(cMov.src)
+
+        case pop: Pop => 
+            pop.addDef(pop.reg)
+            
+        case push: Push => 
+            push.addUse(push.reg)
+        
+        case _ => // Other instructions may not need to update uses/defs
+    }
+
+    /**
       * Appends one string directive to the intermediate representation.
       */
     def addStrLabel(directive: StrLabel): Unit = {

@@ -10,18 +10,6 @@ import instructions.*
 /**
  * Utility for analyzing instruction register usage.
  */
-object InstructionAnalysis {
-  /**
-   * Get all temporary registers defined by an instruction.
-   */
-  def getDefines(instr: Instruction): Set[TempReg] = ???
-  
-  /**
-   * Get all temporary registers used by an instruction.
-   */
-  def getUses(instr: Instruction): Set[TempReg] = ???
-}
-
 
 
 // /**
