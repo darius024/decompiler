@@ -2,6 +2,8 @@ package wacc.backend.ir
 
 import parsley.generic.*
 
+import scala.collection.mutable
+
 import flags.*
 import immediate.*
 import instructions.*
@@ -154,8 +156,33 @@ object instructions {
     type RegImm = Register | Immediate
     type RegImmMem = Register | Immediate | MemoryAccess
 
-    /** Base trait for all assembly instructions. */
-    sealed trait Instruction
+    /** Base trait for all assembly instructions with use/def tracking of temporaries. */
+    sealed trait Instruction {
+      // Sets of temporary registers used and defined by this instruction
+      protected val uses: mutable.Set[TempReg] = mutable.Set.empty
+      protected val defs: mutable.Set[TempReg] = mutable.Set.empty
+      
+      // Helper method for adding a register to uses
+      def addUse(reg: RegImmMem): Unit = reg match {
+        case temp: TempReg => uses += temp
+        case MemAccess(base: TempReg, _, _) => uses += base
+        case MemRegAccess(base: TempReg, idx: TempReg, _, _) => 
+          uses += base
+          uses += idx
+        case _ => // Not a temporary register
+      }
+      
+      // Helper method for adding a register to defs
+      def addDef(reg: RegMem): Unit = reg match {
+        case temp: TempReg => defs += temp
+        case _ => // Not a temporary register
+      }
+
+      // Getter for uses and defs as sets
+      def getUses: Set[TempReg] = uses.toSet
+      def getDefs: Set[TempReg] = defs.toSet
+    }
+
 
     /** Assembly directives that control the assembler behavior. */
     sealed trait Directive extends Instruction
