@@ -6,25 +6,28 @@ import parsley.Parsley.{atomic, many}
 import parsley.combinator.option
 import scala.util.{Success => TrySuccess, Failure => TryFailure}
 
-import helpers.*
-import lexer.*
-import syntax.*
-import implicits.implicitSymbol
-
 import wacc.backend.ir.*
 import immediate.*
 import instructions.*
 import memory.*
 import registers.*
+import wacc.error.errors.*
 
 import advancedErrors.*
+import helpers.*
+import lexer.*
+import syntax.*
+import syntaxErrors.*
+import implicits.implicitSymbol
 
 /** Formulates the grammar rules the parser should follow. */
 object parser {
-    type IRProgram = List[Instruction]
+    // labels
 
     private lazy val label: Parsley[Label] =
         atomic(Label(identifier <~ option(":" | "@plt")))
+
+    // immediates, register, and memory accesses
 
     private lazy val immediate: Parsley[Immediate] =
         Imm(integer)
@@ -46,12 +49,13 @@ object parser {
         MemoryAcc(register, option(("+" | "-") ~> (integer | label)), option("*" ~> register))
     ))
 
+    // combinations of operands
+
     private lazy val registerImmediate: Parsley[RegImm] =
         ( immediate
         | register
         )
         
-
     private lazy val registerMemory: Parsley[RegMem] =
         ( register
         | memoryAccess
@@ -62,6 +66,8 @@ object parser {
         | memoryAccess
         )
 
+    // directives
+
     private lazy val directive: Parsley[StrLabel] =
         StrDirective(".int" ~> integer, label, ".asciz" ~> string)
 
@@ -71,6 +77,8 @@ object parser {
         | Text.from(".text")
         | Global(".globl" ~> identifier)
         )
+
+    // instructions
 
     private lazy val stackInstr: Parsley[Instruction] =
         ( Push("push" ~> register)
@@ -86,7 +94,6 @@ object parser {
         | Test("test" ~> register, "," ~> registerImmediate)
         | atomic(MulImm("imul" ~> register, "," ~> register, "," ~> immediate))
         | Mul ("imul" ~> register, "," ~> registerImmediate)
-        // | Mod ("idiv"                   ~> registerImmediate)
         | Div ("idiv"                   ~> registerImmediate)
         | SetCompInstr(setFlag, register)
         )
@@ -115,21 +122,25 @@ object parser {
         | controlFlowInstr
         )
 
+    // program
+
     private lazy val program: Parsley[IRProgram] = many(instruction)
 
     // top-level parsers
     
     private val parser = fully(program)
 
-    def parse(file: File): Result[String, IRProgram] = parser.parseFile[String](file) match {
+    def parse(file: File): Result[WaccError, IRProgram] = parser.parseFile[WaccError](file) match {
         case TrySuccess(result) => result
-        case TryFailure(msg)    => Failure(s"could not open file: $msg")
+        case TryFailure(_)      => Failure(IOError)
     }
 
-    def parse(input: String): Result[String, IRProgram] = parser.parse[String](input)
+    def parse(input: String): Result[WaccError, IRProgram] = parser.parse[WaccError](input)
 }
 
+/** Helper functions used by the parser. */
 object helpers {
+    /** Parses a parameter register (ensure top-down matching order). */
     val paramRegisters: Parsley[Register & SizedAs[RegSize]] =
         ( "rax".as(RAX(RegSize.QUAD_WORD))
         | "eax".as(RAX(RegSize.DOUBLE_WORD))
@@ -149,6 +160,7 @@ object helpers {
         | "dl" .as(RDX(RegSize.BYTE))
         )
 
+    /** Parses a special register (ensure top-down matching order). */
     val specialRegisters: Parsley[Register & SizedAs[RegSize]] =
         ( "rdi".as(RDI(RegSize.QUAD_WORD))
         | "edi".as(RDI(RegSize.DOUBLE_WORD))
@@ -172,6 +184,7 @@ object helpers {
         | "sp" .as(RSP(RegSize.WORD))
         )
     
+    /** Parses a numbered register (ensure top-down matching order). */
     val numberedRegisters: Parsley[Register & SizedAs[RegSize]] =
         ( "r8d" .as(R8(RegSize.DOUBLE_WORD))
         | "r8w" .as(R8(RegSize.WORD))
