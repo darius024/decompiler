@@ -124,25 +124,179 @@ class CFGBuilder {
         }
         
         leaders.toSet
-  }
+    }
 
   /**
    * Construct both block-level and instruction-level CFGs in a single pass.
    */
     private def constructCFGs(
-      instructions: List[Instruction], 
-      leaders: Set[Int],
-      blockCFG: BlockCFG,
-      instrCFG: InstructionCFG
-    ): Unit = {
+        instructions: List[Instruction], 
+        leaders: Set[Int],
+        blockCFG: BlockCFG,
+        instrCFG: InstructionCFG
+        ): Unit = {
         // TO IMPLEMENT: Construct both CFGs in a single pass
         // This should:
         // 1. Create basic blocks and add them to blockCFG
         // 2. Create instruction nodes and add them to instrCFG
         // 3. Set up predecessor/successor relationships in both CFGs
         // 4. Connect instruction nodes to their containing basic blocks
-  }
+
+
+        if (instructions.nonEmpty){
+            // create all blocks and instruction nodes
+
+            var currentBlockIdx = -1
+            var currentBlock: Option[BasicBlock] = None
+
+            for (i <- instructions.indices) {
+                val instr = instructions(i)
+
+                // create instruction node
+                val instrNode = new InstructionNode(getNextNodeId(), instr)
+                instrCFG.nodes += instrNode
+                instrCFG.setNodeForInstruction(instr, instrNode)
+
+                // If this is a leader, start a new block
+                if (leaders.contains(i)) {
+                    
+                    currentBlockIdx += 1
+                    currentBlock = Some(new BasicBlock(currentBlockIdx))
+                    blockCFG.blocks += currentBlock.get
+                    blockCFG.setBlockForIndex(i, currentBlock.get)
+
+                    // if this is the first leader, set it as the entry block
+                    if (blockCFG.entryBlock.isEmpty) {
+                        blockCFG.entryBlock = Some(currentBlock.get)
+                        instrCFG.entryNode = Some(instrNode)
+                    }                    
+                }
+
+                // Add instruction to the current block
+                if (currentBlock.isDefined) {
+                    currentBlock.get.instructions += instr
+                    currentBlock.get.instructionNodes(currentBlock.get.instructions.size - 1) = instrNode
+                }
+
+                // Check if this is an exit point
+                instr match {
+                    case Ret =>
+                        blockCFG.exitBlocks += currentBlock.get
+                        instrCFG.exitNodes += instrNode
+                    case _ => // Not an exit point
+                }
+            }
+
+            // Create helper function to identify successors instruction indices
+            def getSuccessorIndices(idx: Int): List[Int] = {
+                
+                // Get the instruction at the current index
+                val instr = instructions(idx)
+
+                instr match {
+                    case Jump(label, _) =>
+                        // Find the target index of this unconditional jump
+                        val targetIdx = instructions.indexWhere {
+                            case Label(name) if name == label.name => true
+                            case _ => false
+                        }
+
+                        // If the target index is valid, return it otherwise return empty list
+                        if (targetIdx >= 0) List(targetIdx) else Nil 
+                    
+                    case JumpComp(label, _) =>
+                        // Find the target index and fallthrough index of this conditional jump
+                        val targetIdx = instructions.indexWhere {
+                            case Label(name) if name == label.name => true
+                            case _ => false
+                        }
+                        val fallThroughIdx = idx + 1 // Next instruction is the fallthrough
+
+                        // Build list of all possible successors
+                        if (targetIdx >= 0 && fallThroughIdx < instructions.size) {
+                            List(targetIdx, fallThroughIdx) // Both jump target and fallthrough
+                        } else if (targetIdx >= 0) { 
+                            List(targetIdx) // Only jump target
+                        } else if (fallThroughIdx < instructions.size) {
+                            List(fallThroughIdx) // Only fall through
+                        } else {
+                            Nil // No successors
+                        }
+
+                    case Ret =>
+                        // Return empty list for return instructions
+                        Nil
+                    case _ =>
+                        // For all other instructions, return the next instruction index
+                        if (idx + 1 < instructions.size) List(idx + 1) else Nil
+                }
+            }
+
+            // Helper function fund which block contains a specific instruction index
+            def findBlockForIndex(idx: Int): Option[BasicBlock] = {
+                // If index is a leader, its block is directly mapped
+                blockCFG.getBlockForIndex(idx).orElse {
+                    //Otherwise, find the closest leader before the index
+                    val leaderIdx = leaders.filter(_ < idx).maxOption
+                    leaderIdx.flatMap(blockCFG.getBlockForIndex)
+                }
+            }
+
+
+            // Process all leaders to connect blocks and instruction nodes
+            for (leaderIdx <- leaders) {
+                blockCFG.getBlockForIndex(leaderIdx).foreach { block => 
+                    if (block.instructions.nonEmpty) {
+                        // BLOCK-LEVEL CONNECTIONS
+                        // Find the last instruction in the block
+                    
+                        val lastInstrIdx2 = block.instructions.size - 1 // Get last instruction index in the block
+                        val lastInstrNode = block.instructionNodes(lastInstrIdx2)
+                        val lastInstrIdx = leaderIdx + lastInstrIdx2 // Get the absolute index of the last instruction in the instructions list
+
+                        // Get all successor indices for the last instruction
+                        val successorIndices = getSuccessorIndices(lastInstrIdx)
+
+
+                        // INSTRUCTION-LEVEL CONNECTIONS
+                        // Connect instructions sequentially within the block
+                        for (i <- 0 until block.instructions.size - 1) {
+                            val currentInstrNode = block.instructionNodes(i)
+                            val nextInstrNode = block.instructionNodes(i + 1)
+
+                            currentInstrNode.successors += nextInstrNode
+                            nextInstrNode.predecessors += currentInstrNode
+                        }
+                        
+                    
+                        // Connect to each successor instruction
+                        for (succIdx <- successorIndices) {
+                            
+                            // Block-level connection
+                            findBlockForIndex(succIdx).foreach { succBlock =>
+                                if (succBlock != block) {  // Avoid self-loops at block level
+                                    block.successors += succBlock
+                                    succBlock.predecessors += block
+                                }
+                            }   
+
+
+                            // Get the instruction node for this successor
+                            instrCFG.getNodeForInstruction(instructions(succIdx)).foreach { succNode =>
+                                lastInstrNode.successors += succNode
+                                succNode.predecessors += lastInstrNode
+                            }
+                        }
+                    }
+                }
+            }
+
+        } else {
+            // No instructions to process
+        }
+    }
 }
+
 
 
 /**
@@ -153,15 +307,37 @@ class BlockCFG {
     val blocks: mutable.ListBuffer[BasicBlock] = mutable.ListBuffer.empty
     var entryBlock: Option[BasicBlock] = None
     var exitBlocks: mutable.Set[BasicBlock] = mutable.Set.empty
+
+
+    // Map from leader instruction index to basic block
+    private val indexToBlock: mutable.Map[Int, BasicBlock] = mutable.Map.empty
     
+    // Set a block for a leader index
+    def setBlockForIndex(idx: Int, block: BasicBlock): Unit = {
+        indexToBlock(idx) = block
+    }
+    
+    // Get the block for a leader index
+    def getBlockForIndex(idx: Int): Option[BasicBlock] = {
+        indexToBlock.get(idx)
+    }
+    
+    /**
+     * Find the block containing a specific instruction.
+     */
+    def findBlockForInstruction(instr: Instruction): Option[BasicBlock] = {
+        // Efficient implementation using blocks and their instructions
+        blocks.find(_.instructions.contains(instr))
+    }
+
     /**
      * Find unreachable blocks in the CFG.
      * @return Set of unreachable block IDs
      */
     def findUnreachableBlocks(): Set[Int] = {
-      // TO IMPLEMENT: Mark reachable blocks via DFS from entry block
-      // Return IDs of blocks that aren't reachable
-      Set.empty
+        // TO IMPLEMENT: Mark reachable blocks via DFS from entry block
+        // Return IDs of blocks that aren't reachable
+        Set.empty
     }
     
     /**
@@ -169,24 +345,16 @@ class BlockCFG {
      * @return List of eliminated instructions
      */
     def eliminateDeadCode(): List[Instruction] = {
-      // TO IMPLEMENT: Remove unreachable blocks
-      // Return the eliminated instructions
-      List.empty
-    }
-    
-    /**
-     * Find the block containing a specific instruction.
-     */
-    def findBlockForInstruction(instr: Instruction): Option[BasicBlock] = {
-      // TO IMPLEMENT: Find the block containing the given instruction
-      None
+        // TO IMPLEMENT: Remove unreachable blocks
+        // Return the eliminated instructions
+        List.empty
     }
     
     /**
      * Print the block-level CFG for debugging.
      */
     def printCFG(): Unit = {
-      // TO IMPLEMENT: Print the block-level CFG structure
+        // TO IMPLEMENT: Print the block-level CFG structure
     }
 }
 
@@ -209,7 +377,21 @@ class InstructionCFG {
     def getNodeForInstruction(instr: Instruction): Option[InstructionNode] = {
         instructionToNode.get(instr)
     }
-    
+
+    /**
+     * Get the instruction for a node.
+     */
+    def getInstructionForNode(node: InstructionNode): Option[Instruction] = {
+        instructionToNode.find(_._2 == node).map(_._1)
+    }
+
+    /**
+     * Set the node for an instruction.
+     */
+    def setNodeForInstruction(instr: Instruction, node: InstructionNode): Unit = {
+        instructionToNode(instr) = node
+    }
+
     
     /**
      * Perform liveness analysis to compute liveIn and liveOut for each instruction.
@@ -222,6 +404,7 @@ class InstructionCFG {
         //     liveOut[n] = union of liveIn[s] for all successors s
         //     liveIn[n] = uses[n] ∪ (liveOut[n] - defs[n])  
         
+        // clear previous liveness if we ran liveness analysis before 
         for (node <- nodes) {
             node.liveIn.clear()
             node.liveOut.clear()
@@ -238,14 +421,14 @@ class InstructionCFG {
             val oldLiveIn = node.liveIn.toSet
 
             // liveOut = union of liveIn of successors
-            val newLiveOut= Set[TempReg]()
+            val newLiveOut= mutable.Set[TempReg]()
             node.successors.foreach {
                 case succNode: InstructionNode =>
-                    node.liveOut ++= succNode.liveIn
+                    newLiveOut ++= succNode.liveIn
                 case _ => // Ignore non-instruction nodes
             }  
 
-            val newLiveIn = node.uses ++ (newLiveOut -- node.defs)
+            val newLiveIn = node.uses ++ (newLiveOut.diff(node.defs))
 
             // Update liveIn and liveOut
             node.liveIn.clear()

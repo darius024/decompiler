@@ -1,8 +1,8 @@
-package wacc.backend.analysis
+// package wacc.backend.analysis
 
-import wacc.backend.ir.*
-import registers.*
-import instructions.*
+// import wacc.backend.ir.*
+// import registers.*
+// import instructions.*
 
 //TODO put utility functions in this file once implemented
 
