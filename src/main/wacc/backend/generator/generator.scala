@@ -14,6 +14,8 @@ import wacc.semantics.scoping.semanticTypes.*
 import wacc.semantics.typing.*
 import TyStmt.*
 
+import wacc.backend.analysis.*
+
 /**
   * First pass of code generation.
   * 
@@ -59,8 +61,12 @@ def generate(prog: TyProg): CodeGenerator = {
     // generate code for the main program
     generateMain(stmts)
 
+    val calleeSaved: List[Register]= List(R12(), R13(), R14(), R15())
+    val graphColoring = GraphColoring(calleeSaved)
+
     // perform register allocation in the second pass
-    allocate(codeGen)
+    graphColoring.allocateWithGraphColoring(codeGen)
+
 }
 
 /**
