@@ -24,12 +24,12 @@ class Disassembler(val label: Label,
                    blocks: Map[Label, Block],
                    directives: Set[StrLabel],
                    stack: mutable.Stack[String]) {
-    // maps registers to the variables they store
+    // map registers to the variables they store
     private val registers = mutable.Map.empty[Register, String]
-    // maps memory accesses to the variables they store
+    // map memory accesses to the variables they store
     private val memory = mutable.Map.empty[MemoryAccess, String]
-    // provides a uniform naming convention
-    private val namer = new Namer
+    // provide a uniform naming convention
+    val namer = new Namer
 
     var currentLabel = label
     var numParameters = 0
@@ -229,7 +229,10 @@ def disassemble(funcBlock: FuncBlock, directives: Set[StrLabel]): Function = {
         disassembler.numParameters = 1
     }
 
-    Function(label.name, disassembler.numParameters, instrs.toList)
+    val params = parameters.take(disassembler.numParameters).map { reg =>
+        disassembler.namer.nextVariable(VarType.Parameter(reg, label.name))
+    }
+    Function(label.name, params, instrs.toList)
 }
 
 /** Transforms a block of assembly instructions to the intermediate representation. */

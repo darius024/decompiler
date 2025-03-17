@@ -54,5 +54,5 @@ object intermediate {
     case class If(condition: ExprVar, thenStatements: InstrList, elseStatements: InstrList) extends Instr
     case class While(condition: ExprVar, doStatements: InstrList) extends Instr
 
-    case class Function(name: String, numParams: Int, block: InstrList)
+    case class Function(name: String, params: List[String], block: InstrList)
 }
