@@ -1,9 +1,12 @@
 package wacc.extension.decompiler
 
+import parsley.Parsley
+import parsley.errors.combinator.*
 import parsley.generic.*
 
 import wacc.backend.ir.*
 import flags.*
+import immediate.*
 import instructions.*
 import memory.*
 import registers.*
@@ -14,12 +17,14 @@ object syntax {
     type IRProgram = List[Instruction]
 
     /** Creates a memory access operand from the rules. */
-    object MemoryAcc extends ParserBridge3[Register, Option[Int | Label], Option[Register], MemoryAccess] {
-        def apply(base: Register, offset: Option[Int | Label], reg: Option[Register]): MemoryAccess = offset match {
-            case Some(offset) => reg match {
-                case Some(reg) => MemRegAccess(base, reg, offset)
-                case None      => MemAccess(base, offset)
-            }
+    object MemoryAcc extends ParserBridge3[Register, Option[(Boolean, Int | Label)], Option[Register], MemoryAccess] {
+        def apply(base: Register, offset: Option[(Boolean, Int | Label)], reg: Option[Register]): MemoryAccess = offset match {
+            case Some(offset) =>
+                val off = if (offset._1 ) offset._2 else offset._2 match {case i: Int => -i; case label => label}
+                reg match {
+                    case Some(reg) => MemRegAccess(base, reg, off)
+                    case None      => MemAccess(base, off)
+                }
             case None         => MemAccess(base, memoryOffsets.NO_OFFSET)
         }
     }
@@ -64,5 +69,23 @@ object syntax {
             case MemAccess(base, offset, _)         => MemAccess(base, offset, size.getOrElse(RegSize.QUAD_WORD))
             case MemRegAccess(base, reg, offset, _) => MemRegAccess(base, reg, offset, size.getOrElse(RegSize.QUAD_WORD))
         }
+    }
+
+    object BinaryInstruction extends ParserBridge1[BinaryInstr, BinaryInstr] {
+        override def apply(instr: Parsley[BinaryInstr]): Parsley[BinaryInstr] = super.apply(instr).guardAgainst {
+            case binInstr if (binInstr.dest.size != binInstr.src.size && !binInstr.src.isInstanceOf[Immediate]) =>
+                    Seq("operands do not match")
+        }
+
+        override def apply(instr: BinaryInstr): BinaryInstr = instr
+    }
+
+    object MovInstr extends ParserBridge1[Mov, Mov] {
+        override def apply(mov: Parsley[Mov]): Parsley[Mov] = super.apply(mov).guardAgainst {
+            case mov if (mov.dest.size.size < mov.src.size.size && !mov.src.isInstanceOf[Immediate]) =>
+                    Seq("destination operand is smaller than source operand in move")
+        }
+
+        override def apply(mov: Mov): Mov = mov
     }
 }
