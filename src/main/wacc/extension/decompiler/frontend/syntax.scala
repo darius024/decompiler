@@ -14,12 +14,14 @@ object syntax {
     type IRProgram = List[Instruction]
 
     /** Creates a memory access operand from the rules. */
-    object MemoryAcc extends ParserBridge3[Register, Option[Int | Label], Option[Register], MemoryAccess] {
-        def apply(base: Register, offset: Option[Int | Label], reg: Option[Register]): MemoryAccess = offset match {
-            case Some(offset) => reg match {
-                case Some(reg) => MemRegAccess(base, reg, offset)
-                case None      => MemAccess(base, offset)
-            }
+    object MemoryAcc extends ParserBridge3[Register, Option[(Boolean, Int | Label)], Option[Register], MemoryAccess] {
+        def apply(base: Register, offset: Option[(Boolean, Int | Label)], reg: Option[Register]): MemoryAccess = offset match {
+            case Some(offset) =>
+                val off = if (offset._1 ) offset._2 else offset._2 match {case i: Int => -i; case label => label}
+                reg match {
+                    case Some(reg) => MemRegAccess(base, reg, off)
+                    case None      => MemAccess(base, off)
+                }
             case None         => MemAccess(base, memoryOffsets.NO_OFFSET)
         }
     }
