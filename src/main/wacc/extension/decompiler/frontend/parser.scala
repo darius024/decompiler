@@ -86,27 +86,27 @@ object parser {
         )
     
     private lazy val arithmeticInstr: Parsley[Instruction] =
-        ( Add ("add"  ~> register, "," ~> registerImmediate)
-        | Sub ("sub"  ~> register, "," ~> registerImmediate)
-        | And ("and"  ~> register, "," ~> registerImmediate)
-        | Or  ("or"   ~> register, "," ~> registerImmediate)
-        | Cmp ("cmp"  ~> register, "," ~> registerImmediate)
-        | Test("test" ~> register, "," ~> registerImmediate)
-        | atomic(MulImm("imul" ~> register, "," ~> register, "," ~> immediate))
+        ( BinaryInstruction(Add ("add"  ~> register, "," ~> registerImmediate))
+        | BinaryInstruction(Sub ("sub"  ~> register, "," ~> registerImmediate))
+        | BinaryInstruction(And ("and"  ~> register, "," ~> registerImmediate))
+        | BinaryInstruction(Or  ("or"   ~> register, "," ~> registerImmediate))
+        | BinaryInstruction(Cmp ("cmp"  ~> register, "," ~> registerImmediate))
+        | BinaryInstruction(Test("test" ~> register, "," ~> registerImmediate))
+        | atomic (MulImm("imul" ~> register, "," ~> register, "," ~> immediate))
         | Mul ("imul" ~> register, "," ~> registerImmediate)
-        | Div ("idiv"                   ~> registerImmediate)
+        | Div ("idiv"                  ~> registerImmediate)
         | SetCompInstr(setFlag, register)
         )
 
     private lazy val movInstr: Parsley[Instruction] =
-        ( Mov(("movzx" | "mov") ~> registerMemory, "," ~> registerImmediateMemory)
+        ( MovInstr(Mov(("movzx" | "mov") ~> registerMemory, "," ~> registerImmediateMemory))
         | Lea("lea" ~> register, "," ~> memoryAccess)
         | CMovInstr(cmovFlag, register, "," ~> register)
         | ConvertDoubleToQuad.from("cdq")
         )
 
     private lazy val controlFlowInstr: Parsley[Instruction] =
-        ( Ret.from("ret")
+        ( Ret.from("ret" | "leave")
         | Call("call" ~> label)
         | atomic(JumpInstr(jumpJFlag, label))
         | JumpCompInstr(jumpCFlag, label)

@@ -39,6 +39,7 @@ object lexer {
                 "add", "sub", "imul", "idiv", "and", "or",
                 "cmp", "test",
                 "cdq",
+                "leave"
             ),      
         ),
 
