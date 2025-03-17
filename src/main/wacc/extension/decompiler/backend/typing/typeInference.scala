@@ -6,19 +6,23 @@ import representation.*
 import BinaryOperation.*
 import UnaryOperation.*
 
+/** Stores information about the types of all  variables and functions. */
 class Typer(val vars: mutable.Map[Id, Type],
             val funcs: mutable.Map[Id, Type]) {
     var returnTy: Type = Unset
 
+    // insert a variable to the map
     def addVar(id: Id, ty: Type): Unit = {
         vars += id -> ty
     }
 
+    // insert a function to the map
     def addFunc(id: Id, ty: Type): Unit = {
         funcs += id -> ty
     }
 }
 
+/** Performs local type inference on a function. */
 def infer(function: Func): (Func, Typer) = {
     given typer: Typer =
         Typer(mutable.Map.empty[Id, Type], mutable.Map.empty[Id, Type])
@@ -32,9 +36,11 @@ def infer(function: Func): (Func, Typer) = {
     (Func((newTy, id), newParams, newStmts), typer)
 }
 
+/** Performs local type inference on a statement. */
 def infer(funcName: Id, stmt: Statement)
          (using typer: Typer): Statement = stmt match {
-    case Declaration(typeId, rvalue) => stmt
+    case Declaration(typeId, rvalue) =>
+        stmt
     case Assignment(lvalue, rvalue) =>
         val (expr, ty) = infer(rvalue, Unset)
         val (lv, lvTy) = infer(lvalue, ty)
@@ -73,12 +79,15 @@ def infer(funcName: Id, stmt: Statement)
         Block(stmts)
 }
 
+/** Performs local type inference on an expression, given the constraint. */
 def infer(expr: Expression, constraint: Type)
          (using typer: Typer): (Expression, Type) = expr match {
     case id @ Id(value) => 
-        if (typer.vars.contains(id)) {
+        // if the variable has been encountered before and has a type, use that information
+        if (typer.vars.contains(id) && typer.vars(id) != Unset) {
             (id, typer.vars(id))
         } else {
+            // store more specific information about the type of the variable
             typer.vars(id) = constraint
             (id, constraint)
         }
@@ -140,17 +149,21 @@ def infer(expr: Expression, constraint: Type)
     case expr => (expr, Unset)
 }
 
+/** Appends type information to a program.
+  * 
+  * The main goal is to add type information in function signatures
+  * and to replace assignments with declarations when a variable is firstly defined.
+  */
 def appendTypes(program: Program): Program = {
     // clean program here
     val Program(funcs, main) = program
 
     val newFuncs = funcs.map(infer(_)).map { (func, typer) =>
-        println(typer.vars)
-        println(typer.funcs)
-
         val Func((ty, id), params, stmts) = func
 
+        // get the return type of the function
         val newTy = typer.funcs(id)
+        // get the parameters type information
         val newParams = params.map { case (ty, param) =>
             (typer.vars(param), param)
         }
@@ -160,14 +173,12 @@ def appendTypes(program: Program): Program = {
     }
 
     val (mainStmts, typer) = infer(Func((Unset, Id("main")), Array.empty, main))
-    println()
-    println(typer.vars)
-    println(typer.funcs)
     val newMain = mainStmts.stmts.map(appendTypes(_, typer))
 
     Program(newFuncs, newMain)
 }
 
+/** Appends type information to a statement. */
 def appendTypes(stmt: Statement, typer: Typer): Statement = stmt match {
     case Assignment(id: Id, rvalue) => if (typer.vars.contains(id)) {
         val decl = Declaration((typer.vars(id), id), rvalue)

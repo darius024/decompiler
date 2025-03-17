@@ -7,6 +7,7 @@ import representation.*
 private final val NO_INDENT = 0
 private final val INDENT = 4
 
+/** Generates code in the provided target language. */
 def generate(program: Program, file: File, lang: ProgrammingLanguage): Unit = {
     given language: ProgrammingLanguage = lang
     given outputStream: OutputStream = os.write.outputStream(
@@ -19,10 +20,13 @@ def generate(program: Program, file: File, lang: ProgrammingLanguage): Unit = {
         outputStream.write(language.programBegin.getBytes)
         outputStream.write("\n\n".getBytes)
 
+        // generate the functions
         funcs.foreach(generate)
         if (funcs.nonEmpty) {
             outputStream.write("\n\n".getBytes)
         }
+
+        // generate the main body
         generateStmts(main, NO_INDENT)
 
         outputStream.write("\n".getBytes)
@@ -37,20 +41,25 @@ def generate(program: Program, file: File, lang: ProgrammingLanguage): Unit = {
     }
 }
 
+/** Generates code for a function. */
 def generate(function: Func)
             (using outputStream: OutputStream, language: ProgrammingLanguage): Unit = {
     val Func((ty, name), params, stmts) = function
 
+    // write the signature of the function
     outputStream.write(s"${generate(ty)} ${generate(name)} (${params.map(generate).mkString(", ")}) ${language.functionBegin}\n".getBytes)
     generateStmts(stmts, INDENT)
     outputStream.write(s"${language.functionEnd}\n".getBytes)
 }
 
+/** Generates code for a block of statements. */
 def generateStmts(statements: StatementList, indent: Int)
                  (using outputStream: OutputStream, language: ProgrammingLanguage): Unit = {
     if (statements.isEmpty) {
+        // if the body is empty, use a no-operation
         outputStream.write(language.skip.getBytes)
     } else {
+        // generate the first statement
         outputStream.write(generate(statements(0), indent).getBytes)
 
         statements.drop(1).foreach { stmt =>
@@ -64,6 +73,7 @@ def generateStmts(statements: StatementList, indent: Int)
     outputStream.write("\n".getBytes)
 }
 
+/** Generates code for a statement with the provided indentation. */
 def generate(statement: Statement, indent: Int)
             (using outputStream: OutputStream, language: ProgrammingLanguage): String = (" " * indent).concat(statement match {
     case Declaration((ty, id), rvalue) =>
@@ -95,6 +105,7 @@ def generate(statement: Statement, indent: Int)
         s"${language.blockEnd}"
 })
 
+/** Generates code for an expression. */
 def generate(expr: Expression)
             (using language: ProgrammingLanguage): String = expr match {
     case IntLit(value) => s"$value"
@@ -116,6 +127,7 @@ def generate(expr: Expression)
     case UnaryOp(expr, op)      => s"${generate(op)}${generate(expr)}"
 }
 
+/** Generates code for a type. */
 def generate(ty: Type)
             (using language: ProgrammingLanguage): String = ty match {
     case IntType => language.intType
@@ -127,9 +139,11 @@ def generate(ty: Type)
     case Unset => "UNSET"
 }
 
+/** Generates code for a typed variable. */
 def generate(typeId: TypeId)
             (using language: ProgrammingLanguage): String = s"${generate(typeId._1)} ${generate(typeId._2)}"
 
+/** Generates a binary operation. */
 def generate(op: BinaryOperation): String = op match {
     case BinaryOperation.Or        => "||"
     case BinaryOperation.And       => "&&"
@@ -146,6 +160,7 @@ def generate(op: BinaryOperation): String = op match {
     case BinaryOperation.Mod       => "%"
 }
 
+/** Generates a unary operation. */
 def generate(op: UnaryOperation): String = op match {
     case UnaryOperation.Not => "!"
     case UnaryOperation.Neg => "-"
