@@ -95,7 +95,7 @@ def controlFlow(instructions: List[Instruction]): ControlFlow = {
     controller
 }
 
-
+/** Analyses the instructions that change the control flow of the execution. */
 def controlFlow(instruction: Instruction)
                (using controller: ControlFlow): Unit = instruction match {
     case strDirective: StrLabel =>
@@ -137,7 +137,9 @@ def controlFlow(instruction: Instruction)
         controller.addInstr(instr)
         controller.endBlock(true)
     
+    // clean the assembly of directives
     case _: Directive =>
+    
     case instr =>
         if (controller.previousWasJump) {
             // add an artificial label to better match the graph edges
