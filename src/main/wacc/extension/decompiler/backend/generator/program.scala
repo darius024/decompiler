@@ -4,6 +4,8 @@ import representation.*
 
 /** Interface for programming languages to be decompiled to. */
 trait ProgrammingLanguage {
+    def libraries: List[String]
+
     def fileExtension: String
 
     def functionBegin: String

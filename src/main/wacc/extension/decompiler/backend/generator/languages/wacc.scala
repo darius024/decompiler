@@ -11,6 +11,8 @@ object WaccLanguage extends ProgrammingLanguage {
     private final val ERR = "_err"
     private final val FREE = "_free"
 
+    def libraries: List[String] = Nil
+
     def fileExtension: String = "wacc"
 
     def functionBegin: String = "is"

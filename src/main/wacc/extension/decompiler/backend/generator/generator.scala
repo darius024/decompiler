@@ -22,11 +22,8 @@ class Generator(errs: mutable.Builder[WaccError, List[WaccError]]) {
 
 /** Generates code in the provided target language. */
 def generate(program: Program, file: File, flags: Seq[String]): Option[WaccError] = {
-    given language: ProgrammingLanguage = if (flags.isEmpty || flags(0) != "--language=C") {
-        WaccLanguage
-    } else {
-        CLanguage
-    }
+    given language: ProgrammingLanguage =
+        if (flags.isEmpty || flags(0) != "--language=C") WaccLanguage else CLanguage
     given generator: Generator =
         Generator(List.newBuilder)
 
@@ -37,6 +34,8 @@ def generate(program: Program, file: File, flags: Seq[String]): Option[WaccError
     val Program(funcs, main) = appendTypes(language.clean(program))
 
     try {
+        outputStream.write(language.libraries.mkString("\n").getBytes)
+        outputStream.write("\n".getBytes)
         outputStream.write(language.programBegin.getBytes)
         outputStream.write("\n\n".getBytes)
 

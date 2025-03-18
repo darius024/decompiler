@@ -38,6 +38,7 @@ class Disassembler(val label: Label,
     // array extraction
     var arrayElem = ""
     var arrayInd: ExprVar = 0
+    val arrays = mutable. Set.empty[RegMem]
 
     // structure pattern: arrays and pairs
     var structPattern = false
@@ -79,6 +80,7 @@ class Disassembler(val label: Label,
     // retrieve the structure constructed
     def getStructure: Expr = {
         structPattern = false
+        arrays += structReg
         if (arrayPattern) {
             ArrayLit(structLiteral.toList, structElemSize)
         } else {
@@ -145,7 +147,6 @@ class Disassembler(val label: Label,
     // push the variable on the stack
     def pushStack(reg: Register): Unit = {
         stack.push(getVariable(reg, true))
-        // registers.remove(reg)
     }
 
     // pop the variable from the stack
@@ -330,7 +331,6 @@ def disassemble(instr: Instruction, instrs: mutable.ListBuffer[Instr])
         instrs += Assignment(disassembler.getVariableAndRemove(reg), Fst(disassembler.getVariable(R12())))
     case Mov(reg, MemAccess(R12(_), RegSize.QUAD_WORD.size, _)) =>
         instrs += Assignment(disassembler.getVariableAndRemove(reg), Snd(disassembler.getVariable(R12())))
-    
     case Mov(MemAccess(R12(_), memoryOffsets.NO_OFFSET, _), reg) =>
         instrs += Assignment(Fst(disassembler.getVariable(R12())), disassembler.evaluate(reg))
     case Mov(MemAccess(R12(_), RegSize.QUAD_WORD.size, _), reg) =>
@@ -348,10 +348,12 @@ def disassemble(instr: Instruction, instrs: mutable.ListBuffer[Instr])
 
     // check for structure allocation
     case Mov(MemAccess(reg, offset: Int, size), src)
-        if (disassembler.structPattern && reg == disassembler.structReg) =>
-            // in WACC, pairs use positive offsets
+        if (disassembler.structPattern && reg == disassembler.structReg && !disassembler.arrays.contains(reg)) =>
             if (offset < 0) { disassembler.arrayPattern = true; disassembler.structSize -= RegSize.DOUBLE_WORD.size }
             else { disassembler.addStructElement(disassembler.evaluate(src), size.size) }
+    case Mov(MemAccess(reg, offset: Int, size), src)
+        if (disassembler.arrays.contains(reg)) =>
+            instrs += Assignment(ArrayElem(disassembler.getVariable(reg), disassembler.arrayInd), disassembler.evaluate(src))
 
     case Mov(regMem, src) =>
         // check for division or modulo
@@ -371,6 +373,7 @@ def disassemble(instr: Instruction, instrs: mutable.ListBuffer[Instr])
         if (disassembler.structPattern && disassembler.structPointer) {
             disassembler.initialStructReg = regMem
             disassembler.structReg = regMem
+            disassembler.getVariable(regMem)
             disassembler.structPointer = false
         } else {
             instrs += Assignment(disassembler.getVariableAndRemove(regMem), disassembler.evaluate(src))

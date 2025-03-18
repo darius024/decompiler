@@ -12,7 +12,7 @@ private final val AssemblySyntax = formatter.SyntaxStyle.Intel
 /** Entry point of the program. */
 @main
 def main(path: String, flags: String*): Unit = {
-    val (errs, code) = if (path.endsWith(".wacc")) {
+    val (errs, code) = if (path.endsWith(decompiler.WaccLanguage.fileExtension)) {
         compile(new File(path), flags)
     } else {
         decompile(new File(path), flags)
@@ -66,11 +66,10 @@ def decompile(file: File, flags: Seq[String] = Seq.empty): (String, ExitCode) = 
         case Failure(err) => return (s"${err.message}", ExitCode.SyntaxErr)
     }
 
+    // perform all the stages of the backend
     val controller = decompiler.controlFlow(instructions)
     val program = decompiler.transform(decompiler.disassemble(controller))
     val errors = decompiler.generate(program, file, flags)
-
-    // decompiler.prettyPrint(controller)
 
     errors match {
         case None      => ("Code decompiled successfully.", ExitCode.Success)

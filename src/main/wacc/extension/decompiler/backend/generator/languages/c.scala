@@ -4,6 +4,7 @@ import representation.*
 
 /** WACC language specification. */
 object CLanguage extends ProgrammingLanguage {
+    def libraries: List[String] = List("#include <stdio.h>", "#include <stdlib.h>")
     def fileExtension: String = "c"
 
     def functionBegin: String = "{"
@@ -27,7 +28,7 @@ object CLanguage extends ProgrammingLanguage {
     def pairLiteral: String = "nullptr"
 
     def arrayElement(id: String, indices: List[String]): String = s"$id${indices.map(i => s"[$i]")}"
-    def arrayLit(exprs: List[String]): String = s"[${exprs.mkString(", ")}]"
+    def arrayLit(exprs: List[String]): String = s"{${exprs.mkString(", ")}}"
     def newPair(fst: String, snd: String): String = s"{$fst, $snd}"
     def call(func: String, args: List[String]): String = s"$func(${args.mkString(", ")})"
 
