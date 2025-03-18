@@ -1,3 +1,9 @@
 {
-    "valid": []
+    "valid": [
+        "advanced",
+        "runtimeErr",
+        "scope",
+        "function",
+        "sequence"
+    ]
 }

@@ -40,6 +40,7 @@ object optimisations {
 
     // provide efficient register allocation by using graph colouring
     case object RegisterAllocation extends OptimisationType {
+        // this optimisation is performed during allocation
         def apply(instructions: List[Instruction]): List[Instruction] = instructions
     }
 
@@ -70,3 +71,6 @@ class OptimisationConfig {
         flags(flag) = true
     }
 }
+
+/** Determines if the allocator should be optimised. */
+def optimiseRegs(flags: Seq[String]): Boolean = flags.contains("--register")

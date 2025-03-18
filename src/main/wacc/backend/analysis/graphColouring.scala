@@ -5,56 +5,98 @@ import wacc.backend.ir.*
 import wacc.backend.generator.*
 
 import registers.*
-import instructions.*
+
 
 /**
  * Register allocator using graph coloring algorithm.
  */
-class GraphColoringAllocator(availableRegisters: List[Register], codeGen: CodeGenerator) {
-  // Mapping from temp registers to physical registers
-  val colors: mutable.Map[TempReg, Register] = mutable.Map.empty
+class GraphColoring(availableRegisters: List[Register]) {
   
-  // Variables that couldn't be allocated to registers
-  val spilledNodes: mutable.Set[TempReg] = mutable.Set.empty
+    // mutable set of available registers
+    val available: mutable.Set[Register] = mutable.Set(availableRegisters*)
+    
+    // Mapping from temp registers to physical registers
+    val colors: mutable.Map[TempReg, Register] = mutable.Map.empty
+    
+    /**
+     * Color the interference graph using Chaitin's algorithm.
+     */
+    def colorGraph(graph: InterferenceGraph): Unit = {
 
-  // Stack frame offset for spilled variables
-  var stackFrameOffset: Int = 0
-  
-  /**
-   * Color the interference graph using Chaitin's algorithm.
-   */
-  def colorGraph(graph: InterferenceGraph): Unit = {
-    ???
-    // TO IMPLEMENT:
-    // 1. Simplification: Remove nodes with degree < K until none left
-    // 2. Spill: If graph not empty, choose a node to spill
-    // 3. Select: Pop nodes from stack and assign colors
-  }
-  
-  /**
-   * Choose which node to spill based on heuristics.
-   */
-  def selectSpillCandidate(graph: InterferenceGraph): TempReg = {
-    ???
-    // TO IMPLEMENT: Use heuristic to select a good spill candidate
-    // (e.g., frequency of use, loop nesting level, etc.)
-  }
-  
-  /**
-   * Assign a physical register to a temporary register.
-   */
-  def assignRegister(temp: TempReg, reg: Register): Unit = {
-    colors(temp) = reg
-  }
+        // 1. Simplification: Remove nodes with degree < K until none left
+        // 2. Spill: If graph not empty, choose a node to spill
+        // 3. Select: Pop nodes from stack and assign colors
 
-  /**
-    * Update variable locations for temporary registers to concrete registers or stack.
-    */
-  def updateVariableLocations(): Unit = {
-    ???
-    // TO IMPLEMENT: Update the variable locations in the code generator
-    // based on the colors map and spilled nodes.
-    // This may involve updating the stack frame offset for spilled nodes.
-  }
+        val k = available.size // number of available registers
+        val stack = mutable.Stack[TempReg]()
+        val workGraph = graph.copy()
+        
+        // remove nodes with degree < K
+        var progress = true
+        while (progress) {
+          progress = false
+          val simplifiableNodes = workGraph.nodes.filter(n => workGraph.getDegree(n) < k)
+          if (simplifiableNodes.nonEmpty) {
+            for (node <- simplifiableNodes) {
+              stack.push(node)
+              workGraph.removeNode(node)
+              progress = true
+            }
+          } 
+        }
+
+        // assign colors to nodes in reverse order
+        while (stack.nonEmpty) {
+            val node = stack.pop()
+            val unavailableColors = workGraph.getNeighbors(node).flatMap(colors.get).toSet
+
+            val availableColor = available.find(!unavailableColors.contains(_))
+
+            if (availableColor.isDefined) {
+                // Assign a color to the node
+                assignRegister(node, availableColor.get)
+            } 
+        }
+    }
+  
+    
+    /**
+     * Assign a physical register to a temporary register.
+     */
+    def assignRegister(temp: TempReg, reg: Register): Unit = {
+        colors(temp) = reg
+    }
+
+    /**
+     * Allocates registers using graph coloring algorithm before falling back to
+     * the standard allocator for register spilling.
+     */
+    def allocateWithGraphColoring(codeGen: CodeGenerator): CodeGenerator = {
+        // Build instruction-level CFG for the whole program
+        // (this respects function boundaries since Call instructions don't have edges to function entries)
+        val cfgBuilder = new CFGBuilder()
+        val instrCFG = new InstructionCFG()
+
+        cfgBuilder.constructInstructionCFG(codeGen.ir, instrCFG)
+        
+        // Perform liveness analysis
+        instrCFG.performLivenessAnalysis()
+        
+        // Build interference graph
+        val interferenceGraph = new InterferenceGraph()
+        interferenceGraph.build(instrCFG)
+        
+        // Perform graph coloring using callee-saved registers
+        // (we'll let the standard allocator handle parameter registers in main)
+        this.colorGraph(interferenceGraph)
+        
+        // Pre-populate the varRegs map with colored temporaries
+        for ((temp, reg) <- this.colors) {
+            codeGen.varRegs(temp.toString) = reg
+        }
+        
+        // Execute standard allocator with pre-colored registers
+        allocate(codeGen, true)
+    }
 
 }

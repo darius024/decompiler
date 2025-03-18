@@ -16,13 +16,14 @@ import utils.*
   * This is the second pass of code generation that transforms abstract temporary registers
   * into concrete machine registers or memory accesses.
   */
-def allocate(codeGen: CodeGenerator): CodeGenerator = {
+def allocate(codeGen: CodeGenerator, optimise: Boolean): CodeGenerator = {
     // mapped temporary registers to machine registers
     given registers: mutable.Map[TempReg, RegMem] = mutable.Map.empty
     // local buffer of instructions
     given scopeInstructions: mutable.ListBuffer[Instruction] = mutable.ListBuffer.empty[Instruction]
     // mapped variables to registers or memory
     given temporaries: mutable.Map[String, RegMem] = codeGen.varRegs
+    given liveness: Map[RegMem, (Int, Int)] = codeGen.varLive.toMap
     // register machine
     given regMachine: RegisterMachine = new RegisterMachine()
 
@@ -160,7 +161,8 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
             scopeInstructions += Test(destReg, srcReg)
             
         // handle data movement operations
-        case Mov(dest: RegMem, src: RegImmMem) =>
+        case mov @ Mov(dest: RegMem, src: RegImmMem) =>
+            val useReg = regMachine.checkVariableLiveness(mov, dest)
             val register = scopeInstructions match {
                 case _ :+ Mov(RAX(_), _) => src match {
                     case MemAccess(RAX(_), _, _) => RETURN_REG()
@@ -179,7 +181,18 @@ def allocate(codeGen: CodeGenerator): CodeGenerator = {
                 case MemAccess(reg, offset, size)         => MemAccess(regMachine.nextRegister(reg), offset, size)
                 case _                                    => src
             }
-            scopeInstructions += Mov(destReg, srcReg)
+            if (!optimise || useReg) {
+                scopeInstructions += Mov(destReg, srcReg)
+            }
+
+            // optimisation: free the register
+            if (optimise) {
+                src match {
+                    case reg: Register
+                        if (liveness.contains(reg) && liveness(reg)._2 == mov.number) => regMachine.freeRegister(reg)
+                    case _ =>
+                }
+            }
                         
         case Lea(dest: TempReg, MemAccess(src, offset, size)) =>
             val destReg = regMachine.nextRegister(dest)
@@ -323,5 +336,19 @@ object allocator {
                 }
             }
         }
+
+        /** Checks if it useful to allocate a register to the variable or not. */
+        def checkVariableLiveness(mov: Instruction, srcReg: RegImmMem)
+                                 (using liveness: Map[RegMem, (Int, Int)]): Boolean = srcReg match {
+            case reg: RegMem => !(liveness.contains(reg) && liveness(reg)._1 == liveness(reg)._2)
+            case _ => true
+        }
+
+        /** Makes the register available. */
+        def freeRegister(reg: Register): Unit =
+            if ((calleeSaved ++ paramRegisters).contains(reg)) {
+                availableRegisters += reg
+                usedRegisters = usedRegisters.filter(_ != reg)
+            }
     }
 }

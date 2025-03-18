@@ -158,29 +158,31 @@ object instructions {
 
     /** Base trait for all assembly instructions with use/def tracking of temporaries. */
     sealed trait Instruction {
-      // Sets of temporary registers used and defined by this instruction
-      protected val uses: mutable.Set[TempReg] = mutable.Set.empty
-      protected val defs: mutable.Set[TempReg] = mutable.Set.empty
-      
-      // Helper method for adding a register to uses
-      def addUse(reg: RegImmMem): Unit = reg match {
-        case temp: TempReg => uses += temp
-        case MemAccess(base: TempReg, _, _) => uses += base
-        case MemRegAccess(base: TempReg, idx: TempReg, _, _) => 
-          uses += base
-          uses += idx
-        case _ => // Not a temporary register
-      }
-      
-      // Helper method for adding a register to defs
-      def addDef(reg: RegMem): Unit = reg match {
-        case temp: TempReg => defs += temp
-        case _ => // Not a temporary register
-      }
+        // sets of temporary registers used and defined by this instruction
+        protected val uses: mutable.Set[TempReg] = mutable.Set.empty
+        protected val defs: mutable.Set[TempReg] = mutable.Set.empty
+        
+        // helper method for adding a register to uses
+        def addUse(reg: RegImmMem): Unit = reg match {
+            case temp: TempReg => uses += temp
+            case MemAccess(base: TempReg, _, _) => uses += base
+            case MemRegAccess(base: TempReg, idx: TempReg, _, _) => 
+            uses += base
+            uses += idx
+            case _ =>
+        }
+        
+        // helper method for adding a register to defs
+        def addDef(reg: RegMem): Unit = reg match {
+            case temp: TempReg => defs += temp
+            case _ =>
+        }
 
-      // Getter for uses and defs as sets
-      def getUses: Set[TempReg] = uses.toSet
-      def getDefs: Set[TempReg] = defs.toSet
+        // getter for uses and defs as sets
+        def getUses: Set[TempReg] = uses.toSet
+        def getDefs: Set[TempReg] = defs.toSet
+
+        var number: Int = 0
     }
 
 

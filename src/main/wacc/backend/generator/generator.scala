@@ -10,6 +10,7 @@ import registers.*
 import utils.*
 import widgets.*
 
+import wacc.backend.analysis.*
 import wacc.semantics.scoping.semanticTypes.*
 import wacc.semantics.typing.*
 import TyStmt.*
@@ -21,7 +22,7 @@ import TyStmt.*
   * Uses temporary registers to represent values, which will be allocated to
   * physical registers in the second pass.
   */
-def generate(prog: TyProg): CodeGenerator = {
+def generate(prog: TyProg, optimise: Boolean): CodeGenerator = {
     given codeGen: CodeGenerator =
         CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
 
@@ -60,7 +61,11 @@ def generate(prog: TyProg): CodeGenerator = {
     generateMain(stmts)
 
     // perform register allocation in the second pass
-    allocate(codeGen)
+    if (optimise) {
+        GraphColoring(List(R12(), R13(), R14(), R15())).allocateWithGraphColoring(codeGen)
+    } else {
+        allocate(codeGen, optimise)
+    }
 }
 
 /**
