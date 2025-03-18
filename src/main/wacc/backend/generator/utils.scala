@@ -66,6 +66,7 @@ class CodeGenerator(instructions: mutable.Builder[Instruction, List[Instruction]
                     labeller: Labeller,
                     temp: Temporary,
                     widgets: WidgetManager) {
+    private var instrNumber = 0
     def ir: List[Instruction] = instructions.result()
     var instrs: List[Instruction] = ir
     
@@ -75,14 +76,19 @@ class CodeGenerator(instructions: mutable.Builder[Instruction, List[Instruction]
     final val registers: Array[Register] = Array(ARG1(), ARG2(), ARG3(), ARG4(), ARG5(), ARG6())
     final val numRegisters: mutable.Map[Label, Int] = mutable.Map.empty
     val varRegs: mutable.Map[String, RegMem] = mutable.Map.empty
+    val varLive: mutable.Map[RegMem, (Int, Int)] = mutable.Map.empty
     var currLabel: Label = Label("main")
     var inMain: Boolean = false
 
     /**
       * Appends one instruction to the intermediate representation.
       */ 
-    def addInstr(instruction: Instruction): Unit = {
+    def addInstr(instruction: Instruction): Int = {
+        instruction.number = instrNumber
+        instrNumber += 1
         instructions += instruction
+
+        instrNumber - 1
     }
 
     /**
@@ -183,6 +189,7 @@ class CodeGenerator(instructions: mutable.Builder[Instruction, List[Instruction]
       */
     def addVar(name: String, regMem: RegMem, param: Boolean = false): RegMem = {
         varRegs += name -> regMem
+        varLive += regMem -> (instrNumber, instrNumber)
         if (!param) {
             numRegisters(currLabel) = numRegisters(currLabel) + 1
         }
@@ -194,7 +201,16 @@ class CodeGenerator(instructions: mutable.Builder[Instruction, List[Instruction]
       * Otherwise, it adds the variable to the map for later accesses.
       */
     def getVar(name: String, size: RegSize = RegSize.QUAD_WORD): Register = {
-        varRegs.getOrElse(name, addVar(name, nextTemp(size))) match {
+        val regMem = if (varRegs.contains(name)) {
+            val reg = varRegs(name)
+            val initialNumber = varLive(reg)._1
+            varLive(reg) = (initialNumber, instrNumber)
+            reg
+        } else {
+            addVar(name, nextTemp(size))
+        }
+        
+        regMem match {
             case memAccess: MemoryAccess => 
                 val temp = nextTemp(memAccess.size)
                 addInstr(Mov(temp, memAccess))

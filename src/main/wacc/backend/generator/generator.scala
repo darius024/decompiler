@@ -10,11 +10,10 @@ import registers.*
 import utils.*
 import widgets.*
 
+import wacc.backend.analysis.*
 import wacc.semantics.scoping.semanticTypes.*
 import wacc.semantics.typing.*
 import TyStmt.*
-
-import wacc.backend.analysis.*
 
 /**
   * First pass of code generation.
@@ -23,7 +22,7 @@ import wacc.backend.analysis.*
   * Uses temporary registers to represent values, which will be allocated to
   * physical registers in the second pass.
   */
-def generate(prog: TyProg): CodeGenerator = {
+def generate(prog: TyProg, optimise: Boolean): CodeGenerator = {
     given codeGen: CodeGenerator =
         CodeGenerator(List.newBuilder, Set.newBuilder, new Labeller, new Temporary, new WidgetManager)
 
@@ -61,12 +60,12 @@ def generate(prog: TyProg): CodeGenerator = {
     // generate code for the main program
     generateMain(stmts)
 
-    val calleeSaved: List[Register]= List(R12(), R13(), R14(), R15())
-    val graphColoring = GraphColoring(calleeSaved)
-
     // perform register allocation in the second pass
-    graphColoring.allocateWithGraphColoring(codeGen)
-
+    if (optimise) {
+        GraphColoring(List(R12(), R13(), R14(), R15())).allocateWithGraphColoring(codeGen)
+    } else {
+        allocate(codeGen, optimise)
+    }
 }
 
 /**

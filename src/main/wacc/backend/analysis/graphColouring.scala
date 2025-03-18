@@ -27,7 +27,6 @@ class GraphColoring(availableRegisters: List[Register]) {
         // 2. Spill: If graph not empty, choose a node to spill
         // 3. Select: Pop nodes from stack and assign colors
 
-
         val k = available.size // number of available registers
         val stack = mutable.Stack[TempReg]()
         val workGraph = graph.copy()
@@ -73,31 +72,31 @@ class GraphColoring(availableRegisters: List[Register]) {
      * the standard allocator for register spilling.
      */
     def allocateWithGraphColoring(codeGen: CodeGenerator): CodeGenerator = {
-      // Build instruction-level CFG for the whole program
-      // (this respects function boundaries since Call instructions don't have edges to function entries)
-      val cfgBuilder = new CFGBuilder()
-      val instrCFG = new InstructionCFG()
+        // Build instruction-level CFG for the whole program
+        // (this respects function boundaries since Call instructions don't have edges to function entries)
+        val cfgBuilder = new CFGBuilder()
+        val instrCFG = new InstructionCFG()
 
-      cfgBuilder.constructInstructionCFG(codeGen.ir, instrCFG)
-      
-      // Perform liveness analysis
-      instrCFG.performLivenessAnalysis()
-      
-      // Build interference graph
-      val interferenceGraph = new InterferenceGraph()
-      interferenceGraph.build(instrCFG)
-      
-      // Perform graph coloring using callee-saved registers
-      // (we'll let the standard allocator handle parameter registers in main)
-      this.colorGraph(interferenceGraph)
-      
-      // Pre-populate the varRegs map with colored temporaries
-      for ((temp, reg) <- this.colors) {
-        codeGen.varRegs(temp.toString) = reg
-      }
-      
-      // Execute standard allocator with pre-colored registers
-      allocate(codeGen)
+        cfgBuilder.constructInstructionCFG(codeGen.ir, instrCFG)
+        
+        // Perform liveness analysis
+        instrCFG.performLivenessAnalysis()
+        
+        // Build interference graph
+        val interferenceGraph = new InterferenceGraph()
+        interferenceGraph.build(instrCFG)
+        
+        // Perform graph coloring using callee-saved registers
+        // (we'll let the standard allocator handle parameter registers in main)
+        this.colorGraph(interferenceGraph)
+        
+        // Pre-populate the varRegs map with colored temporaries
+        for ((temp, reg) <- this.colors) {
+            codeGen.varRegs(temp.toString) = reg
+        }
+        
+        // Execute standard allocator with pre-colored registers
+        allocate(codeGen, true)
     }
 
 }

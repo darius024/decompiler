@@ -45,7 +45,8 @@ def compile(file: File, flags: Seq[String] = Seq.empty): (String, ExitCode) = {
     )
 
     // generate the intermediate representation
-    val instructions = generator.generate(typedAst)
+    val optimiseRegisters = optimisation.optimiseRegs(flags)
+    val instructions = generator.generate(typedAst, optimiseRegisters)
 
     // perform optimisations on the intermediate representation
     val optimisedInstructions = optimisation.optimise(instructions, flags)

@@ -2,7 +2,6 @@ package wacc.backend.analysis
 
 import scala.collection.mutable
 import wacc.backend.ir.*
-//import wacc.backend.generator.*
 
 import registers.*
 import instructions.*
@@ -16,8 +15,6 @@ sealed trait CFGNode {
     val predecessors: mutable.Set[CFGNode] = mutable.Set.empty
     val successors: mutable.Set[CFGNode] = mutable.Set.empty
 }
-
-
 
 /**
  * An instruction-level CFG node representing a single instruction.
@@ -59,7 +56,6 @@ class CFGBuilder {
         nextNodeId += 1
         id
     }
-
     
     /**
      * Build both block-level and instruction-level CFGs from a list of instructions.
@@ -118,8 +114,6 @@ class CFGBuilder {
         
         leaders.toSet
     }
-
-
 
     // shared function for both block and instruction level CFG
     def getSuccessorIndices(instructions: List[Instruction], idx: Int, includeFunctionCalls: Boolean = false): List[Int] = {
@@ -200,17 +194,16 @@ class CFGBuilder {
 
     }
 
-
-  /**
-   * Construct both block-level and instruction-level CFGs in a single pass.
-   */
+    /**
+     * Construct both block-level and instruction-level CFGs in a single pass.
+     */
     private def constructCFGs(
         instructions: List[Instruction], 
         leaders: Set[Int],
         blockCFG: BlockCFG,
         instrCFG: InstructionCFG
         ): Unit = {
-        // TO IMPLEMENT: Construct both CFGs in a single pass
+        // TODO: Construct both CFGs in a single pass
         // This should:
         // 1. Create basic blocks and add them to blockCFG
         // 2. Create instruction nodes and add them to instrCFG
@@ -371,12 +364,6 @@ class CFGBuilder {
             }
         }
 
-    /**
-      * Construct the block-level CFG from the given instructions and leaders.
-      * @param instructions The IR instruction list
-      * @param leaders The set of leader instruction indices
-      * @param blockCFG The block-level CFG to populate
-      */ 
     def constructBlockCFG(
         instructions: List[Instruction], 
         leaders: Set[Int],
@@ -412,10 +399,6 @@ class CFGBuilder {
             }
     }
 }
-
-
-
-
 
 /**
  * Block-level Control Flow Graph.
@@ -453,7 +436,7 @@ class BlockCFG {
      * @return Set of unreachable block IDs
      */
     def findUnreachableBlocks(): Set[Int] = {
-        // TO IMPLEMENT: Mark reachable blocks via DFS from entry block
+        // TODO: Mark reachable blocks via DFS from entry block
         // Return IDs of blocks that aren't reachable
         Set.empty
     }
@@ -463,7 +446,7 @@ class BlockCFG {
      * @return List of eliminated instructions
      */
     def eliminateDeadCode(): List[Instruction] = {
-        // TO IMPLEMENT: Remove unreachable blocks
+        // TODO: Remove unreachable blocks
         // Return the eliminated instructions
         List.empty
     }
@@ -472,10 +455,9 @@ class BlockCFG {
      * Print the block-level CFG for debugging.
      */
     def printCFG(): Unit = {
-        // TO IMPLEMENT: Print the block-level CFG structure
+        // TODO: Print the block-level CFG structure
     }
 }
-
 
 /**
  * Instruction-level Control Flow Graph.
@@ -509,13 +491,12 @@ class InstructionCFG {
     def setNodeForInstruction(instr: Instruction, node: InstructionNode): Unit = {
         instructionToNode(instr) = node
     }
-
     
     /**
      * Perform liveness analysis to compute liveIn and liveOut for each instruction.
      */
     def performLivenessAnalysis(): Unit = {
-        // TO IMPLEMENT: Run iterative dataflow algorithm to compute liveness
+        // TODO: Run iterative dataflow algorithm to compute liveness
         // Start with empty liveIn/liveOut sets
         // Iterate until fixpoint:
         //   For each node in reverse order:
@@ -592,6 +573,6 @@ class InstructionCFG {
      * Print the instruction-level CFG with liveness information.
      */
     def printCFG(): Unit = {
-      // TO IMPLEMENT: Print the instruction-level CFG with liveness info
+      // TODO: Print the instruction-level CFG with liveness info
     }
 }
