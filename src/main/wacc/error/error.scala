@@ -61,6 +61,10 @@ object errors {
     case object IOError extends WaccError(bridges.NoPosition, "", ErrorLines.VanillaError(None, Set.empty, Set.empty, Seq.empty)) {
         override val errorType: String = "File Not Found"
     }
+    /** Error that occurs during the decompiler. */
+    case object DecompilerError extends WaccError(bridges.NoPosition, "", ErrorLines.VanillaError(None, Set.empty, Set.empty, Seq.empty)) {
+        override val errorType: String = "Decompiling failed: Type could not be infered"
+    }
 }
 
 /** Builder object for generating error messages.
