@@ -118,18 +118,31 @@ def infer(expr: Expression, constraint: Type)
 
     case Fst(value) =>
         val (expr, ty) = infer(value, Unset)
-        (Fst(expr), ty)
+        (Fst(expr), extractPairType(ty))
     case Snd(value) =>
         val (expr, ty) = infer(value, Unset)
-        (Snd(expr), ty)
+        (Snd(expr), extractPairType(ty, false))
 
     case BinaryOp(lhs, rhs, op) => op match {
         case Or | And =>
             (BinaryOp(infer(lhs, BoolType)._1, infer(rhs, BoolType)._1, op), BoolType)
         case Add | Sub | Mul | Div | Mod =>
             (BinaryOp(infer(lhs, IntType)._1, infer(rhs, IntType)._1, op), IntType)
+        case Less | LessEq | Greater | GreaterEq =>
+            (BinaryOp(infer(lhs, IntType)._1, infer(rhs, IntType)._1, op), IntType)
         case _ =>
-            (BinaryOp(infer(lhs, Unset)._1, infer(rhs, Unset)._1, op), BoolType)
+            var (lhsExpr, lhsTy) = infer(lhs, Unset)
+            var (rhsExpr, rhsTy) = infer(rhs, Unset)
+            if (lhsTy != Unset) {
+                val expr = infer(rhs, lhsTy)
+                rhsExpr = expr._1
+                rhsTy = expr._2
+            } else {
+                val expr = infer(lhs, rhsTy)
+                lhsExpr = expr._1
+                lhsTy = expr._2
+            }
+            (BinaryOp(lhsExpr, rhsExpr, op), BoolType)
     }
     case UnaryOp(expr, op)      => op match {
         case Not =>
@@ -145,7 +158,9 @@ def infer(expr: Expression, constraint: Type)
     }
 
     case ParensExpression(expr) =>
-        (ParensExpression(infer(expr, constraint)._1), constraint)
+        val (exprTy, ty) = infer(expr, constraint)
+        (ParensExpression(exprTy), ty)
+    
     case expr => (expr, Unset)
 }
 
@@ -174,14 +189,21 @@ def appendTypes(program: Program): Program = {
 
     val (mainStmts, typer) = infer(Func((Unset, Id("main")), Array.empty, main))
     val newMain = mainStmts.stmts.map(appendTypes(_, typer))
-
+    
     Program(newFuncs, newMain)
 }
 
 /** Appends type information to a statement. */
 def appendTypes(stmt: Statement, typer: Typer): Statement = stmt match {
     case Assignment(id: Id, rvalue) => if (typer.vars.contains(id)) {
-        val decl = Declaration((typer.vars(id), id), rvalue)
+        val ty = typer.vars(id)
+        val decl = Declaration((ty, id), rvalue)
+
+        // share knowledge of the variable type
+        rvalue match {
+            case id @ Id(name) if typer.vars.contains(id) && typer.vars(id) == Unset => typer.vars(id) = ty
+            case _                                        =>
+        }
         typer.vars.remove(id)
         decl
     } else {
@@ -200,4 +222,9 @@ def appendTypes(stmt: Statement, typer: Typer): Statement = stmt match {
         Block(stmts)
     
     case stmt => stmt
+}
+
+def extractPairType(ty: Type, first: Boolean = true): Type = ty match {
+    case PairType(fst, snd) => if (first) fst else snd
+    case ty             => ty
 }

@@ -12,7 +12,11 @@ private final val AssemblySyntax = formatter.SyntaxStyle.Intel
 /** Entry point of the program. */
 @main
 def main(path: String, flags: String*): Unit = {
-    val (errs, code) = compile(new File(path), flags)
+    val (errs, code) = if (path.endsWith(".wacc")) {
+        compile(new File(path), flags)
+    } else {
+        decompile(new File(path), flags)
+    }
     println(errs)
     code.enforce
 }
@@ -53,15 +57,25 @@ def compile(file: File, flags: Seq[String] = Seq.empty): (String, ExitCode) = {
 }
 
 /** Decompile the given input file and transform it through all the pipeline steps. */
-def decompile(file: File): (String, ExitCode) = {
+def decompile(file: File, flags: Seq[String] = Seq.empty): (String, ExitCode) = {
     // parsing and syntax analysis
-    val ast = decompiler.parser.parse(file) match {
+    val instructions = decompiler.parser.parse(file) match {
         // on successful compilation, the AST is returned
-        case Success(ast) => ast
+        case Success(instructions) => instructions
         // otherwise, there is a syntax error
         case Failure(err) => return (s"${err.message}", ExitCode.SyntaxErr)
     }
-    ("Code decompiled successfully.", ExitCode.Success)
+
+    val controller = decompiler.controlFlow(instructions)
+    val program = decompiler.transform(decompiler.disassemble(controller))
+    val errors = decompiler.generate(program, file, flags)
+
+    // decompiler.prettyPrint(controller)
+
+    errors match {
+        case None      => ("Code decompiled successfully.", ExitCode.Success)
+        case Some(err) => (s"${err.message}", ExitCode.SyntaxErr)
+    }
 }
 
 /** Using an enum of fixed codes to prevent invalid codes being used. */

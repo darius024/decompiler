@@ -1,20 +1,40 @@
 package wacc.extension.decompiler
 
 import java.io.{File, OutputStream}
+import scala.collection.mutable
 
+import wacc.error.errors.*
 import representation.*
 
 private final val NO_INDENT = 0
 private final val INDENT = 4
 
+/** Stores the errors of the program. */
+class Generator(errs: mutable.Builder[WaccError, List[WaccError]]) {
+    def errors: List[WaccError] = errs.result()
+
+    // add an error to the context
+    def error(err: WaccError) = {
+        errs += err
+        None
+    }
+}
+
 /** Generates code in the provided target language. */
-def generate(program: Program, file: File, lang: ProgrammingLanguage): Unit = {
-    given language: ProgrammingLanguage = lang
+def generate(program: Program, file: File, flags: Seq[String]): Option[WaccError] = {
+    given language: ProgrammingLanguage = if (flags.isEmpty || flags(0) != "--language=C") {
+        WaccLanguage
+    } else {
+        CLanguage
+    }
+    given generator: Generator =
+        Generator(List.newBuilder)
+
     given outputStream: OutputStream = os.write.outputStream(
         os.pwd / s"${file.getName.stripSuffix(".s")}.${language.fileExtension}"
     )
 
-    val Program(funcs, main) = program
+    val Program(funcs, main) = appendTypes(language.clean(program))
 
     try {
         outputStream.write(language.programBegin.getBytes)
@@ -39,10 +59,16 @@ def generate(program: Program, file: File, lang: ProgrammingLanguage): Unit = {
     finally {
         outputStream.close()
     }
+
+    generator.errors match {
+        case Nil => None
+        case error :: _ => Some(error)
+    }
 }
 
 /** Generates code for a function. */
 def generate(function: Func)
+            (using generator: Generator)
             (using outputStream: OutputStream, language: ProgrammingLanguage): Unit = {
     val Func((ty, name), params, stmts) = function
 
@@ -54,6 +80,7 @@ def generate(function: Func)
 
 /** Generates code for a block of statements. */
 def generateStmts(statements: StatementList, indent: Int)
+                 (using generator: Generator)
                  (using outputStream: OutputStream, language: ProgrammingLanguage): Unit = {
     if (statements.isEmpty) {
         // if the body is empty, use a no-operation
@@ -75,6 +102,7 @@ def generateStmts(statements: StatementList, indent: Int)
 
 /** Generates code for a statement with the provided indentation. */
 def generate(statement: Statement, indent: Int)
+            (using generator: Generator)
             (using outputStream: OutputStream, language: ProgrammingLanguage): String = (" " * indent).concat(statement match {
     case Declaration((ty, id), rvalue) =>
         s"${generate(ty)} ${generate(id)} = ${generate(rvalue)}"
@@ -88,29 +116,30 @@ def generate(statement: Statement, indent: Int)
     case Exit(expr) => s"${language.exit} ${generate(expr)}"
 
     case If(cond, thenStatements, elseStatements) =>
-        outputStream.write(s"if ${language.condStart}${generate(cond)}${language.condEnd} ${language.thenStart}\n".getBytes)
+        outputStream.write(s"${(" " * indent)}if ${language.condStart}${generate(cond)}${language.condEnd} ${language.thenStart}\n".getBytes)
         generateStmts(thenStatements, indent + INDENT)
-        outputStream.write(s"${language.elseStart}\n".getBytes)
+        outputStream.write(s"${(" " * indent)}${language.elseStart}\n".getBytes)
         generateStmts(elseStatements, indent + INDENT)
         s"${language.elseEnd}"
         
     case While(cond, doStatements) =>
-        outputStream.write(s"while ${language.condStart}${generate(cond)}${language.condEnd} ${language.whileStart}\n".getBytes)
+        outputStream.write(s"${(" " * indent)}while ${language.condStart}${generate(cond)}${language.condEnd} ${language.whileStart}\n".getBytes)
         generateStmts(doStatements, indent + INDENT)
         s"${language.whileEnd}"
     
     case Block(block) =>
-        outputStream.write(s"${language.blockBegin}\n".getBytes)
+        outputStream.write(s"${(" " * indent)}${language.blockBegin}\n".getBytes)
         generateStmts(block, indent + INDENT)
         s"${language.blockEnd}"
 })
 
 /** Generates code for an expression. */
 def generate(expr: Expression)
+            (using generator: Generator)
             (using language: ProgrammingLanguage): String = expr match {
     case IntLit(value) => s"$value"
     case BoolLit(value) => language.boolLiteral(value)
-    case CharLit(value) => s"$value"
+    case CharLit(value) => s"\'$value\'"
     case StrLit(value) => s"\"$value\""
     case PairLit => language.pairLiteral
     case Id(value) => value
@@ -120,8 +149,8 @@ def generate(expr: Expression)
     case ArrayLit(exprs: List[Expression]) => language.arrayLit(exprs.map(generate))
     case NewPair(fst: Expression, snd: Expression) => language.newPair(generate(fst), generate(snd))
     case Call(func: Id, args: List[Expression]) => language.call(generate(func), args.map(generate))
-    case Fst(value) => s"${language.fst} ${generate(value)}"
-    case Snd(value) => s"${language.snd} ${generate(value)}"
+    case Fst(value) => s"${language.fst(generate(value))}"
+    case Snd(value) => s"${language.snd(generate(value))}"
 
     case BinaryOp(lhs, rhs, op) => s"${generate(lhs)} ${generate(op)} ${generate(rhs)}"
     case UnaryOp(expr, op)      => s"${generate(op)}${generate(expr)}"
@@ -129,6 +158,7 @@ def generate(expr: Expression)
 
 /** Generates code for a type. */
 def generate(ty: Type)
+            (using generator: Generator)
             (using language: ProgrammingLanguage): String = ty match {
     case IntType => language.intType
     case BoolType => language.boolType
@@ -136,12 +166,15 @@ def generate(ty: Type)
     case StrType => language.stringType
     case ArrayType(ty) => language.arrType(generate(ty), 1)
     case PairType(fst, snd) => language.pairType(generate(fst), generate(snd))
-    case Unset => "UNSET"
+    case Unset => language.intType
+    // if type cannot be inferred, consider: generator.error(DecompilerError)
 }
 
 /** Generates code for a typed variable. */
 def generate(typeId: TypeId)
-            (using language: ProgrammingLanguage): String = s"${generate(typeId._1)} ${generate(typeId._2)}"
+            (using generator: Generator)
+            (using language: ProgrammingLanguage): String =
+    s"${generate(typeId._1)} ${generate(typeId._2)}"
 
 /** Generates a binary operation. */
 def generate(op: BinaryOperation): String = op match {

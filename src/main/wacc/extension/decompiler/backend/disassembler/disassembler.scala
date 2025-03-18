@@ -35,9 +35,13 @@ class Disassembler(val label: Label,
     var numParameters = 0
     var rdi = 0
 
+    // array extraction
+    var arrayElem = ""
+    var arrayInd: ExprVar = 0
+
     // structure pattern: arrays and pairs
     var structPattern = false
-    var pairPattern = false
+    var arrayPattern = false
     var structPointer = false
     // register that holds the pointer of access to the structure
     var initialStructReg: RegMem = R11()
@@ -59,7 +63,7 @@ class Disassembler(val label: Label,
     def startStructPattern: Unit = {
         structPattern = true
         structPointer = true
-        pairPattern = false
+        arrayPattern = false
         structElemSize = 0
         structSize = rdi
         structLiteral = mutable.ListBuffer.empty[String | Int]
@@ -75,10 +79,10 @@ class Disassembler(val label: Label,
     // retrieve the structure constructed
     def getStructure: Expr = {
         structPattern = false
-        if (pairPattern) {
-            NewPair(structLiteral(0), structLiteral(1))
-        } else {
+        if (arrayPattern) {
             ArrayLit(structLiteral.toList, structElemSize)
+        } else {
+            NewPair(structLiteral(0), structLiteral(1))
         }
     }
 
@@ -104,15 +108,22 @@ class Disassembler(val label: Label,
     }
 
     // retrieve the first operand of a boolean expression
-    def getCompDest: (ExprVar, CompOp) = cmps(currentLabel) match {
-        case Comp(reg, _, CompOp.Equal)    => (reg, CompOp.Or)
-        case Comp(reg, _, CompOp.NotEqual) => (reg, CompOp.And)
-        case _                             => (getVariable(RAX()), CompOp.Or)
+    def getCompDest: (ExprVar, CompOp) = if (cmps.contains(currentLabel)) {
+        cmps(currentLabel) match {
+            case Comp(reg, _, CompOp.Equal)    => (reg, CompOp.Or)
+            case Comp(reg, _, CompOp.NotEqual) => (reg, CompOp.And)
+            case _                             => (getVariable(RAX()), CompOp.Or)
+        }
+    } else {
+        lastFlagSet match {
+            case Some(reg, _) => (getRegisterValue(reg), CompOp.Equal)
+            case None         => (getVariable(RAX()), CompOp.Equal)
+        }
     }
 
     // retrieve the second operand of a boolean expression
     def getCompSrc: ExprVar = lastFlagSet match {
-        case Some((reg, _)) => getVariable(reg)
+        case Some((_, reg)) => evaluate(reg)
         case None           => getVariable(RAX())
     }
 
@@ -133,8 +144,8 @@ class Disassembler(val label: Label,
 
     // push the variable on the stack
     def pushStack(reg: Register): Unit = {
-        stack.push(getRegisterValue(reg))
-        registers.remove(reg)
+        stack.push(getVariable(reg, true))
+        // registers.remove(reg)
     }
 
     // pop the variable from the stack
@@ -157,6 +168,7 @@ class Disassembler(val label: Label,
             // correct the size
             val register = changeRegisterSize(reg, RegSize.QUAD_WORD)
 
+            // TODO: handle parameters pushed on stack
             if (registers.contains(register)) {
                 registers(register)
             } else {
@@ -180,7 +192,6 @@ class Disassembler(val label: Label,
             if (memory.contains(mem)) {
                 memory(mem)
             } else {
-                // TODO: deal with parameters
                 val variable = namer.nextVariable(VarType.Variable)
                 memory += mem -> variable
                 variable
@@ -212,8 +223,10 @@ def disassemble(funcBlock: FuncBlock, directives: Set[StrLabel]): Function = {
     val instrs = mutable.ListBuffer.empty[Instr]
 
     // create a new disassembler for each function
+    // TODO: track stack state between function calls
+    val stack = mutable.Stack.empty[String]
     given disassembler: Disassembler =
-        Disassembler(label, blocks, directives, mutable.Stack.empty[String])
+        Disassembler(label, blocks, directives, stack)
 
     if (blocks.nonEmpty) {
         disassemble(blocks(label), instrs)
@@ -225,13 +238,14 @@ def disassemble(funcBlock: FuncBlock, directives: Set[StrLabel]): Function = {
     }
 
     // adjust the number of parameters of calls that do not use them explicitly
-    if (funcBlock.funcLabel.name == "_exit" || funcBlock.funcLabel.name == "_malloc") {
+    if (functionIsWacc(funcBlock.funcLabel.name)) {
         disassembler.numParameters = 1
     }
 
     val params = parameters.take(disassembler.numParameters).map { reg =>
         disassembler.namer.nextVariable(VarType.Parameter(reg, label.name))
     }
+
     Function(label.name, params, instrs.toList)
 }
 
@@ -295,6 +309,33 @@ def disassemble(instr: Instruction, instrs: mutable.ListBuffer[Instr])
     case Call(Label(name)) if (name == "_malloc" || name == "malloc") =>
         disassembler.startStructPattern
 
+    // remove stack operation
+    case Mov(_, RSP(RegSize.QUAD_WORD)) =>
+
+    // array load
+    case Mov(R10(_), src) =>
+        disassembler.arrayInd = disassembler.evaluate(src)
+    case Mov(R9(_), regMem: RegMem) =>
+        disassembler.arrayElem = disassembler.getVariable(regMem)
+    case Call(Label(name)) if (name.startsWith("_arrStore")) =>
+        instrs += Assignment(ArrayElem(disassembler.arrayElem, disassembler.arrayInd), disassembler.getVariable(RAX()))
+    case Call(Label(name)) if (name.startsWith("_arrLoad")) =>
+    case Mov(reg, R9(_)) =>
+        instrs += Assignment(disassembler.getVariableAndRemove(reg), ArrayElem(disassembler.arrayElem, disassembler.arrayInd))
+
+    // pair extraction
+    case Cmp(R12(_), imm: Imm) if imm.value == memoryOffsets.NO_OFFSET =>
+    case JumpComp(Label("_errNull"), _) =>
+    case Mov(reg, MemAccess(R12(_), memoryOffsets.NO_OFFSET, _)) =>
+        instrs += Assignment(disassembler.getVariableAndRemove(reg), Fst(disassembler.getVariable(R12())))
+    case Mov(reg, MemAccess(R12(_), RegSize.QUAD_WORD.size, _)) =>
+        instrs += Assignment(disassembler.getVariableAndRemove(reg), Snd(disassembler.getVariable(R12())))
+    
+    case Mov(MemAccess(R12(_), memoryOffsets.NO_OFFSET, _), reg) =>
+        instrs += Assignment(Fst(disassembler.getVariable(R12())), disassembler.evaluate(reg))
+    case Mov(MemAccess(R12(_), RegSize.QUAD_WORD.size, _), reg) =>
+        instrs += Assignment(Snd(disassembler.getVariable(R12())), disassembler.evaluate(reg))
+
     case Mov(regMem, src) if (disassembler.structPattern && src == disassembler.initialStructReg) =>
         // check if multiple pointers are used to access the structure (usually in C)
         if (disassembler.structSize > 0) {
@@ -309,8 +350,8 @@ def disassemble(instr: Instruction, instrs: mutable.ListBuffer[Instr])
     case Mov(MemAccess(reg, offset: Int, size), src)
         if (disassembler.structPattern && reg == disassembler.structReg) =>
             // in WACC, pairs use positive offsets
-            if (offset > 0) { disassembler.pairPattern = true }
-            disassembler.addStructElement(disassembler.evaluate(src), size.size)
+            if (offset < 0) { disassembler.arrayPattern = true; disassembler.structSize -= RegSize.DOUBLE_WORD.size }
+            else { disassembler.addStructElement(disassembler.evaluate(src), size.size) }
 
     case Mov(regMem, src) =>
         // check for division or modulo
@@ -345,18 +386,19 @@ def disassemble(instr: Instruction, instrs: mutable.ListBuffer[Instr])
     case SetComp(reg, CompFlag.E) =>
         val (dest, flag) = disassembler.getCompDest
         val src = disassembler.getCompSrc
-        instrs += Assignment(disassembler.getVariable(reg), Comp(dest, src, flag))
+        instrs += Assignment(disassembler.getVariableAndRemove(reg), Comp(dest, src, flag))
     case SetComp(reg, CompFlag.NE) =>
         val (dest, flag) = disassembler.getCompDest
         val src = disassembler.getCompSrc
         val comp = Comp(dest, src, flag)
-        instrs += Assignment(disassembler.getVariable(reg), Unary(comp, UnaryOp.Not))
-    
-    // TODO: handle `cmov`s
+        instrs += Assignment(disassembler.getVariableAndRemove(reg), Unary(comp, UnaryOp.Not))
+    case CMov(dst, src, flag) =>
 
     case Add(reg, regImm) =>
         // check for pair pattern
         if (disassembler.structPattern && changeRegisterSize(reg, RegSize.QUAD_WORD) == disassembler.structReg) {
+            // both WACC and C use addition to move within the array
+            disassembler.arrayPattern = true
             // disassembler.structSize -= RegSize.DOUBLE_WORD.size
         } else {
             val dest = disassembler.getVariable(reg)
@@ -373,7 +415,6 @@ def disassemble(instr: Instruction, instrs: mutable.ListBuffer[Instr])
         val src  = disassembler.getVariable(regMul)
         instrs += Assignment(dest, Arithmetic(src, disassembler.evaluate(regImm), ArithmeticOp.Mul))
     case Div(regImm) =>
-        // TODO: deal with registers: RAX(), RDX()
         val reg = disassembler.getVariable(RAX(RegSize.DOUBLE_WORD))
         instrs += Assignment(reg, Arithmetic(reg, disassembler.evaluate(regImm), ArithmeticOp.Div))
 
@@ -403,4 +444,8 @@ def convertFlag(flag: CompFlag): CompOp = flag match {
     case CompFlag.GE => CompOp.GreaterEq
     case CompFlag.L  => CompOp.Less
     case CompFlag.LE => CompOp.LessEq
+}
+
+def functionIsWacc(name: String): Boolean = {
+    name == "_exit" || name == "_malloc" || name.startsWith("_read") || name == "_free"
 }

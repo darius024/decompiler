@@ -19,7 +19,10 @@ object intermediate {
     case class FuncCall(name: String, params: List[String]) extends Expr
     case class StrLiteral(value: String) extends Expr
     case class ArrayLit(exprs: List[ExprVar], elemSize: Int) extends Expr
+    case class ArrayElem(id: String, expr: ExprVar) extends Expr
     case class NewPair(fst: ExprVar, snd: ExprVar) extends Expr
+    case class Fst(expr: ExprVar) extends Expr
+    case class Snd(expr: ExprVar) extends Expr
 
     enum CompOp {
         case Equal
@@ -49,7 +52,7 @@ object intermediate {
     }
 
     sealed trait Instr
-    case class Assignment(id: String, expr: ExprVar) extends Instr
+    case class Assignment(id: ExprVar, expr: ExprVar) extends Instr
     case class Return(id: String) extends Instr
     case class If(condition: ExprVar, thenStatements: InstrList, elseStatements: InstrList) extends Instr
     case class While(condition: ExprVar, doStatements: InstrList) extends Instr

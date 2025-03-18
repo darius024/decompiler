@@ -9,6 +9,7 @@ object WaccLanguage extends ProgrammingLanguage {
     private final val READ = "_read"
     private final val EXIT = "_exit"
     private final val ERR = "_err"
+    private final val FREE = "_free"
 
     def fileExtension: String = "wacc"
 
@@ -32,13 +33,13 @@ object WaccLanguage extends ProgrammingLanguage {
     def boolLiteral(value: Boolean): String = if (value) "true" else "false"
     def pairLiteral: String = "null"
 
-    def arrayElement(id: String, indices: List[String]): String = s"$id${indices.map(i => s"[$i]")}"
+    def arrayElement(id: String, indices: List[String]): String = s"$id${indices.map(i => s"[$i]").mkString("")}"
     def arrayLit(exprs: List[String]): String = s"[${exprs.mkString(", ")}]"
     def newPair(fst: String, snd: String): String = s"newpair($fst, $snd)"
     def call(func: String, args: List[String]): String = s"call $func(${args.mkString(", ")})"
 
-    def fst: String = "fst"
-    def snd: String = "snd"
+    def fst(pair: String): String = s"fst $pair"
+    def snd(pair: String): String = s"snd $pair"
     def pairAccessStart: String = ""
     def pairAccessEnd: String = ""
 
@@ -90,6 +91,8 @@ object WaccLanguage extends ProgrammingLanguage {
 
         case Assignment(_, Call(Id(errName), args)) :: rest
             if (errName.startsWith(ERR)) => clean(rest)
+
+        case Assignment(_, Call(Id(FREE), args)) :: rest => Free(args(0)) :: clean(rest)
 
         case If(cond, thenStmts, elseStmts) :: rest => If(cond, clean(thenStmts), clean(elseStmts)) :: clean(rest)
         case While(cond, doStmts) :: rest => While(cond, clean(doStmts)) :: clean(rest)

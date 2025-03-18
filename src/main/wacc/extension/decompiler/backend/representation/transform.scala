@@ -40,7 +40,7 @@ def transform(function: intermediate.Function)
 def transform(instr: intermediate.Instr)
              (using transformer: Transformer): Statement = instr match {
     case intermediate.Assignment(id, expr) =>
-        Assignment(Id(id), transform(expr))
+        Assignment(transform(id), transform(expr))
     case intermediate.Return(id) =>
         Return(transform(id))
 
@@ -59,6 +59,7 @@ def transform(instr: intermediate.Instr)
 /** Transforms an expression. */
 def transform(expr: intermediate.ExprVar)
              (using transformer: Transformer): Expression = expr match {
+    case i: Int if (i >= 'A'.toInt && i <= 'z'.toInt) => CharLit(i.toChar)
     case i: Int => IntLit(i)
     case id: String => Id(id)
 
@@ -101,6 +102,13 @@ def transform(expr: intermediate.ExprVar)
         ArrayLit(exprs.map(transform))
     case intermediate.NewPair(fst, snd) =>
         NewPair(transform(fst), transform(snd))
+
+    case intermediate.ArrayElem(id, expr) =>
+        ArrayElem(Id(id), List(transform(expr)))
+    case intermediate.Fst(expr) =>
+        Fst(transform(expr))
+    case intermediate.Snd(expr) =>
+        Snd(transform(expr))
 
     case intermediate.FuncCall(name, params) =>
         // reduce the signature of a function to the number of parameters it actually uses

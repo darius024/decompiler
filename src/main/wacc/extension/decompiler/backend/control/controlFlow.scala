@@ -64,8 +64,7 @@ class ControlFlow(blocks: mutable.Builder[(Label, Block), List[(Label, Block)]],
 
     // end the current block and add it to the map of blocks
     def endBlock(funcEnd: Boolean = false): Unit = {
-        // 
-        if (currentBlock.nonEmpty && valid && funcValid) {
+        if (valid && funcValid) {
             val block = Block(currentLabel, currentBlock.toList, currentNext.toList)
             blocks += currentFuncLabel -> removeCallingConventions(block, currentFuncLabel)
         }

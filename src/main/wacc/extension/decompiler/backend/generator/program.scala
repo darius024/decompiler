@@ -31,8 +31,8 @@ trait ProgrammingLanguage {
     def newPair(fst: String, snd: String): String
     def call(func: String, args: List[String]): String
 
-    def fst: String
-    def snd: String
+    def fst(pair: String): String
+    def snd(pair: String): String
     def pairAccessStart: String
     def pairAccessEnd: String
 

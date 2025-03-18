@@ -30,19 +30,27 @@ object controlGraph {
     def removeCallingConventions(block: Block, funcLabel: Label): Block = {
         val Block(label, instructions, next) = block
 
-        val newInstructions = instructions.dropWhile(isPrologue).reverse
-                                        .dropWhile(isEpilogue(_, funcLabel.name == "main")).reverse
+        var newInstructions = instructions
+        if (block.instrs.length > 0 && block.instrs(0) == Push(RBP())) {
+            newInstructions = newInstructions.dropWhile(isSavingRegisters(_)).dropWhile(isPrologue(_))
+        }
+        newInstructions = newInstructions.reverse.dropWhile(isEpilogue(_, funcLabel.name == "main")).reverse
         
         Block(label, newInstructions, next)
     }
 
     /** Removes certain patterns at the beginning of a block. */
     def isPrologue(instruction: Instruction): Boolean = instruction match {
-        case Push(_)                         => true
         case Sub(RSP(_), _)                  => true
         case Mov(MemAccess(RSP(_), _, _), _) => true
         case Mov(RBP(_), RSP(_))             => true
         case And(RSP(_), _)                  => true
+        case _                               => false
+    }
+
+    /** Removes certain patterns at the beginning of a block. */
+    def isSavingRegisters(instruction: Instruction): Boolean = instruction match {
+        case Push(_)                         => true
         case _                               => false
     }
 
